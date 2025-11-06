@@ -1,12 +1,39 @@
 import { AccessibilityIssue, ScanResult } from "./types"
-import puppeteer, { Browser, Page } from "puppeteer"
+import puppeteer, { Browser, Page } from "puppeteer-core"
+import chromium from "@sparticuz/chromium"
 
 let browser: Browser | null = null
 
 // Reuse browser instance for performance
 async function getBrowser(): Promise<Browser> {
-  if (!browser) {
+  if (browser) {
+    return browser
+  }
+  // Different setup for local development vs production
+  const isProduction = process.env.NODE_ENV === "production"
+
+  if (isProduction) {
+    // Production: Use @sparticuz/chromium
     browser = await puppeteer.launch({
+      args: [...chromium.args, "--hide-scrollbars", "--disable-web-security"],
+      defaultViewport: {
+        width: 1920,
+        height: 1080,
+      },
+      executablePath: await chromium.executablePath(),
+      headless: true,
+    })
+  } else {
+    const chromiumPath =
+      process.env.CHROME_EXECUTABLE_PATH ||
+      (process.platform === "win32"
+        ? "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
+        : process.platform === "darwin"
+        ? "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+        : "/usr/bin/google-chrome")
+
+    browser = await puppeteer.launch({
+      executablePath: chromiumPath,
       headless: true,
       args: [
         "--no-sandbox",
@@ -16,6 +43,7 @@ async function getBrowser(): Promise<Browser> {
       ],
     })
   }
+
   return browser
 }
 
@@ -31,12 +59,26 @@ export async function scanURL(url: string): Promise<ScanResult> {
     // set viewport for consistent results
     await page.setViewport({ width: 1920, height: 1080 })
 
-    // set a reasonable timeout
-    await page.goto(url, { waitUntil: "networkidle2", timeout: 30000 })
+    // Set user agent to avoid bot detection
+    await page.evaluateOnNewDocument(() => {
+      Object.defineProperty(navigator, "userAgent", {
+        get: () =>
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      })
+    })
 
-    // inject axe-core into the page
+    // set a reasonable timeout
+    await page.goto(url, {
+      waitUntil: "domcontentloaded", // Faster than 'networkidle2'
+      timeout: 15000, // 15 seconds to stay within free tier limits
+    })
+
+    // Wait a bit for dynamic content
+    await new Promise((resolve) => setTimeout(resolve, 1000))
+
+    // Inject axe-core from CDN (MORE RELIABLE)
     await page.addScriptTag({
-      path: require.resolve("axe-core"),
+      url: "https://cdnjs.cloudflare.com/ajax/libs/axe-core/4.8.3/axe.min.js",
     })
 
     // run axe-core in the browser context

@@ -6,13 +6,15 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "vercel-build": "next build"
   },
   "dependencies": {
+    "@sparticuz/chromium": "^141.0.0",
     "axe-core": "^4.11.0",
     "next": "16.0.1",
     "openai": "^6.8.1",
-    "puppeteer": "^24.29.0",
+    "puppeteer-core": "^24.29.0",
     "react": "19.2.0",
     "react-dom": "19.2.0"
   },
