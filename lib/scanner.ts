@@ -5,43 +5,41 @@ let browser: Browser | null = null
 
 // Reuse browser instance for performance
 async function getBrowser(): Promise<Browser> {
-  // Different setup for local development vs production
-  const isProduction = process.env.NODE_ENV === "production"
   const browserlessToken = process.env.BROWSERLESS_TOKEN
 
-  if (isProduction && browserlessToken) {
-    // Use Browserless.io in production
+  // Use Browserless.io for production/Vercel
+  if (browserlessToken) {
     // Connect to Browserless WebSocket endpoint
     const browser = await puppeteer.connect({
       browserWSEndpoint: `wss://chrome.browserless.io?token=${browserlessToken}`,
     })
     return browser
-  } else {
-    // Reuse browser in local development
-    if (browser) {
-      return browser
-    }
+  }
 
-    const chromiumPath =
-      process.env.CHROME_EXECUTABLE_PATH ||
-      (process.platform === "win32"
-        ? "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
-        : process.platform === "darwin"
-        ? "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
-        : "/usr/bin/google-chrome")
-
-    browser = await puppeteer.launch({
-      executablePath: chromiumPath,
-      headless: true,
-      args: [
-        "--no-sandbox",
-        "--disable-setuid-sandbox",
-        "--disable-dev-shm-usage",
-        "--disable-gpu",
-      ],
-    })
+  // Local development - reuse browser instance
+  if (browser) {
     return browser
   }
+
+  const chromiumPath =
+    process.env.CHROME_EXECUTABLE_PATH ||
+    (process.platform === "win32"
+      ? "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
+      : process.platform === "darwin"
+      ? "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+      : "/usr/bin/google-chrome")
+
+  browser = await puppeteer.launch({
+    executablePath: chromiumPath,
+    headless: true,
+    args: [
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--disable-dev-shm-usage",
+      "--disable-gpu",
+    ],
+  })
+  return browser
 }
 
 export async function scanURL(url: string): Promise<ScanResult> {
@@ -150,8 +148,8 @@ export async function scanURL(url: string): Promise<ScanResult> {
     if (page) {
       await page.close()
     }
-    // Disconnect browser in production (Browserless manages the instance)
-    if (browser && process.env.NODE_ENV === "production") {
+    // Disconnect browser if using Browserless (Browserless manages the instance)
+    if (browser && process.env.BROWSERLESS_TOKEN) {
       await browser.disconnect()
     }
   }
