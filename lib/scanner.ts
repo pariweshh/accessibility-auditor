@@ -9,9 +9,9 @@ async function getBrowser(): Promise<Browser> {
 
   // Use Browserless.io for production/Vercel
   if (browserlessToken) {
-    // Connect to Browserless WebSocket endpoint
+    // Connect to Browserless WebSocket endpoint (US West region)
     const browser = await puppeteer.connect({
-      browserWSEndpoint: `wss://chrome.browserless.io?token=${browserlessToken}`,
+      browserWSEndpoint: `wss://production-sfo.browserless.io?token=${browserlessToken}`,
     })
     return browser
   }
