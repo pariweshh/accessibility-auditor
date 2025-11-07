@@ -1,6 +1,5 @@
 import { AccessibilityIssue, ScanResult } from "./types"
 import puppeteer, { Browser, Page } from "puppeteer-core"
-import chromium from "@sparticuz/chromium"
 
 let browser: Browser | null = null
 
@@ -8,29 +7,13 @@ let browser: Browser | null = null
 async function getBrowser(): Promise<Browser> {
   // Different setup for local development vs production
   const isProduction = process.env.NODE_ENV === "production"
+  const browserlessToken = process.env.BROWSERLESS_TOKEN
 
-  if (isProduction) {
-    // Don't reuse browser in serverless - create new instance each time
-    // Configure chromium for serverless environment
-    const browser = await puppeteer.launch({
-      args: [
-        ...chromium.args,
-        "--disable-gpu",
-        "--disable-dev-shm-usage",
-        "--disable-setuid-sandbox",
-        "--no-first-run",
-        "--no-sandbox",
-        "--no-zygote",
-        "--single-process",
-      ],
-      defaultViewport: {
-        width: 1920,
-        height: 1080,
-      },
-      executablePath: await chromium.executablePath(
-        "/tmp"
-      ),
-      headless: true,
+  if (isProduction && browserlessToken) {
+    // Use Browserless.io in production
+    // Connect to Browserless WebSocket endpoint
+    const browser = await puppeteer.connect({
+      browserWSEndpoint: `wss://chrome.browserless.io?token=${browserlessToken}`,
     })
     return browser
   } else {
@@ -167,9 +150,9 @@ export async function scanURL(url: string): Promise<ScanResult> {
     if (page) {
       await page.close()
     }
-    // Close browser in production (serverless) to free resources
+    // Disconnect browser in production (Browserless manages the instance)
     if (browser && process.env.NODE_ENV === "production") {
-      await browser.close()
+      await browser.disconnect()
     }
   }
 }

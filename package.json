@@ -10,7 +10,6 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "@sparticuz/chromium": "^131.0.0",
     "axe-core": "^4.11.0",
     "next": "16.0.1",
     "openai": "^6.8.1",
