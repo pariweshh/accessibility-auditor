@@ -2,12 +2,13 @@
   "name": "accessibility-auditor",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "vercel-build": "next build"
+    "vercel-build": "next build && node ./scripts/copy-chromium-to-vercel.js"
   },
   "dependencies": {
     "@sparticuz/chromium": "^141.0.0",

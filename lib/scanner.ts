@@ -1,6 +1,18 @@
 import { AccessibilityIssue, ScanResult } from "./types"
 import puppeteer, { Browser, Page } from "puppeteer-core"
 import chromium from "@sparticuz/chromium"
+import path from "path"
+
+const defaultChromiumBin = path.join(
+  process.cwd(),
+  "node_modules",
+  "@sparticuz",
+  "chromium",
+  "bin"
+)
+
+process.env.CHROMIUM_BIN_PATH =
+  process.env.CHROMIUM_BIN_PATH || defaultChromiumBin
 
 let browser: Browser | null = null
 
@@ -18,7 +30,9 @@ async function getBrowser(): Promise<Browser> {
         width: 1920,
         height: 1080,
       },
-      executablePath: await chromium.executablePath(),
+      executablePath: process.env.CHROMIUM_BIN_PATH
+        ? path.join(process.env.CHROMIUM_BIN_PATH, "chromium")
+        : await chromium.executablePath(),
       headless: true,
     })
     return browser
