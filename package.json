@@ -10,11 +10,11 @@
     "vercel-build": "next build"
   },
   "dependencies": {
+    "@sparticuz/chromium": "^141.0.0",
     "axe-core": "^4.11.0",
-    "chrome-aws-lambda": "^10.1.0",
     "next": "16.0.1",
     "openai": "^6.8.1",
-    "puppeteer-core": "10.1.0",
+    "puppeteer-core": "^23.1.1",
     "react": "19.2.0",
     "react-dom": "19.2.0"
   },

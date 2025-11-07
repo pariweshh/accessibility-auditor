@@ -1,26 +1,33 @@
 import { AccessibilityIssue, ScanResult } from "./types"
-import { Browser, Page } from "puppeteer-core"
-import chromium from "chrome-aws-lambda"
+import puppeteer, { Browser, Page } from "puppeteer-core"
+import chromium from "@sparticuz/chromium"
 
 let browser: Browser | null = null
 
 // Reuse browser instance for performance
 async function getBrowser(): Promise<Browser> {
-  if (browser) {
-    return browser
-  }
   // Different setup for local development vs production
   const isProduction = process.env.NODE_ENV === "production"
 
   if (isProduction) {
+    // Don't reuse browser in serverless - create new instance each time
     // Configure chromium for serverless environment
-    browser = await chromium.puppeteer.launch({
+    const browser = await puppeteer.launch({
       args: chromium.args,
-      defaultViewport: chromium.defaultViewport,
-      executablePath: await chromium.executablePath,
-      headless: chromium.headless,
+      defaultViewport: {
+        width: 1920,
+        height: 1080,
+      },
+      executablePath: await chromium.executablePath(),
+      headless: true,
     })
+    return browser
   } else {
+    // Reuse browser in local development
+    if (browser) {
+      return browser
+    }
+
     const chromiumPath =
       process.env.CHROME_EXECUTABLE_PATH ||
       (process.platform === "win32"
@@ -29,7 +36,7 @@ async function getBrowser(): Promise<Browser> {
         ? "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
         : "/usr/bin/google-chrome")
 
-    browser = await chromium.puppeteer.launch({
+    browser = await puppeteer.launch({
       executablePath: chromiumPath,
       headless: true,
       args: [
@@ -39,18 +46,18 @@ async function getBrowser(): Promise<Browser> {
         "--disable-gpu",
       ],
     })
+    return browser
   }
-
-  return browser
 }
 
 export async function scanURL(url: string): Promise<ScanResult> {
   let page: Page | null = null
+  let browser: Browser | null = null
 
   try {
     new URL(url)
 
-    const browser = await getBrowser()
+    browser = await getBrowser()
     page = await browser.newPage()
 
     // set viewport for consistent results
@@ -148,6 +155,10 @@ export async function scanURL(url: string): Promise<ScanResult> {
   } finally {
     if (page) {
       await page.close()
+    }
+    // Close browser in production (serverless) to free resources
+    if (browser && process.env.NODE_ENV === "production") {
+      await browser.close()
     }
   }
 }
