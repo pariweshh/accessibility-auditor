@@ -13,12 +13,23 @@ async function getBrowser(): Promise<Browser> {
     // Don't reuse browser in serverless - create new instance each time
     // Configure chromium for serverless environment
     const browser = await puppeteer.launch({
-      args: chromium.args,
+      args: [
+        ...chromium.args,
+        "--disable-gpu",
+        "--disable-dev-shm-usage",
+        "--disable-setuid-sandbox",
+        "--no-first-run",
+        "--no-sandbox",
+        "--no-zygote",
+        "--single-process",
+      ],
       defaultViewport: {
         width: 1920,
         height: 1080,
       },
-      executablePath: await chromium.executablePath(),
+      executablePath: await chromium.executablePath(
+        "/tmp"
+      ),
       headless: true,
     })
     return browser
