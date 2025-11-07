@@ -2,7 +2,7 @@
   "functions": {
     "app/api/scan/route.ts": {
       "memory": 1024,
-      "maxDuration": 10
+      "maxDuration": 20
     },
     "app/api/fix-suggestions/route.ts": {
       "memory": 1024,
