@@ -13,7 +13,6 @@ async function getBrowser(): Promise<Browser> {
   const isProduction = process.env.NODE_ENV === "production"
 
   if (isProduction) {
-    // Production: Use @sparticuz/chromium
     browser = await puppeteer.launch({
       args: [...chromium.args, "--hide-scrollbars", "--disable-web-security"],
       defaultViewport: {
@@ -83,15 +82,32 @@ export async function scanURL(url: string): Promise<ScanResult> {
 
     // run axe-core in the browser context
     const results = await page.evaluate(async () => {
-      // @ts-ignore - axe is injected globally
+      // @ts-expect-error - axe is injected globally
       return await axe.run()
     })
 
+    // Type definitions for axe-core results
+    interface AxeViolation {
+      id: string
+      impact: "minor" | "moderate" | "serious" | "critical" | null
+      description: string
+      help: string
+      helpUrl: string
+      tags: string[]
+      nodes: AxeNode[]
+    }
+
+    interface AxeNode {
+      html: string
+      target: string[]
+      failureSummary?: string
+    }
+
     // Process violations
     const violations: AccessibilityIssue[] = results.violations.map(
-      (violation: any) => ({
+      (violation: AxeViolation) => ({
         id: violation.id,
-        impact: violation.impact as
+        impact: (violation.impact || "minor") as
           | "minor"
           | "moderate"
           | "serious"
@@ -100,7 +116,7 @@ export async function scanURL(url: string): Promise<ScanResult> {
         help: violation.help,
         helpUrl: violation.helpUrl,
         tags: violation.tags,
-        nodes: violation.nodes.map((node: any) => ({
+        nodes: violation.nodes.map((node: AxeNode) => ({
           html: node.html,
           target: node.target,
           failureSummary: node.failureSummary || "",
