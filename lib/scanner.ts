@@ -1,6 +1,6 @@
 import { AccessibilityIssue, ScanResult } from "./types"
-import puppeteer, { Browser, Page } from "puppeteer-core"
-import chromium from "@sparticuz/chromium"
+import { Browser, Page } from "puppeteer-core"
+import chromium from "chrome-aws-lambda"
 
 let browser: Browser | null = null
 
@@ -14,14 +14,11 @@ async function getBrowser(): Promise<Browser> {
 
   if (isProduction) {
     // Configure chromium for serverless environment
-    browser = await puppeteer.launch({
+    browser = await chromium.puppeteer.launch({
       args: chromium.args,
-      defaultViewport: {
-        width: 1920,
-        height: 1080,
-      },
-      executablePath: await chromium.executablePath(),
-      headless: true,
+      defaultViewport: chromium.defaultViewport,
+      executablePath: await chromium.executablePath,
+      headless: chromium.headless,
     })
   } else {
     const chromiumPath =
@@ -32,7 +29,7 @@ async function getBrowser(): Promise<Browser> {
         ? "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
         : "/usr/bin/google-chrome")
 
-    browser = await puppeteer.launch({
+    browser = await chromium.puppeteer.launch({
       executablePath: chromiumPath,
       headless: true,
       args: [
