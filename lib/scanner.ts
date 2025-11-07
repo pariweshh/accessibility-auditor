@@ -13,8 +13,9 @@ async function getBrowser(): Promise<Browser> {
   const isProduction = process.env.NODE_ENV === "production"
 
   if (isProduction) {
+    // Configure chromium for serverless environment
     browser = await puppeteer.launch({
-      args: [...chromium.args, "--hide-scrollbars", "--disable-web-security"],
+      args: chromium.args,
       defaultViewport: {
         width: 1920,
         height: 1080,
