@@ -47,23 +47,45 @@ sudo apt-get install chromium-browser
 4. Create new secret key
 5. Copy and save it securely
 
+### 3.5 Get Browserless.io API Token
+
+1. Visit [browserless.io/sign-up](https://www.browserless.io/sign-up)
+2. Sign up for free tier account
+3. Verify your email
+4. Go to Dashboard → API Tokens
+5. Copy your token (starts with a UUID)
+6. Keep it secure
+
+**Free Tier Includes:**
+
+- 1000 browser sessions per month
+- 1 concurrent sessions
+- US West (San Francisco) region
+- Perfect for portfolio projects
+
 ### 4. Configure Environment
 
 Create `.env.local`:
 
 ```env
+# Required: OpenAI API for fix suggestions
 OPENAI_API_KEY=sk-proj-xxxxxxxxxxxxxxxxxxxxxxxxx
-NODE_ENV=development
 
-# Optional: Specify Chrome path
+# Required for Vercel deployment: Browserless token
+BROWSERLESS_TOKEN=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+
+# Local development only
+NODE_ENV=development
 CHROME_EXECUTABLE_PATH=/Applications/Google Chrome.app/Contents/MacOS/Google Chrome
 ```
+
+````
 
 ### 5. Install Dependencies
 
 ```bash
 npm install
-```
+````
 
 ### 6. Verify Installation
 
@@ -111,10 +133,16 @@ Visit `http://localhost:3000` - you should see the app!
      - Output Directory: `.next`
 
 3. **Add Environment Variables:**
-
    - Go to Project Settings → Environment Variables
-   - Add: `OPENAI_API_KEY` = `sk-your-key`
-   - Add: `NODE_ENV` = `production`
+   - Add these three variables:
+
+```
+     OPENAI_API_KEY = sk-your-key-here
+     BROWSERLESS_TOKEN = your-browserless-token
+     NODE_ENV = production
+```
+
+⚠️ **Important:** Without BROWSERLESS_TOKEN, scans will fail in production!
 
 4. **Deploy:**
    - Click "Deploy"
@@ -132,12 +160,14 @@ Visit `http://localhost:3000` - you should see the app!
 
 ### Common Issues
 
-**Issue: "Cannot find Chrome"**
+**Issue: "Cannot find Chrome" (Local Development Only)**
 
 ```bash
 # Set Chrome path in .env.local
 CHROME_EXECUTABLE_PATH=/path/to/chrome
 ```
+
+**Note:** This only affects local development. Production uses Browserless.io.
 
 **Issue: "OpenAI API key not configured"**
 
@@ -152,11 +182,19 @@ cat .env.local
 - Increase timeout in `lib/scanner.ts`
 - Upgrade to Vercel Pro for 60-second timeout
 
-**Issue: "Out of memory"**
+**Issue: "Failed to connect to browser" (Production)**
 
-- Scan simpler pages
-- Reduce concurrent scans
-- Upgrade to Vercel Pro for more memory
+- Check BROWSERLESS_TOKEN is set in Vercel
+- Verify token is valid at browserless.io dashboard
+- Check you haven't exceeded 1000 sessions/month
+- Verify WebSocket connections allowed in your network
+
+**Issue: "Browserless session limit exceeded"**
+
+- Check usage at browserless.io dashboard
+- Free tier: 1000 sessions/month
+- Consider upgrading to Pro plan if needed
+- Or wait for monthly reset
 
 ### Getting Help
 

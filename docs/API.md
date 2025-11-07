@@ -5,7 +5,7 @@ Complete API reference for the Accessibility Auditor.
 ## Base URL
 
 - **Development:** `http://localhost:3000`
-- **Production:** `https://your-app.vercel.app`
+- **Production:** `https://accessibility-auditor.vercel.app/`
 
 ## Authentication
 
@@ -100,6 +100,16 @@ Content-Type: application/json
   "error": "Failed to scan URL: <error details>"
 }
 ```
+
+**Error (503 - Service Unavailable):**
+
+```json
+{
+  "error": "Browser service unavailable. Please try again."
+}
+```
+
+_This occurs when Browserless.io is unreachable or experiencing issues._
 
 #### Example Usage
 
@@ -259,6 +269,29 @@ console.log(data.fixes)
 - **Rate Limit:** Varies by plan (typically 3-60 requests/minute)
 - **Token Limit:** GPT-4o-mini: ~16,000 tokens per request
 - **Cost:** ~$0.001-0.003 per fix suggestion
+
+### Browserless.io
+
+**Free Tier:**
+
+- **Sessions:** 1000/month
+- **Concurrent:** 10 sessions max
+- **Session Duration:** 6 hours max per session
+- **Overage:** $0.01 per additional session
+
+**Pro Plan ($50/month):**
+
+- **Sessions:** Unlimited
+- **Concurrent:** 50 sessions
+- **Additional features:** Dedicated resources, priority support
+
+**Best Practices:**
+
+- Close browser connections properly (prevents hanging sessions)
+- Check Browserless.io dashboard for usage and health
+- Implement client-side rate limiting
+- Consider caching scan results
+- Implement retry logic for browser connection failures
 
 ## Error Codes
 

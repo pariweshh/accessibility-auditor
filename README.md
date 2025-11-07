@@ -18,7 +18,7 @@ An AI-powered web accessibility auditor that scans websites for WCAG compliance 
 
 ## 🚀 Live Demo
 
-🔗 **[View Live Demo](https://your-project.vercel.app)** _(Update with your actual URL)_
+🔗 **[View Live Demo](https://accessibility-auditor.vercel.app/)** _(Update with your actual URL)_
 
 ## 📸 Screenshots
 
@@ -41,7 +41,8 @@ An AI-powered web accessibility auditor that scans websites for WCAG compliance 
 | **Next.js 16**         | React framework with App Router |
 | **TypeScript**         | Type-safe development           |
 | **Tailwind CSS**       | Utility-first styling           |
-| **Puppeteer**          | Headless browser automation     |
+| **Puppeteer Core**     | Headless browser automation     |
+| **Browserless.io**     | Managed browser infrastructure  |
 | **axe-core**           | Accessibility testing engine    |
 | **OpenAI GPT-4o-mini** | AI-powered fix suggestions      |
 | **Vercel**             | Serverless deployment platform  |
@@ -53,7 +54,8 @@ Before you begin, ensure you have:
 - **Node.js** 18.17 or higher
 - **npm** or **yarn** or **pnpm**
 - **OpenAI API Key** ([Get one here](https://platform.openai.com/api-keys))
-- **Google Chrome** or **Chromium** (for local development)
+- **Browserless.io API Token** ([Get free tier here](https://www.browserless.io/sign-up))
+- **Google Chrome** or **Chromium** (for local development only)
 
 ## 🔧 Installation
 
@@ -75,8 +77,15 @@ npm install
 Create a `.env.local` file in the root directory:
 
 ```env
+# Required for AI fix suggestions
 OPENAI_API_KEY=sk-your-openai-api-key-here
+
+# Required for production deployment (Vercel)
+BROWSERLESS_TOKEN=your-browserless-token-here
+
+# Optional: For local development
 NODE_ENV=development
+CHROME_EXECUTABLE_PATH=/path/to/chrome  # Only needed for local dev
 ```
 
 **For Chrome Path (Optional):**
@@ -95,15 +104,38 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ## 🌐 Deployment
 
-### Vercel Free Tier Limitations
+**Add Environment Variables:**
 
-⚠️ **Important:** The free tier has these limits:
+- Go to Project Settings → Environment Variables
+- Add these variables:
+
+```
+     OPENAI_API_KEY=sk-your-key-here
+     BROWSERLESS_TOKEN=your-browserless-token
+```
+
+**Get Browserless Token:**
+
+- Visit [browserless.io/sign-up](https://www.browserless.io/sign-up)
+- Sign up for free tier (1000 sessions/month)
+- Copy your API token from dashboard
+- Add to Vercel environment variables
+
+⚠️ **Important Limitations:**
+
+**Vercel Free Tier:**
 
 - **10-second timeout** per function execution
 - **1024MB memory** per function
 - Works best with fast-loading websites
 
-For production use with complex sites, consider upgrading to Vercel Pro.
+**Browserless.io Free Tier:**
+
+- **1000 browser sessions/month**
+- **10 concurrent sessions**
+- **6-hour max session length**
+
+Combined, these free tiers support approximately 500-1000 scans per month depending on usage patterns.
 
 ## 📖 Usage
 
@@ -148,7 +180,7 @@ accessibility-auditor/
 │   ├── ResultsDisplay.tsx         # Results summary
 │   └── IssueCard.tsx              # Individual issue display
 ├── lib/
-│   ├── scanner.ts                 # Puppeteer scanning logic
+│   ├── scanner.ts                 # Puppeteer + Browserless integration
 │   ├── ai-fixer.ts                # OpenAI integration
 │   └── types.ts                   # TypeScript types
 ├── public/                        # Static assets
@@ -251,6 +283,37 @@ const completion = await openai.chat.completions.create({
 })
 ```
 
+### Browser Configuration (lib/scanner.ts)
+
+**Local Development:**
+Uses your local Chrome installation automatically.
+
+**Production (Vercel):**
+Connects to Browserless.io managed browser infrastructure.
+
+```typescript
+// Automatically detects environment
+const browserlessToken = process.env.BROWSERLESS_TOKEN
+
+if (browserlessToken) {
+  // Production: Connect to Browserless
+  browser = await puppeteer.connect({
+    browserWSEndpoint: `wss://production-sfo.browserless.io?token=${browserlessToken}`,
+  })
+} else {
+  // Local: Use system Chrome
+  browser = await puppeteer.launch({ executablePath: chromiumPath })
+}
+```
+
+**Why Browserless.io?**
+
+- ✅ No need to bundle 300MB Chromium binary
+- ✅ Stays within Vercel's 50MB deployment limit
+- ✅ Faster cold starts (~15ms connection)
+- ✅ More reliable than serverless Chrome
+- ✅ Free tier sufficient for portfolio projects
+
 ## 🧪 Testing
 
 ### Test URLs
@@ -301,7 +364,7 @@ npm run lint
 
 - 100GB bandwidth/month
 - 100 hours serverless execution/month
-- ~500-1000 scans per month (depending on page complexity)
+- Deployment: Free
 
 **OpenAI API Costs (GPT-4o-mini):**
 
@@ -312,8 +375,14 @@ npm run lint
 **Total Monthly Cost (Typical Usage):**
 
 - Vercel: $0 (within free tier)
+- Browserless: $0 (within free tier for ~500 scans)
 - OpenAI: $5-10 (moderate usage)
-- **Total: ~$5-10/month**
+- **Total: ~$5-10/month for moderate use**
+
+**If exceeding free tier:**
+
+- Browserless Pro: $50/month (unlimited sessions)
+- Or: ~$10-20/month for additional sessions on free tier
 
 ## 🤝 Contributing
 
@@ -334,13 +403,14 @@ Contributions are welcome! Please follow these steps:
 
 ## 🐛 Known Issues & Limitations
 
-1. **10-second timeout** on Vercel free tier - Some complex sites may fail
+1. **30-second timeout** on Vercel free tier - Some complex sites may fail
 2. **JavaScript-heavy sites** may not fully render before scanning
 3. **Authentication-protected pages** cannot be scanned
 4. **Local network URLs** blocked for security in production
 5. **Lighthouse scores** not included (only axe-core tests)
+6. **Browserless free tier limit** - 1000 sessions/month, then pay-per-use
 
-## 🔮 Future Enhancements
+## 🔮 Possible Future Enhancements
 
 - [ ] PDF report export
 - [ ] Scan history with database storage
@@ -360,6 +430,7 @@ Contributions are welcome! Please follow these steps:
 - [Next.js Documentation](https://nextjs.org/docs)
 - [Puppeteer Documentation](https://pptr.dev/)
 - [OpenAI API Reference](https://platform.openai.com/docs)
+- [Browserless Documentation](https://docs.browserless.io/)
 
 ## 📄 License
 
@@ -385,7 +456,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 If you find this project helpful, please consider giving it a star!
 
-[![Star History Chart](https://api.star-history.com/svg?repos=YOUR_USERNAME/accessibility-auditor&type=Date)](https://star-history.com/#YOUR_USERNAME/accessibility-auditor&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=pariweshh/accessibility-auditor&type=date&legend=top-left)](https://www.star-history.com/#pariweshh/accessibility-auditor&type=date&legend=top-left)
 
 ---
 
