@@ -1,6 +1,7 @@
 import { scanURL } from "@/lib/scanner"
 import { NextRequest, NextResponse } from "next/server"
 
+export const runtime = "nodejs"
 export const maxDuration = 10 // Set based on your Vercel plan
 export const dynamic = "force-dynamic" // Disable static optimization
 
