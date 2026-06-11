@@ -2,6 +2,7 @@
 
 import { ScanResult } from "@/lib/types"
 import IssueCard from "./issue_card"
+import Link from "next/link"
 
 interface ResultsDisplayProps {
   result: ScanResult
@@ -17,73 +18,76 @@ export default function ResultsDisplay({
 
   return (
     <div className="w-full max-w-4xl mx-auto">
-      {/* Header */}
-      <div className="bg-white rounded-lg shadow-sm border p-6 mb-6">
-        <div className="flex items-start justify-between mb-4">
+      {/* Header Summary Card */}
+      <div className="relative bg-slate-900/40 backdrop-blur-md border border-slate-800/80 rounded-2xl p-6 md:p-8 shadow-2xl overflow-hidden mb-8">
+        {/* Glow effect */}
+        <div className="absolute -top-12 -left-12 w-48 h-48 bg-indigo-500/5 rounded-full blur-3xl pointer-events-none"></div>
+
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-6 relative z-10">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            <h2 className="text-2xl font-black bg-linear-to-r from-white to-slate-300 bg-clip-text text-transparent mb-2">
               Scan Results
             </h2>
-            <p className="text-sm text-gray-600">
-              <strong>URL:</strong>{" "}
+            <p className="text-sm text-slate-300 flex items-center gap-1.5 flex-wrap">
+              <span className="text-slate-500">URL:</span>{" "}
               <a
                 href={result.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-blue-600 hover:underline"
+                className="text-indigo-400 hover:text-indigo-300 hover:underline break-all"
               >
                 {result.url}
               </a>
             </p>
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-slate-500 mt-2">
               Scanned on {new Date(result.timestamp).toLocaleString()}
             </p>
           </div>
           <button
             onClick={onNewScan}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+            className="self-start sm:self-auto bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-700 px-4 py-2 rounded-xl transition-all duration-200 text-xs font-semibold hover:shadow-md cursor-pointer"
           >
             New Scan
           </button>
         </div>
 
-        {/* Summary Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mt-6">
-          <div className="text-center p-3 bg-gray-50 rounded-lg">
-            <p className="text-2xl font-bold text-gray-900">{totalIssues}</p>
-            <p className="text-xs text-gray-600 mt-1">Total Issues</p>
+        {/* Summary Stats Grid */}
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3.5 mt-6 relative z-10">
+          <div className="text-center p-4 bg-slate-950/60 border border-slate-800/80 rounded-xl">
+            <p className="text-3xl font-extrabold text-white">{totalIssues}</p>
+            <p className="text-2xs font-medium text-slate-400 mt-1 uppercase tracking-wider">Total Issues</p>
           </div>
-          <div className="text-center p-3 bg-red-50 rounded-lg border border-red-200">
-            <p className="text-2xl font-bold text-red-700">{critical}</p>
-            <p className="text-xs text-red-600 mt-1">Critical</p>
+          <div className="text-center p-4 bg-rose-500/10 border border-rose-500/15 rounded-xl">
+            <p className="text-3xl font-extrabold text-rose-400">{critical}</p>
+            <p className="text-2xs font-semibold text-rose-300/80 mt-1 uppercase tracking-wider">Critical</p>
           </div>
-          <div className="text-center p-3 bg-orange-50 rounded-lg border border-orange-200">
-            <p className="text-2xl font-bold text-orange-700">{serious}</p>
-            <p className="text-xs text-orange-600 mt-1">Serious</p>
+          <div className="text-center p-4 bg-amber-500/10 border border-amber-500/15 rounded-xl">
+            <p className="text-3xl font-extrabold text-amber-400">{serious}</p>
+            <p className="text-2xs font-semibold text-amber-300/80 mt-1 uppercase tracking-wider">Serious</p>
           </div>
-          <div className="text-center p-3 bg-yellow-50 rounded-lg border border-yellow-200">
-            <p className="text-2xl font-bold text-yellow-700">{moderate}</p>
-            <p className="text-xs text-yellow-600 mt-1">Moderate</p>
+          <div className="text-center p-4 bg-yellow-500/10 border border-yellow-500/15 rounded-xl">
+            <p className="text-3xl font-extrabold text-yellow-400">{moderate}</p>
+            <p className="text-2xs font-semibold text-yellow-300/80 mt-1 uppercase tracking-wider">Moderate</p>
           </div>
-          <div className="text-center p-3 bg-blue-50 rounded-lg border border-blue-200">
-            <p className="text-2xl font-bold text-blue-700">{minor}</p>
-            <p className="text-xs text-blue-600 mt-1">Minor</p>
+          <div className="text-center p-4 bg-sky-500/10 border border-sky-500/15 rounded-xl">
+            <p className="text-3xl font-extrabold text-sky-400">{minor}</p>
+            <p className="text-2xs font-semibold text-sky-300/80 mt-1 uppercase tracking-wider">Minor</p>
           </div>
         </div>
 
         {/* Additional Stats */}
-        <div className="flex gap-6 mt-4 pt-4 border-t">
+        <div className="flex gap-6 mt-6 pt-5 border-t border-slate-800/80 relative z-10 text-xs text-slate-400">
           <div>
-            <p className="text-sm text-gray-600">
-              <span className="font-semibold text-green-600">
+            <p>
+              <span className="font-bold text-emerald-400">
                 {result.passes}
               </span>{" "}
-              tests passed
+              checks passed
             </p>
           </div>
           <div>
-            <p className="text-sm text-gray-600">
-              <span className="font-semibold text-gray-700">
+            <p>
+              <span className="font-bold text-slate-300">
                 {result.incomplete}
               </span>{" "}
               incomplete
@@ -93,23 +97,25 @@ export default function ResultsDisplay({
       </div>
 
       {/* Issues List */}
-      <div className="space-y-4">
-        <h3 className="text-xl font-bold text-gray-900">
-          Accessibility Issues ({totalIssues})
+      <div className="space-y-5">
+        <h3 className="text-xl font-extrabold text-slate-100 flex items-center gap-2">
+          <span>Accessibility Issues</span>
+          <span className="px-2.5 py-0.5 text-xs bg-slate-900 border border-slate-800 rounded-full text-slate-400">
+            {totalIssues}
+          </span>
         </h3>
 
         {totalIssues === 0 ? (
-          <div className="bg-green-50 border border-green-200 rounded-lg p-8 text-center">
+          <div className="bg-emerald-500/5 border border-emerald-500/15 rounded-2xl p-8 text-center">
             <div className="text-4xl mb-3">🎉</div>
-            <h3 className="text-xl font-semibold text-green-900 mb-2">
+            <h3 className="text-lg font-bold text-emerald-300 mb-2">
               No Issues Found!
             </h3>
-            <p className="text-green-700">
-              This page passed all automated accessibility tests.
+            <p className="text-xs text-emerald-400 max-w-md mx-auto leading-relaxed">
+              This webpage successfully passed all automated Deque axe-core compliance checks.
             </p>
-            <p className="text-sm text-green-600 mt-2">
-              Note: Manual testing is still recommended for complete
-              accessibility coverage.
+            <p className="text-2xs text-slate-500 mt-4 leading-relaxed">
+              Note: Automated tools catch ~40-50% of issues. Manual accessibility audits, keyboard navigation, and screen reader tests are still recommended for full WCAG compliance.
             </p>
           </div>
         ) : (

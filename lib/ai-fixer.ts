@@ -1,9 +1,16 @@
 import OpenAI from "openai"
 import { AccessibilityIssue, FixSuggestion } from "./types"
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-})
+let openaiClient: OpenAI | null = null
+
+function getOpenAIClient(): OpenAI {
+  if (!openaiClient) {
+    openaiClient = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY || "dummy-key-for-build",
+    })
+  }
+  return openaiClient
+}
 
 export async function generateFixSuggestion(
   issue: AccessibilityIssue
@@ -34,7 +41,7 @@ Format your response as JSON:
   "confidence": "high/medium/low"
 }`
 
-    const completion = await openai.chat.completions.create({
+    const completion = await getOpenAIClient().chat.completions.create({
       model: "gpt-4o-mini", // Cost-effective model
       messages: [
         {

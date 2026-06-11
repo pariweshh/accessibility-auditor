@@ -36,3 +36,23 @@ export interface FixSuggestion {
   explanation: string
   confidence: "high" | "medium" | "low"
 }
+
+// A single scan row from the database
+export interface ScanRecord {
+  id: string
+  user_id: string
+  url: string
+  status: "pending" | "processing" | "completed" | "failed"
+  violations: number
+  passes: number
+  summary: {
+    critical: number
+    serious: number
+    moderate: number
+    minor: number
+  } | null
+  result: ScanResult | null
+  error_message: string | null
+  created_at: string
+  pdf_url: string | null
+}
