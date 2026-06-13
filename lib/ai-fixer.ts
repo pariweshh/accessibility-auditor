@@ -1,5 +1,6 @@
 import OpenAI from "openai"
 import { AccessibilityIssue, FixSuggestion } from "./types"
+import crypto from "crypto"
 
 let openaiClient: OpenAI | null = null
 
@@ -13,8 +14,41 @@ function getOpenAIClient(): OpenAI {
 }
 
 export async function generateFixSuggestion(
-  issue: AccessibilityIssue
+  issue: AccessibilityIssue,
+  model: string = "gpt-4o-mini",
+  supabase?: any
 ): Promise<FixSuggestion> {
+  const originalCode = issue.nodes[0]?.html || ""
+  
+  // ─── Cache Key Calculation ────────────────────────────────────────────────
+  const keyRaw = `${issue.id}:${originalCode}:${model}`
+  const keyHash = crypto.createHash("sha256").update(keyRaw).digest("hex")
+
+  // ─── Cache Lookup ─────────────────────────────────────────────────────────
+  if (supabase) {
+    try {
+      const { data, error } = await supabase
+        .from("ai_fix_cache")
+        .select("suggested_fix, explanation, confidence")
+        .eq("key_hash", keyHash)
+        .maybeSingle()
+
+      if (!error && data) {
+        console.log(`[AI Cache Hit] Reusing fix for hash ${keyHash}`)
+        return {
+          issueId: issue.id,
+          originalCode,
+          suggestedFix: data.suggested_fix,
+          explanation: data.explanation,
+          confidence: data.confidence as "high" | "medium" | "low",
+        }
+      }
+    } catch (dbError) {
+      console.error("[AI Cache Lookup Error] Failed to lookup cache, proceeding to OpenAI:", dbError)
+    }
+  }
+
+  // ─── OpenAI Generation ────────────────────────────────────────────────────
   try {
     const prompt = `You are an accessibility expert. Analyze this accessibility issue and provide a specific code fix.
 
@@ -23,7 +57,7 @@ Description: ${issue.description}
 Impact: ${issue.impact}
 
 Problematic HTML:
-${issue.nodes[0]?.html || "No HTML available"}
+${originalCode || "No HTML available"}
 
 Failure Summary: ${issue.nodes[0]?.failureSummary || "No summary available"}
 
@@ -42,7 +76,7 @@ Format your response as JSON:
 }`
 
     const completion = await getOpenAIClient().chat.completions.create({
-      model: "gpt-4o-mini", // Cost-effective model
+      model: model, // Dynamically selected model (gpt-4o-mini or gpt-4o)
       messages: [
         {
           role: "system",
@@ -60,13 +94,44 @@ Format your response as JSON:
     })
 
     const response = JSON.parse(completion.choices[0].message.content || "{}")
+    const suggestedFix = response.suggestedFix || "Unable to generate fix"
+    const explanation = response.explanation || "No explanation available"
+    const confidence = (response.confidence || "low") as "high" | "medium" | "low"
+
+    // ─── Async Cache Insertion (Fire-and-Forget) ────────────────────────────
+    if (supabase && response.suggestedFix) {
+      supabase
+        .from("ai_fix_cache")
+        .insert({
+          key_hash: keyHash,
+          issue_id: issue.id,
+          original_html: originalCode || null,
+          model,
+          suggested_fix: suggestedFix,
+          explanation,
+          confidence,
+        })
+        .then(({ error }: any) => {
+          if (error) {
+            // Ignore duplicate key errors if multiple concurrent operations hit same code path
+            if (error.code !== "23505") {
+              console.error(`[AI Cache Insert Error] Failed to write cache for hash ${keyHash}:`, error)
+            }
+          } else {
+            console.log(`[AI Cache Saved] Fix saved for hash ${keyHash}`)
+          }
+        })
+        .catch((dbError: any) => {
+          console.error("[AI Cache Insert Exception] Exception inserting to cache:", dbError)
+        })
+    }
 
     return {
       issueId: issue.id,
-      originalCode: issue.nodes[0]?.html || "",
-      suggestedFix: response.suggestedFix || "Unable to generate fix",
-      explanation: response.explanation || "No explanation available",
-      confidence: (response.confidence || "low") as "high" | "medium" | "low",
+      originalCode,
+      suggestedFix,
+      explanation,
+      confidence,
     }
   } catch (error) {
     console.error("AI fix generation error:", error)
@@ -74,7 +139,7 @@ Format your response as JSON:
     // Return a fallback response instead of throwing
     return {
       issueId: issue.id,
-      originalCode: issue.nodes[0]?.html || "",
+      originalCode,
       suggestedFix: "Error generating fix",
       explanation: `Failed to generate fix: ${
         error instanceof Error ? error.message : "Unknown error"
@@ -86,7 +151,9 @@ Format your response as JSON:
 
 export async function generateBatchFixes(
   issues: AccessibilityIssue[],
-  limit: number = 5
+  limit: number = 5,
+  model: string = "gpt-4o-mini",
+  supabase?: any
 ): Promise<FixSuggestion[]> {
   // Only process the most critical issues to save on API costs
   const impactOrder = { critical: 4, serious: 3, moderate: 2, minor: 1 }
@@ -100,7 +167,7 @@ export async function generateBatchFixes(
 
   for (const issue of priorityIssues) {
     try {
-      const fix = await generateFixSuggestion(issue)
+      const fix = await generateFixSuggestion(issue, model, supabase)
       fixes.push(fix)
     } catch (error) {
       console.error(`Failed to generate fix for issue ${issue.id}:`, error)
@@ -110,3 +177,4 @@ export async function generateBatchFixes(
 
   return fixes
 }
+

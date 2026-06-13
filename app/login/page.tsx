@@ -8,8 +8,10 @@ export default function LoginPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [isPasswordLogin, setIsPasswordLogin] = useState(false)
+  const [isSignUp, setIsSignUp] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
+  const [devLink, setDevLink] = useState<string | null>(null)
 
   const supabase = createClient()
 
@@ -19,21 +21,28 @@ export default function LoginPage() {
 
     setIsLoading(true)
     setMessage(null)
+    setDevLink(null)
 
     try {
-      const { error } = await supabase.auth.signInWithOtp({
-        email,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
-        },
+      const response = await fetch("/api/auth/magic-link", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
       })
+      const data = await response.json()
 
-      if (error) throw error
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to send magic link")
+      }
 
       setMessage({
         type: "success",
         text: "✨ Check your inbox! We've sent a magic login link to your email.",
       })
+
+      if (data.devLink) {
+        setDevLink(data.devLink)
+      }
     } catch (err: any) {
       setMessage({
         type: "error",
@@ -78,6 +87,68 @@ export default function LoginPage() {
     }
   }
 
+  const handlePasswordSignUp = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!email || !password) return
+
+    setIsLoading(true)
+    setMessage(null)
+
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+        },
+      })
+
+      if (error) throw error
+
+      if (data.session) {
+        setMessage({
+          type: "success",
+          text: "🎉 Account created successfully! Redirecting...",
+        })
+        setTimeout(() => {
+          window.location.href = "/"
+        }, 1000)
+      } else {
+        setMessage({
+          type: "success",
+          text: "📧 Account created! Please check your email to confirm your registration.",
+        })
+      }
+    } catch (err: any) {
+      setMessage({
+        type: "error",
+        text: err.message || "Something went wrong during sign up.",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleGoogleSignIn = async () => {
+    setIsLoading(true)
+    setMessage(null)
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      })
+      if (error) throw error
+    } catch (err: any) {
+      setMessage({
+        type: "error",
+        text: err.message || "Failed to initialize Google Sign In.",
+      })
+      setIsLoading(false)
+    }
+  }
+
   return (
     <main className="relative min-h-screen flex items-center justify-center bg-linear-to-br from-slate-950 via-indigo-950 to-slate-900 px-4 overflow-hidden">
       {/* Decorative Orbs */}
@@ -87,10 +158,10 @@ export default function LoginPage() {
       <div className="relative z-10 w-full max-w-md">
         {/* Logo / Header */}
         <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center gap-2 group mb-2">
-            <span className="text-3xl">🎯</span>
+          <Link href="/" className="inline-flex items-center gap-2.5 group mb-2">
+            <img src="/logo.png" alt="A11ytica Pro Logo" className="w-9 h-9 object-contain rounded-lg border border-white/10" />
             <span className="text-2xl font-bold bg-linear-to-r from-blue-400 via-indigo-300 to-purple-400 bg-clip-text text-transparent group-hover:from-blue-300 group-hover:to-purple-300 transition-all duration-300">
-              Auditor Pro
+              A11ytica Pro
             </span>
           </Link>
           <p className="text-sm text-slate-400">
@@ -106,8 +177,9 @@ export default function LoginPage() {
               onClick={() => {
                 setIsPasswordLogin(false)
                 setMessage(null)
+                setDevLink(null)
               }}
-              className={`flex-1 py-2 text-xs font-semibold rounded-md transition-all duration-200 ${
+              className={`flex-1 py-2 text-xs font-semibold rounded-md transition-all duration-200 cursor-pointer ${
                 !isPasswordLogin
                   ? "bg-indigo-600 text-white shadow-xs"
                   : "text-slate-400 hover:text-slate-200"
@@ -119,19 +191,27 @@ export default function LoginPage() {
               onClick={() => {
                 setIsPasswordLogin(true)
                 setMessage(null)
+                setDevLink(null)
               }}
-              className={`flex-1 py-2 text-xs font-semibold rounded-md transition-all duration-200 ${
+              className={`flex-1 py-2 text-xs font-semibold rounded-md transition-all duration-200 cursor-pointer ${
                 isPasswordLogin
                   ? "bg-indigo-600 text-white shadow-xs"
                   : "text-slate-400 hover:text-slate-200"
               }`}
             >
-              Password Sign In
+              Password Access
             </button>
           </div>
 
           {/* Form */}
-          <form onSubmit={isPasswordLogin ? handlePasswordLogin : handleMagicLink} className="space-y-4">
+          <form
+            onSubmit={
+              isPasswordLogin
+                ? (isSignUp ? handlePasswordSignUp : handlePasswordLogin)
+                : handleMagicLink
+            }
+            className="space-y-4"
+          >
             <div>
               <label htmlFor="email" className="block text-xs font-medium text-slate-300 mb-1">
                 Email Address
@@ -149,11 +229,9 @@ export default function LoginPage() {
 
             {isPasswordLogin && (
               <div>
-                <div className="flex justify-between items-center mb-1">
-                  <label htmlFor="password" className="block text-xs font-medium text-slate-300">
-                    Password
-                  </label>
-                </div>
+                <label htmlFor="password" className="block text-xs font-medium text-slate-300 mb-1">
+                  Password
+                </label>
                 <input
                   id="password"
                   type="password"
@@ -192,17 +270,82 @@ export default function LoginPage() {
                   Processing...
                 </span>
               ) : isPasswordLogin ? (
-                "Sign In"
+                isSignUp ? "Register Account" : "Sign In"
               ) : (
                 "Send Magic Link"
               )}
             </button>
           </form>
 
-          {/* Additional info / helper */}
-          <div className="mt-6 text-center text-xs text-slate-500 border-t border-white/5 pt-4">
-            New here? Magic links will automatically create an account if you don't have one.
+          {/* Password sign in/up toggle */}
+          {isPasswordLogin && (
+            <div className="mt-4 text-center">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsSignUp(!isSignUp)
+                  setMessage(null)
+                }}
+                className="text-xs text-indigo-400 hover:text-indigo-300 hover:underline cursor-pointer"
+              >
+                {isSignUp ? "Already have an account? Sign In" : "Don't have an account? Sign Up"}
+              </button>
+            </div>
+          )}
+
+          {/* Magic link dev fallback */}
+          {!isPasswordLogin && devLink && (
+            <div className="mt-4 p-3.5 bg-indigo-950/40 border border-indigo-500/30 rounded-xl space-y-2 text-center animate-fadeIn">
+              <p className="text-2xs text-indigo-300 font-semibold leading-none">🔧 Development Link Generated:</p>
+              <p className="text-2xs text-slate-500 leading-relaxed">Resend is in dev-mode. Click below to bypass email inbox:</p>
+              <a
+                href={devLink}
+                className="inline-block px-3.5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-2xs rounded-lg transition-all"
+              >
+                Bypass Email & Log In →
+              </a>
+            </div>
+          )}
+
+          {/* Social Sign In Divider */}
+          <div className="relative my-6">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-white/10"></div>
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-slate-900/60 backdrop-blur-md px-2 text-slate-500 rounded-md border border-white/5">
+                Or continue with
+              </span>
+            </div>
           </div>
+
+          {/* Google Login Button */}
+          <button
+            type="button"
+            onClick={handleGoogleSignIn}
+            disabled={isLoading}
+            className="w-full py-2.5 px-4 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 text-white font-medium text-xs flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <svg className="w-4 h-4" viewBox="0 0 24 24">
+              <path
+                fill="currentColor"
+                d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+              />
+              <path
+                fill="currentColor"
+                d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+              />
+              <path
+                fill="currentColor"
+                d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+              />
+              <path
+                fill="currentColor"
+                d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+              />
+            </svg>
+            <span>Google</span>
+          </button>
         </div>
 
         {/* Back Link */}

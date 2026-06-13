@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useState, useTransition, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { ScanRecord } from "@/lib/types"
 
@@ -52,12 +52,21 @@ export default function ScanTable({ scans, tier, onUrlSelect, selectedUrl }: Sca
   const [pdfError, setPdfError] = useState<string | null>(null)
   const [rerunning, setRerunning] = useState<string | null>(null)
 
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1)
+  const ITEMS_PER_PAGE = 10
+
   const isPaid = tier === "pro" || tier === "agency"
 
   const handleSort = (key: SortKey) => {
     if (sortKey === key) setSortDir(d => d === "asc" ? "desc" : "asc")
     else { setSortKey(key); setSortDir("desc") }
   }
+
+  // Reset page when sorting or searching
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [search, sortKey, sortDir])
 
   const sorted = [...scans]
     .filter(s => !search || s.url.toLowerCase().includes(search.toLowerCase()))
@@ -68,6 +77,9 @@ export default function ScanTable({ scans, tier, onUrlSelect, selectedUrl }: Sca
       else diff = a.url.localeCompare(b.url)
       return sortDir === "asc" ? diff : -diff
     })
+
+  const totalPages = Math.ceil(sorted.length / ITEMS_PER_PAGE)
+  const paginated = sorted.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
 
   const SortIcon = ({ k }: { k: SortKey }) => (
     <span className={`ml-1 text-2xs ${sortKey === k ? "text-indigo-400" : "text-slate-600"}`}>
@@ -83,12 +95,15 @@ export default function ScanTable({ scans, tier, onUrlSelect, selectedUrl }: Sca
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url: scan.url }),
       })
+      const data = await res.json()
       if (!res.ok) {
-        const err = await res.json()
-        alert(err.message ?? "Failed to start scan")
+        alert(data.message ?? "Failed to start scan")
         return
       }
-      router.push("/")
+      router.push(`/?scanId=${data.scanId}&url=${encodeURIComponent(scan.url)}`)
+    } catch (err) {
+      console.error("Rerun error:", err)
+      alert("Failed to rerun scan due to a network error.")
     } finally {
       setRerunning(null)
     }
@@ -180,7 +195,7 @@ export default function ScanTable({ scans, tier, onUrlSelect, selectedUrl }: Sca
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-800/40">
-            {sorted.map(scan => {
+            {paginated.map(scan => {
               const isSelected = selectedUrl === scan.url
               const hostname = (() => { try { return new URL(scan.url).hostname } catch { return scan.url } })()
               const isRerunning = rerunning === scan.id
@@ -235,21 +250,41 @@ export default function ScanTable({ scans, tier, onUrlSelect, selectedUrl }: Sca
                       <button
                         onClick={() => handleRerun(scan)}
                         disabled={isRerunning}
-                        className="px-2 py-1 text-2xs font-semibold text-indigo-400 hover:text-white border border-indigo-500/30 hover:border-indigo-500 hover:bg-indigo-500/10 rounded-md transition-colors disabled:opacity-50 cursor-pointer"
+                        className="inline-flex items-center gap-1.5 px-2 py-1 text-2xs font-semibold text-indigo-400 hover:text-white border border-indigo-500/30 hover:border-indigo-500 hover:bg-indigo-500/10 rounded-md transition-colors disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
                         title="Rerun this scan"
                       >
-                        {isRerunning ? "…" : "Rerun"}
+                        {isRerunning ? (
+                          <>
+                            <svg className="animate-spin h-3 w-3 text-indigo-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            <span>Rerun</span>
+                          </>
+                        ) : (
+                          "Rerun"
+                        )}
                       </button>
                       {/* PDF export */}
                       {scan.status === "completed" && (
                         isPaid ? (
                           <button
                             onClick={() => handleExportPdf(scan)}
-                            disabled={isPdfLoading}
-                            className="px-2 py-1 text-2xs font-semibold text-emerald-400 hover:text-white border border-emerald-500/30 hover:border-emerald-500 hover:bg-emerald-500/10 rounded-md transition-colors disabled:opacity-50 cursor-pointer"
-                            title="Export PDF"
+                            disabled={pdfLoading !== null}
+                            className="inline-flex items-center gap-1.5 px-2 py-1 text-2xs font-semibold text-emerald-400 hover:text-white border border-emerald-500/30 hover:border-emerald-500 hover:bg-emerald-500/10 rounded-md transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                            title={pdfLoading !== null ? (isPdfLoading ? "Exporting PDF..." : "Another PDF export is in progress") : "Export PDF"}
                           >
-                            {isPdfLoading ? "…" : "PDF"}
+                            {isPdfLoading ? (
+                              <>
+                                <svg className="animate-spin h-3 w-3 text-emerald-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                <span>PDF</span>
+                              </>
+                            ) : (
+                              "PDF"
+                            )}
                           </button>
                         ) : (
                           <span className="px-2 py-1 text-2xs font-semibold text-slate-600 border border-slate-800 rounded-md cursor-not-allowed" title="Upgrade to export PDF">
@@ -265,6 +300,54 @@ export default function ScanTable({ scans, tier, onUrlSelect, selectedUrl }: Sca
           </tbody>
         </table>
       </div>
+
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div className="flex flex-col sm:flex-row items-center justify-between border-t border-slate-900/60 pt-4 px-1 gap-4">
+          <span className="text-2xs text-slate-500">
+            Showing <span className="text-slate-300 font-medium">{Math.min(sorted.length, (currentPage - 1) * ITEMS_PER_PAGE + 1)}</span> to{" "}
+            <span className="text-slate-300 font-medium">{Math.min(sorted.length, currentPage * ITEMS_PER_PAGE)}</span> of{" "}
+            <span className="text-slate-300 font-medium">{sorted.length}</span> scans
+          </span>
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="px-2.5 py-1.5 rounded-lg border border-slate-800 bg-slate-900/20 text-slate-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-800/20 transition-all cursor-pointer text-2xs font-semibold"
+            >
+              Previous
+            </button>
+            {Array.from({ length: totalPages }, (_, i) => i + 1)
+              .filter(p => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 1)
+              .map((p, idx, arr) => {
+                const prev = arr[idx - 1]
+                const showEllipsis = prev && p - prev > 1
+                return (
+                  <span key={p} className="flex items-center gap-1.5">
+                    {showEllipsis && <span className="text-slate-600 text-2xs px-0.5">...</span>}
+                    <button
+                      onClick={() => setCurrentPage(p)}
+                      className={`w-7 h-7 rounded-lg text-2xs font-bold transition-all cursor-pointer ${
+                        currentPage === p
+                          ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/10"
+                          : "border border-slate-850 hover:border-slate-700 text-slate-400 hover:text-white hover:bg-slate-800/10"
+                      }`}
+                    >
+                      {p}
+                    </button>
+                  </span>
+                )
+              })}
+            <button
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              className="px-2.5 py-1.5 rounded-lg border border-slate-800 bg-slate-900/20 text-slate-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-800/20 transition-all cursor-pointer text-2xs font-semibold"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

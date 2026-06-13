@@ -7,11 +7,13 @@ import Link from "next/link"
 interface ResultsDisplayProps {
   result: ScanResult
   onNewScan: () => void
+  tier?: string
 }
 
 export default function ResultsDisplay({
   result,
   onNewScan,
+  tier = "free",
 }: ResultsDisplayProps) {
   const totalIssues = result.violations.length
   const { critical, serious, moderate, minor } = result.summary
@@ -120,7 +122,7 @@ export default function ResultsDisplay({
           </div>
         ) : (
           result.violations.map((issue, index) => (
-            <IssueCard key={issue.id + index} issue={issue} index={index} />
+            <IssueCard key={issue.id + index} issue={issue} index={index} tier={tier} />
           ))
         )}
       </div>

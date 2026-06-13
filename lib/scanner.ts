@@ -150,7 +150,7 @@ export async function scanURL(url: string): Promise<ScanResult> {
     }
     // Disconnect browser if using Browserless (Browserless manages the instance)
     if (browser && process.env.BROWSERLESS_TOKEN) {
-      await browser.disconnect()
+      await browser.close()
     }
   }
 }

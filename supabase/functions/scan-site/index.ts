@@ -40,6 +40,36 @@ Deno.serve(async (req) => {
       })
     }
 
+    // ─── Concurrency Control: Wait for slot if concurrency limit is reached ───
+    const maxConcurrent = parseInt(Deno.env.get("MAX_CONCURRENT_SCANS") || "3", 10)
+    const checkInterval = 2000
+    const maxWaitTime = 60000
+    let waited = 0
+
+    while (waited < maxWaitTime) {
+      const { count, error: countError } = await supabase
+        .from("scans")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "processing")
+
+      if (countError) {
+        console.error("Error checking active scans:", countError)
+        break // Fail open to not block scans if database is transiently failing
+      }
+
+      if (count === null || count < maxConcurrent) {
+        break
+      }
+
+      console.log(`Scan ${scanId} waiting: ${count} scans currently processing (max: ${maxConcurrent})`)
+      await new Promise((r) => setTimeout(r, checkInterval))
+      waited += checkInterval
+    }
+
+    if (waited >= maxWaitTime) {
+      console.warn(`Scan ${scanId} waited too long (${maxWaitTime}ms) for a slot. Proceeding to prevent timeout.`)
+    }
+
     // Mark as processing
     await updateScan(supabase, scanId, { status: "processing" })
 
@@ -48,7 +78,7 @@ Deno.serve(async (req) => {
     if (!browserlessToken) throw new Error("BROWSERLESS_TOKEN is not configured")
 
     const browser = await puppeteer.connect({
-      browserWSEndpoint: `wss://production-sfo.browserless.io?token=${browserlessToken}`,
+      browserWSEndpoint: `wss://production-sfo.browserless.io?token=${browserlessToken}&timeout=60000`,
     })
 
     let page: any
@@ -126,7 +156,7 @@ Deno.serve(async (req) => {
       console.log(`Scan ${scanId} completed: ${violations.length} violations found`)
     } finally {
       if (page) await page.close().catch(() => {})
-      await browser.disconnect().catch(() => {})
+      await browser.close().catch(() => {})
     }
 
     return new Response(JSON.stringify({ success: true, scanId }), {

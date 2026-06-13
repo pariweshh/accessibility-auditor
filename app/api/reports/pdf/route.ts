@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
     const html = generateReportHTML(scan as ScanRecord, user.email)
 
     const browser = await puppeteer.connect({
-      browserWSEndpoint: `wss://production-sfo.browserless.io?token=${browserlessToken}`,
+      browserWSEndpoint: `wss://production-sfo.browserless.io?token=${browserlessToken}&timeout=30000`,
     })
 
     let pdfBuffer: Buffer
@@ -107,7 +107,7 @@ export async function POST(request: NextRequest) {
       pdfBuffer = Buffer.from(pdfBytes)
       await page.close()
     } finally {
-      await browser.disconnect()
+      await browser.close()
     }
 
     // ── Upload to Supabase Storage ──────────────────────────────────────────
@@ -143,7 +143,7 @@ export async function POST(request: NextRequest) {
         const resend = new Resend(resendKey)
         const domain = new URL(scan.url).hostname
         await resend.emails.send({
-          from: process.env.EMAIL_FROM ?? "Auditor Pro <reports@yourdomain.com>",
+          from: process.env.EMAIL_FROM ?? "A11ytica Pro <reports@yourdomain.com>",
           to: user.email,
           subject: `Your accessibility report for ${domain}`,
           html: `

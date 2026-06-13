@@ -1,6 +1,8 @@
 import { checkQuota } from "@/lib/quota"
 import { createClient } from "@/lib/supabase/server"
-import { NextRequest, NextResponse } from "next/server"
+import { createClient as createAdminClient } from "@supabase/supabase-js"
+import { NextRequest, NextResponse, after } from "next/server"
+import crypto from "crypto"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -39,19 +41,68 @@ export async function POST(request: NextRequest) {
     }
 
     // ── Auth & Quota ────────────────────────────────────────────────────────
+    let userId: string | null = null
+    let authMethod: "session" | "api_key" | null = null
+
     const supabase = await createClient()
+    const adminSupabase = createAdminClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
+
+    // 1. Try standard cookie/session auth
     const {
-      data: { user },
+      data: { user: sessionUser },
     } = await supabase.auth.getUser()
 
-    if (!user) {
+    if (sessionUser) {
+      userId = sessionUser.id
+      authMethod = "session"
+    }
+
+    // 2. Try API key auth if no session found
+    if (!userId) {
+      const apiKey = request.headers.get("x-api-key")
+      if (apiKey) {
+        if (!apiKey.startsWith("aud_live_")) {
+          return NextResponse.json({ error: "Invalid API key format" }, { status: 401 })
+        }
+
+        const keyHash = crypto.createHash("sha256").update(apiKey).digest("hex")
+
+        // Query api_keys via adminSupabase to bypass RLS for unauthenticated requests
+        const { data: keyRecord, error: keyError } = await adminSupabase
+          .from("api_keys")
+          .select("user_id, id")
+          .eq("key_hash", keyHash)
+          .single()
+
+        if (!keyError && keyRecord) {
+          userId = keyRecord.user_id
+          authMethod = "api_key"
+
+          // Update last_used_at asynchronously
+          adminSupabase
+            .from("api_keys")
+            .update({ last_used_at: new Date().toISOString() })
+            .eq("id", keyRecord.id)
+            .then(({ error }) => {
+              if (error) console.error("Failed to update api key last_used_at:", error)
+            })
+        }
+      }
+    }
+
+    if (!userId) {
       return NextResponse.json(
-        { error: "You must be signed in to scan." },
+        { error: "Unauthorized: You must be signed in or provide a valid x-api-key header." },
         { status: 401 }
       )
     }
 
-    const quota = await checkQuota(user.id)
+    // Check quota (pass activeDbClient to bypass RLS when authed via API key)
+    const activeDbClient = authMethod === "api_key" ? adminSupabase : supabase
+    const quota = await checkQuota(userId, activeDbClient)
     if (!quota.allowed) {
       return NextResponse.json(
         {
@@ -64,10 +115,11 @@ export async function POST(request: NextRequest) {
     }
 
     // ── Insert pending scan record ──────────────────────────────────────────
-    const { data: scan, error: insertError } = await supabase
+    // Use activeDbClient so that if auth is via API Key, we use adminSupabase to bypass RLS
+    const { data: scan, error: insertError } = await activeDbClient
       .from("scans")
       .insert({
-        user_id: user.id,
+        user_id: userId,
         url,
         status: "pending",
       })
@@ -87,23 +139,28 @@ export async function POST(request: NextRequest) {
     // ── Fire-and-forget: invoke Edge Function ───────────────────────────────
     // We do NOT await this — the Edge Function runs asynchronously on Supabase.
     // The frontend subscribes to Realtime to learn when it finishes.
+    // We wrap it in Next.js `after` to prevent Vercel from freezing the container before the request leaves.
     const edgeFnUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/scan-site`
-    fetch(edgeFnUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        // Authenticate the Edge Function call with the service role key
-        Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
-      },
-      body: JSON.stringify({
-        scanId,
-        url,
-        userId: user.id,
-        tier: quota.tier,
-      }),
-    }).catch((err) =>
-      console.error("Failed to invoke scan-site edge function:", err)
-    )
+    after(async () => {
+      try {
+        await fetch(edgeFnUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            // Authenticate the Edge Function call with the service role key
+            Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+          },
+          body: JSON.stringify({
+            scanId,
+            url,
+            userId,
+            tier: quota.tier,
+          }),
+        })
+      } catch (err) {
+        console.error("Failed to invoke scan-site edge function:", err)
+      }
+    })
 
     // ── Return 202 immediately ──────────────────────────────────────────────
     return NextResponse.json({ scanId }, { status: 202 })

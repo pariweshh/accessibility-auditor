@@ -12,8 +12,8 @@ export interface QuotaResult {
  * Check whether the authenticated user is within their monthly scan quota.
  * Returns quota details so the caller can surface them in the UI or API response.
  */
-export async function checkQuota(userId: string): Promise<QuotaResult> {
-  const supabase = await createClient()
+export async function checkQuota(userId: string, supabaseClient?: any): Promise<QuotaResult> {
+  const supabase = supabaseClient || (await createClient())
 
   // Fetch the user's subscription tier
   const { data: profile, error: profileError } = await supabase
@@ -34,6 +34,7 @@ export async function checkQuota(userId: string): Promise<QuotaResult> {
     .from("scans")
     .select("id", { count: "exact", head: true })
     .eq("user_id", userId)
+    .neq("status", "failed")
     .gte("created_at", startOfMonth.toISOString())
 
   if (profileError) {

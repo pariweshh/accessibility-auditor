@@ -7,13 +7,12 @@ export default async function DashboardPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  // Layout already redirects, but double-check here
   if (!user) redirect("/login")
 
-  // Fetch profile for tier info
+  // Fetch profile details for tier and billing management
   const { data: profile } = await supabase
     .from("profiles")
-    .select("subscription_tier")
+    .select("*")
     .eq("id", user.id)
     .single()
 
@@ -37,6 +36,8 @@ export default async function DashboardPage() {
       scans={(scans ?? []) as ScanRecord[]}
       tier={tier}
       email={email}
+      user={user}
+      profile={profile}
     />
   )
 }

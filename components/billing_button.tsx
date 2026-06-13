@@ -149,7 +149,7 @@ const BillingButton = forwardRef<BillingButtonHandle, BillingButtonProps>(
 
               <div className="text-center mb-8 relative z-10">
                 <h3 className="text-2xl font-black bg-linear-to-r from-white to-slate-300 bg-clip-text text-transparent mb-2">
-                  Upgrade to Auditor Pro
+                  Upgrade to A11ytica Pro
                 </h3>
                 <p className="text-xs text-slate-400 max-w-md mx-auto">
                   Unlock detailed scan history, multi-page crawling, and PDF

@@ -1,4 +1,61 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Outfit:wght@400;500;600;700;800;900&display=swap');
 @import "tailwindcss";
+
+@theme {
+  /* Map Tailwind's slate color palette variables to our custom CSS variables */
+  --color-slate-950: var(--bg-slate-950);
+  --color-slate-900: var(--bg-slate-900);
+  --color-slate-850: var(--bg-slate-850);
+  --color-slate-800: var(--border-slate-800);
+  --color-slate-700: var(--text-slate-700);
+  --color-slate-600: var(--text-slate-600);
+  --color-slate-500: var(--text-slate-500);
+  --color-slate-400: var(--text-slate-400);
+  --color-slate-300: var(--text-slate-300);
+  --color-slate-200: var(--text-slate-200);
+  --color-slate-100: var(--text-slate-100);
+  --color-slate-50: var(--text-slate-50);
+}
+
+:root {
+  /* Font Family Definitions */
+  --font-display: 'Outfit', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-body: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+
+  /* Default Theme (Dark Mode) color tokens */
+  --bg-slate-950: #020617;
+  --bg-slate-900: #0f172a;
+  --bg-slate-850: #1e293b;
+  --border-slate-800: #1e293b;
+  --text-slate-700: #334155;
+  --text-slate-600: #475569;
+  --text-slate-500: #64748b;
+  --text-slate-400: #94a3b8;
+  --text-slate-300: #cbd5e1;
+  --text-slate-200: #e2e8f0;
+  --text-slate-100: #f1f5f9;
+  --text-slate-50: #f8fafc;
+
+  --grid-line-color: rgba(255, 255, 255, 0.02);
+}
+
+:root.light {
+  /* Light Theme overrides */
+  --bg-slate-950: #f8fafc; /* light background */
+  --bg-slate-900: #ffffff; /* white card background */
+  --bg-slate-850: #f1f5f9; /* slate-100 card border */
+  --border-slate-800: #e2e8f0; /* light border */
+  --text-slate-700: #cbd5e1; /* slate-300 text */
+  --text-slate-600: #94a3b8; /* slate-400 text */
+  --text-slate-500: #64748b; /* slate-500 text */
+  --text-slate-400: #475569; /* slate-600 text */
+  --text-slate-300: #334155; /* slate-700 text */
+  --text-slate-200: #1e293b; /* slate-800 text */
+  --text-slate-100: #0f172a; /* dark heading text */
+  --text-slate-50: #020617;  /* dark body text */
+
+  --grid-line-color: rgba(0, 0, 0, 0.04);
+}
 
 /* Smooth scrolling */
 html {
@@ -7,9 +64,14 @@ html {
 }
 
 body {
-  font-family: var(--font-geist-sans), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  background-color: #020617; /* slate-950 */
-  color: #f8fafc; /* slate-50 */
+  font-family: var(--font-body);
+  background-color: var(--color-slate-950);
+  color: var(--color-slate-50);
+  transition: background-color 0.2s, color 0.2s;
+}
+
+h1, h2, h3, h4, h5, h6, .font-display {
+  font-family: var(--font-display);
 }
 
 /* Custom scrollbars */
@@ -19,22 +81,133 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: #020617; /* slate-950 */
+  background: var(--color-slate-950);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #1e293b; /* slate-800 */
+  background: var(--color-slate-800);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #334155; /* slate-700 */
+  background: var(--color-slate-700);
 }
 
 /* Grid background utility */
 .bg-grid-pattern {
   background-size: 32px 32px;
   background-image: 
-    linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+    linear-gradient(to right, var(--grid-line-color) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--grid-line-color) 1px, transparent 1px);
 }
+
+/* Custom Animations */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-8px); }
+}
+
+@keyframes pulse-slow {
+  0%, 100% { opacity: 0.1; transform: scale(1); }
+  50% { opacity: 0.2; transform: scale(1.08); }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.4s ease-out forwards;
+}
+
+.animate-slideUp {
+  animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-float {
+  animation: float 5s ease-in-out infinite;
+}
+
+.animate-pulse-slow {
+  animation: pulse-slow 8s ease-in-out infinite;
+}
+
+/* Glassmorphism custom styling */
+.glass-panel {
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--color-slate-800);
+}
+
+:root.light .glass-panel {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--color-slate-800);
+}
+
+/* Marquee infinite scroll animation */
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+.animate-marquee {
+  display: flex;
+  width: max-content;
+  animation: marquee 25s linear infinite;
+}
+
+/* Hover-based border pulsing animations */
+@keyframes borderGlowPulse {
+  0%, 100% { 
+    border-color: rgba(99, 102, 241, 0.25); 
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1), 0 0 10px rgba(99, 102, 241, 0.02);
+  }
+  50% { 
+    border-color: rgba(99, 102, 241, 0.55); 
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.15), 0 0 22px rgba(99, 102, 241, 0.12);
+  }
+}
+
+.border-glow-pulse {
+  animation: borderGlowPulse 4s ease-in-out infinite;
+}
+
+/* Code Sandbox Syntax Highlighting */
+.token-tag {
+  color: #f43f5e;
+  font-weight: 600;
+}
+
+.token-attr {
+  color: #fbbf24;
+}
+
+.token-val {
+  color: #34d399;
+}
+
+.token-style {
+  color: #818cf8;
+}
+
+.token-comment {
+  color: #64748b;
+  font-style: italic;
+}
+
+

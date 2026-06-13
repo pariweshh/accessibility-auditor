@@ -1,17 +1,30 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { AccessibilityIssue, FixSuggestion } from "@/lib/types"
 
 interface IssueCardProps {
   issue: AccessibilityIssue
   index: number
+  tier?: string
 }
 
-export default function IssueCard({ issue, index }: IssueCardProps) {
+export default function IssueCard({ issue, index, tier = "free" }: IssueCardProps) {
   const [isExpanded, setIsExpanded] = useState(false)
   const [fixSuggestion, setFixSuggestion] = useState<FixSuggestion | null>(null)
   const [isLoadingFix, setIsLoadingFix] = useState(false)
+  const [usePremiumModel, setUsePremiumModel] = useState(false)
+
+  const isPremiumTier = tier === "pro" || tier === "agency"
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const savedModel = localStorage.getItem("default_ai_model")
+      if (savedModel === "gpt-4o" && isPremiumTier) {
+        setUsePremiumModel(true)
+      }
+    }
+  }, [isPremiumTier])
 
   const impactColors = {
     critical: "bg-rose-500/10 text-rose-300 border-rose-500/20",
@@ -35,7 +48,11 @@ export default function IssueCard({ issue, index }: IssueCardProps) {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ issues: [issue], limit: 1 }),
+        body: JSON.stringify({
+          issues: [issue],
+          limit: 1,
+          model: usePremiumModel ? "gpt-4o" : "gpt-4o-mini",
+        }),
       })
 
       if (!response.ok) {
@@ -136,39 +153,82 @@ export default function IssueCard({ issue, index }: IssueCardProps) {
               </div>
 
               {!fixSuggestion && (
-                <button
-                  onClick={handleGetFix}
-                  disabled={isLoadingFix}
-                  className="w-full bg-emerald-600 hover:bg-emerald-500 text-slate-950 py-2.5 px-4 rounded-xl font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed text-xs cursor-pointer shadow-md hover:shadow-lg"
-                >
-                  {isLoadingFix ? (
-                    <span className="flex items-center justify-center gap-2">
-                      <svg
-                        className="animate-spin h-4 w-4 text-slate-950"
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                      >
-                        <circle
-                          className="opacity-25"
-                          cx="12"
-                          cy="12"
-                          r="10"
-                          stroke="currentColor"
-                          strokeWidth="4"
-                        ></circle>
-                        <path
-                          className="opacity-75"
-                          fill="currentColor"
-                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                        ></path>
-                      </svg>
-                      Generating AI Suggestion...
-                    </span>
-                  ) : (
-                    "✨ Get AI-Powered Fix Suggestion"
+                <div className="space-y-4">
+                  {/* Model Selection Toggle */}
+                  <div className="flex items-center justify-between bg-slate-900/60 border border-slate-800/80 p-3.5 rounded-xl transition-all duration-200">
+                    <div className="flex flex-col gap-0.5">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-bold text-slate-200">
+                          Premium AI Engine (gpt-4o)
+                        </span>
+                        {!isPremiumTier && (
+                          <span className="text-3xs px-1.5 py-0.5 bg-amber-500/10 text-amber-400 border border-amber-500/25 rounded-md font-extrabold uppercase tracking-wide">
+                            Pro
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-2xs text-slate-400">
+                        Better for complex React, Vue, or nested layouts.
+                      </span>
+                    </div>
+
+                    <button
+                      type="button"
+                      disabled={!isPremiumTier}
+                      onClick={() => setUsePremiumModel(!usePremiumModel)}
+                      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden ${
+                        usePremiumModel ? 'bg-emerald-500 border-emerald-400' : 'bg-slate-800 border-slate-700'
+                      } ${!isPremiumTier ? 'opacity-40 cursor-not-allowed' : ''}`}
+                    >
+                      <span className="sr-only">Toggle premium engine</span>
+                      <span
+                        className={`pointer-events-none inline-block h-3.5 w-3.5 transform rounded-full bg-slate-100 shadow-sm transition duration-200 ease-in-out ${
+                          usePremiumModel ? 'translate-x-4.5 bg-slate-950' : 'translate-x-0.5'
+                        }`}
+                      />
+                    </button>
+                  </div>
+
+                  {!isPremiumTier && (
+                    <p className="text-3xs text-amber-400/90 pl-1 leading-normal">
+                      🔒 Standard gpt-4o-mini is active. Upgrade to a paid plan to unlock the premium engine.
+                    </p>
                   )}
-                </button>
+
+                  <button
+                    onClick={handleGetFix}
+                    disabled={isLoadingFix}
+                    className="w-full bg-emerald-600 hover:bg-emerald-500 text-slate-950 py-2.5 px-4 rounded-xl font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed text-xs cursor-pointer shadow-md hover:shadow-lg"
+                  >
+                    {isLoadingFix ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <svg
+                          className="animate-spin h-4 w-4 text-slate-950"
+                          xmlns="http://www.w3.org/2000/svg"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                        >
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                          ></circle>
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                          ></path>
+                        </svg>
+                        Generating AI Suggestion ({usePremiumModel ? "gpt-4o" : "gpt-4o-mini"})...
+                      </span>
+                    ) : (
+                      `✨ Get AI-Powered Fix Suggestion (${usePremiumModel ? "gpt-4o" : "gpt-4o-mini"})`
+                    )}
+                  </button>
+                </div>
               )}
 
               {fixSuggestion && (
@@ -179,7 +239,7 @@ export default function IssueCard({ issue, index }: IssueCardProps) {
                   <div className="flex items-center gap-2 mb-3.5 flex-wrap relative z-10">
                     <span className="text-base">🤖</span>
                     <h4 className="font-bold text-sm text-emerald-300">
-                      AI-Generated Fix
+                      AI-Generated Fix ({usePremiumModel ? "gpt-4o" : "gpt-4o-mini"})
                     </h4>
                     <span className="ml-auto px-2 py-0.5 text-2xs bg-emerald-500/10 text-emerald-400 font-semibold border border-emerald-500/20 rounded-full font-mono uppercase tracking-wider">
                       {fixSuggestion.confidence} confidence
