@@ -1,6 +1,8 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { PulseDot } from "./motion/pulse-dot"
+import { ShimmerSkeleton } from "./motion/shimmer-skeleton"
 
 interface ScanProgressProps {
   url: string
@@ -61,9 +63,11 @@ export default function ScanProgress({ url, status, errorMessage }: ScanProgress
         <div className="relative z-10 space-y-6">
           {/* URL being scanned */}
           <div className="flex items-center gap-3">
-            <div className={`shrink-0 w-2.5 h-2.5 rounded-full ${
-              isFailed ? "bg-rose-400" : "bg-indigo-400 animate-pulse"
-            }`} />
+            {isFailed ? (
+              <div className="shrink-0 w-2.5 h-2.5 rounded-full bg-rose-400" />
+            ) : (
+              <PulseDot className="shrink-0 w-2.5 h-2.5 rounded-full bg-indigo-400" />
+            )}
             <p className="text-sm text-slate-400 truncate">
               Scanning{" "}
               <span className="text-slate-200 font-medium">{displayUrl}</span>
@@ -155,6 +159,15 @@ export default function ScanProgress({ url, status, errorMessage }: ScanProgress
             <div className="w-full h-0.5 bg-slate-800 rounded-full overflow-hidden">
               <div className="h-full bg-linear-to-r from-indigo-500 to-purple-500 rounded-full animate-[shimmer_2s_ease-in-out_infinite]"
                 style={{ width: "40%", animation: "shimmer 2s ease-in-out infinite" }} />
+            </div>
+          )}
+
+          {/* Skeleton preview of the upcoming report while the audit runs */}
+          {status === "processing" && (
+            <div className="space-y-2.5 pt-1" aria-hidden="true">
+              <ShimmerSkeleton className="h-3 w-1/3" />
+              <ShimmerSkeleton className="h-12 w-full" />
+              <ShimmerSkeleton className="h-12 w-full" />
             </div>
           )}
 

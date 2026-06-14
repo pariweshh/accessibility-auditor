@@ -17,6 +17,9 @@ import PricingSection from "@/components/pricing_section"
 import DashboardMockup from "@/components/dashboard_mockup"
 import HowItWorks from "@/components/how_it_works"
 import FAQsSection from "@/components/faqs_section"
+import { motion } from "motion/react"
+import { AnimatedText } from "@/components/motion/animated-text"
+import { useScrollReveal } from "@/hooks/use-scroll-reveal"
 
 type ScanStatus = "pending" | "processing" | "completed" | "failed"
 
@@ -47,6 +50,9 @@ export default function HomeClient({ features }: HomeClientProps) {
   const realtimeChannelRef = useRef<any>(null)
 
   const supabase = createClient()
+
+  // Scroll-linked reveal for the "How It Works" section.
+  const howItWorks = useScrollReveal()
 
   const fetchUserData = async (userId: string) => {
     const { data: prof } = await supabase
@@ -355,7 +361,9 @@ export default function HomeClient({ features }: HomeClientProps) {
             <span>🚀</span> Introducing A11ytica Pro 1.0
           </div>
           <h1 className="text-4.5xl md:text-6xl font-black bg-gradient-to-r from-white via-slate-100 to-slate-400 bg-clip-text text-transparent mb-5 tracking-tight leading-[1.1] max-w-3xl mx-auto font-display">
-            Continuous Web Accessibility.<br />Remediated by AI.
+            <AnimatedText text="Continuous Web Accessibility." />
+            <br />
+            <AnimatedText text="Remediated by AI." />
           </h1>
           <p className="text-xs md:text-sm text-slate-400 max-w-2xl mx-auto mb-8 leading-relaxed font-medium">
             Audit web pages for WCAG compliance violations instantly. Retrieve precise, drop-in HTML code fixes and export professional compliance reports with a single click.
@@ -421,7 +429,9 @@ export default function HomeClient({ features }: HomeClientProps) {
         </div>
 
         {/* How It Works Section */}
-        <HowItWorks />
+        <motion.section ref={howItWorks.ref} style={howItWorks.style}>
+          <HowItWorks />
+        </motion.section>
 
         {/* Live Scan Component Section */}
         <div id="scanner" className="pt-24 scroll-mt-24">

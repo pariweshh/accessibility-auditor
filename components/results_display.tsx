@@ -3,6 +3,24 @@
 import { ScanResult } from "@/lib/types"
 import IssueCard from "./issue_card"
 import Link from "next/link"
+import { Counter } from "./motion/counter"
+import { ProgressRing } from "./motion/progress-ring"
+
+/**
+ * Derives a 0–100 accessibility score from the violation severity mix.
+ * Each severity is weighted; the score is the complement of the penalty.
+ */
+function computeScore(summary: ScanResult["summary"]): number {
+  const penalty =
+    summary.critical * 15 + summary.serious * 7 + summary.moderate * 3 + summary.minor * 1
+  return Math.max(0, Math.min(100, 100 - penalty))
+}
+
+function scoreColor(score: number): string {
+  if (score >= 90) return "#34d399" // emerald
+  if (score >= 70) return "#fbbf24" // amber
+  return "#fb7185" // rose
+}
 
 interface ResultsDisplayProps {
   result: ScanResult
@@ -17,6 +35,7 @@ export default function ResultsDisplay({
 }: ResultsDisplayProps) {
   const totalIssues = result.violations.length
   const { critical, serious, moderate, minor } = result.summary
+  const score = computeScore(result.summary)
 
   return (
     <div className="w-full max-w-4xl mx-auto">
@@ -45,34 +64,53 @@ export default function ResultsDisplay({
               Scanned on {new Date(result.timestamp).toLocaleString()}
             </p>
           </div>
-          <button
-            onClick={onNewScan}
-            className="self-start sm:self-auto bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-700 px-4 py-2 rounded-xl transition-all duration-200 text-xs font-semibold hover:shadow-md cursor-pointer"
-          >
-            New Scan
-          </button>
+          <div className="flex items-center gap-5 self-start sm:self-auto shrink-0">
+            {/* Animated accessibility score ring (SVG strokeDashoffset) */}
+            <ProgressRing
+              progress={score}
+              size={92}
+              strokeWidth={7}
+              color={scoreColor(score)}
+            >
+              <span
+                className="text-2xl font-black leading-none"
+                style={{ color: scoreColor(score) }}
+              >
+                <Counter to={score} />
+              </span>
+              <span className="text-3xs font-bold text-slate-500 uppercase tracking-wider mt-0.5">
+                Score
+              </span>
+            </ProgressRing>
+            <button
+              onClick={onNewScan}
+              className="bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-700 px-4 py-2 rounded-xl transition-all duration-200 text-xs font-semibold hover:shadow-md cursor-pointer"
+            >
+              New Scan
+            </button>
+          </div>
         </div>
 
         {/* Summary Stats Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3.5 mt-6 relative z-10">
           <div className="text-center p-4 bg-slate-950/60 border border-slate-800/80 rounded-xl">
-            <p className="text-3xl font-extrabold text-white">{totalIssues}</p>
+            <p className="text-3xl font-extrabold text-white"><Counter to={totalIssues} /></p>
             <p className="text-2xs font-medium text-slate-400 mt-1 uppercase tracking-wider">Total Issues</p>
           </div>
           <div className="text-center p-4 bg-rose-500/10 border border-rose-500/15 rounded-xl">
-            <p className="text-3xl font-extrabold text-rose-400">{critical}</p>
+            <p className="text-3xl font-extrabold text-rose-400"><Counter to={critical} /></p>
             <p className="text-2xs font-semibold text-rose-300/80 mt-1 uppercase tracking-wider">Critical</p>
           </div>
           <div className="text-center p-4 bg-amber-500/10 border border-amber-500/15 rounded-xl">
-            <p className="text-3xl font-extrabold text-amber-400">{serious}</p>
+            <p className="text-3xl font-extrabold text-amber-400"><Counter to={serious} /></p>
             <p className="text-2xs font-semibold text-amber-300/80 mt-1 uppercase tracking-wider">Serious</p>
           </div>
           <div className="text-center p-4 bg-yellow-500/10 border border-yellow-500/15 rounded-xl">
-            <p className="text-3xl font-extrabold text-yellow-400">{moderate}</p>
+            <p className="text-3xl font-extrabold text-yellow-400"><Counter to={moderate} /></p>
             <p className="text-2xs font-semibold text-yellow-300/80 mt-1 uppercase tracking-wider">Moderate</p>
           </div>
           <div className="text-center p-4 bg-sky-500/10 border border-sky-500/15 rounded-xl">
-            <p className="text-3xl font-extrabold text-sky-400">{minor}</p>
+            <p className="text-3xl font-extrabold text-sky-400"><Counter to={minor} /></p>
             <p className="text-2xs font-semibold text-sky-300/80 mt-1 uppercase tracking-wider">Minor</p>
           </div>
         </div>

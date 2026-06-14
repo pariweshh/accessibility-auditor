@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { ScanResult } from "@/lib/types"
+import { SwipeCard } from "./motion/swipe-card"
 
 interface ScanRecord {
   id: string
@@ -51,6 +52,12 @@ function severityDot(count: number, color: string) {
 export default function ScanHistory({ scans, onLoadResult }: ScanHistoryProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [loadingId, setLoadingId] = useState<string | null>(null)
+  // Rows the user has swiped away this session (immutable Set updates).
+  const [dismissed, setDismissed] = useState<Set<string>>(new Set())
+
+  const visible = scans.filter((s) => !dismissed.has(s.id))
+  const handleDismiss = (id: string) =>
+    setDismissed((prev) => new Set(prev).add(id))
 
   if (scans.length === 0) return null
 
@@ -90,9 +97,9 @@ export default function ScanHistory({ scans, onLoadResult }: ScanHistoryProps) {
 
       {isOpen && (
         <div className="mt-1 bg-slate-900/40 backdrop-blur-md border border-slate-800/60 rounded-xl overflow-hidden divide-y divide-slate-800/50">
-          {scans.map((scan) => (
+          {visible.map((scan) => (
+            <SwipeCard key={scan.id} onDismiss={() => handleDismiss(scan.id)}>
             <button
-              key={scan.id}
               onClick={() => handleLoad(scan)}
               disabled={!scan.result || loadingId === scan.id}
               className="w-full flex items-center gap-4 px-4 py-3.5 hover:bg-slate-800/30 transition-colors text-left group disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
@@ -145,6 +152,7 @@ export default function ScanHistory({ scans, onLoadResult }: ScanHistoryProps) {
                 </svg>
               )}
             </button>
+            </SwipeCard>
           ))}
         </div>
       )}
