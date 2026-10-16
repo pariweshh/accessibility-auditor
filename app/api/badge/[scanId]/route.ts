@@ -66,7 +66,7 @@ function renderBadgeSvg({
 /**
  * GET /api/badge/[scanId]
  * Returns a dynamic, embeddable SVG WCAG 2.2 AA compliance badge for a completed scan.
- * - Pro tier: Displays "A11ytica Audit | WCAG 2.2 AA · <score>% Pass"
+ * - Pro tier: Displays "Equivance Audit | WCAG 2.2 AA · <score>% Pass"
  * - Agency tier: Displays custom white-label brand_name and brand_primary_color when configured.
  */
 export async function GET(
@@ -77,7 +77,7 @@ export async function GET(
 
   if (!scanId || !UUID_REGEX.test(scanId)) {
     const svg = renderBadgeSvg({
-      leftLabel: "A11ytica Audit",
+      leftLabel: "Equivance Audit",
       rightLabel: "Invalid Badge ID",
       rightColor: "#475569",
     })
@@ -107,7 +107,7 @@ export async function GET(
 
     if (error || !scan || scan.status !== "completed") {
       const svg = renderBadgeSvg({
-        leftLabel: "A11ytica Audit",
+        leftLabel: "Equivance Audit",
         rightLabel: "Scan Not Found",
         rightColor: "#475569",
       })
@@ -131,7 +131,7 @@ export async function GET(
 
     if (tier !== "pro" && tier !== "agency") {
       const svg = renderBadgeSvg({
-        leftLabel: "A11ytica Audit",
+        leftLabel: "Equivance Audit",
         rightLabel: "Pro Badge Required",
         rightColor: "#6366f1",
       })
@@ -144,7 +144,7 @@ export async function GET(
       })
     }
 
-    let leftLabel = "A11ytica Audit"
+    let leftLabel = "Equivance Audit"
     let accentDotColor = "#6366f1"
 
     if (tier === "agency" && scan.user_id) {
@@ -194,7 +194,7 @@ export async function GET(
   } catch (err) {
     console.error("Badge generation error:", err)
     const svg = renderBadgeSvg({
-      leftLabel: "A11ytica Audit",
+      leftLabel: "Equivance Audit",
       rightLabel: "Service Unavailable",
       rightColor: "#475569",
     })

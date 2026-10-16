@@ -167,7 +167,7 @@ async function handlePdfRequest(scanId: string | null, force: boolean) {
       const emailFrom =
         process.env.EMAIL_FROM ||
         process.env.RESEND_FROM_EMAIL ||
-        "A11ytica Pro <reports@yourdomain.com>"
+        "Equivance <reports@yourdomain.com>"
       await resend.emails.send({
         from: emailFrom,
         to: user.email,

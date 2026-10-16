@@ -34,7 +34,7 @@ export function generateReportHTML(
   const result = scan.result
   if (!result) return "<html><body>No scan data available.</body></html>"
 
-  const brandName = branding?.brandName?.trim() || "A11ytica Pro"
+  const brandName = branding?.brandName?.trim() || "Equivance"
   const brandLogoUrl = branding?.brandLogoUrl?.trim() || null
   const primaryColor = branding?.brandPrimaryColor?.trim() || "#4f46e5"
   const tagline = branding?.brandTagline?.trim() || "Accessibility Audit Report"

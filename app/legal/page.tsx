@@ -5,7 +5,7 @@ import { BrandLogo } from "@/components/brand_logo"
 export const metadata = {
   title: `Legal, Terms of Service & Compliance Disclaimers — ${SITE.name}`,
   description:
-    "Terms of Service, Privacy Policy, and Accessibility Compliance Disclaimers for A11ytica Pro. Understand our honest automated audit model and legal protections.",
+    "Terms of Service, Privacy Policy, and Accessibility Compliance Disclaimers for Equivance. Understand our honest automated audit model and legal protections.",
 }
 
 export default function LegalPage() {
@@ -19,7 +19,7 @@ export default function LegalPage() {
           <Link href="/" className="flex items-center gap-2.5 group">
             <BrandLogo size={32} />
             <span className="text-xl font-bold bg-linear-to-r from-indigo-400 via-indigo-300 to-indigo-400 bg-clip-text text-transparent group-hover:from-indigo-300 transition-all duration-300 font-display">
-              A11ytica Pro
+              Equivance
             </span>
           </Link>
           <div className="flex items-center gap-3">
@@ -65,7 +65,7 @@ export default function LegalPage() {
             </li>
             <li className="flex items-start gap-2">
               <span className="text-indigo-400 font-bold shrink-0">2.</span>
-              <span><strong>Engineering tool, not legal advice.</strong> A11ytica Pro provides automated diagnostic code reports. We do not provide legal representation or legal immunity from ADA lawsuits.</span>
+              <span><strong>Engineering tool, not legal advice.</strong> Equivance provides automated diagnostic code reports. We do not provide legal representation or legal immunity from ADA lawsuits.</span>
             </li>
             <li className="flex items-start gap-2">
               <span className="text-indigo-400 font-bold shrink-0">3.</span>
@@ -83,7 +83,7 @@ export default function LegalPage() {
           <section className="space-y-4">
             <h2 className="text-xl font-black text-slate-50 tracking-tight font-display">1. Terms of Service & Acceptable Use</h2>
             <p>
-              By accessing or using A11ytica Pro, you agree to be bound by these Terms. You represent and warrant that you own or possess valid authorization from the owner to submit every URL processed through our audit engine.
+              By accessing or using Equivance, you agree to be bound by these Terms. You represent and warrant that you own or possess valid authorization from the owner to submit every URL processed through our audit engine.
             </p>
             <p>
               You agree not to submit internal network IP addresses (including 127.0.0.1, localhost, and private IPv4 subnets) or attempt Server-Side Request Forgery (SSRF). You agree not to reverse engineer or tamper with subscription limits.
@@ -99,7 +99,7 @@ export default function LegalPage() {
                 Critical Regulatory Limitation Notice
               </p>
               <p className="text-slate-200 text-xs leading-relaxed">
-                A11ytica Pro provides <strong>NO WARRANTY, EXPRESS OR IMPLIED</strong>, that any website, application, or digital property audited by our Service is fully compliant with WCAG 2.0/2.1/2.2, Title III of the Americans with Disabilities Act (ADA), Section 508 of the Rehabilitation Act, California's Unruh Civil Rights Act, or the European Accessibility Act (EAA).
+                Equivance provides <strong>NO WARRANTY, EXPRESS OR IMPLIED</strong>, that any website, application, or digital property audited by our Service is fully compliant with WCAG 2.0/2.1/2.2, Title III of the Americans with Disabilities Act (ADA), Section 508 of the Rehabilitation Act, California's Unruh Civil Rights Act, or the European Accessibility Act (EAA).
               </p>
               <p className="text-slate-300 text-xs leading-relaxed">
                 Using our Service does <strong>NOT</strong> provide legal immunity, certification of full compliance, safe harbor, or protection against demand letters, administrative complaints, or civil litigation. Comprehensive accessibility conformance requires manual testing by certified human auditors and user testing by individuals with disabilities.
@@ -127,16 +127,16 @@ export default function LegalPage() {
               To the maximum extent permitted by applicable law:
             </p>
             <p>
-              A11ytica Pro and its operators shall not be liable for any indirect, consequential, punitive, or statutory damages, including lost profits, regulatory fines, or legal settlement costs arising from your reliance on scan reports. Our total aggregate liability is capped at the amount paid by you during the twelve (12) months preceding the claim or $100 USD, whichever is greater.
+              Equivance and its operators shall not be liable for any indirect, consequential, punitive, or statutory damages, including lost profits, regulatory fines, or legal settlement costs arising from your reliance on scan reports. Our total aggregate liability is capped at the amount paid by you during the twelve (12) months preceding the claim or $100 USD, whichever is greater.
             </p>
             <p>
-              You agree to indemnify and hold harmless A11ytica Pro against any third-party claims or accessibility lawsuits alleging that a digital property audited by you fails to satisfy disability rights legislation.
+              You agree to indemnify and hold harmless Equivance against any third-party claims or accessibility lawsuits alleging that a digital property audited by you fails to satisfy disability rights legislation.
             </p>
           </section>
 
           <footer className="border-t border-slate-900 pt-8 text-slate-500 text-2xs space-y-1">
-            <p>&copy; {new Date().getFullYear()} A11ytica Pro. All rights reserved.</p>
-            <p>For inquiries, contact legal@a11yticapro.app or security@a11yticapro.app.</p>
+            <p>&copy; {new Date().getFullYear()} Equivance. All rights reserved.</p>
+            <p>For inquiries, contact legal@equivance.app or security@equivance.app.</p>
           </footer>
         </article>
       </main>

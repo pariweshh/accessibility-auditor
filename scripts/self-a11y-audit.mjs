@@ -55,7 +55,7 @@ async function waitForServer(port, timeoutMs = 30000) {
 
 async function main() {
   console.log("=======================================================")
-  console.log(" A11ytica Pro: Automated Dogfooding Accessibility Audit")
+  console.log(" Equivance: Automated Dogfooding Accessibility Audit")
   console.log(" Standard: WCAG 2.1 & 2.2 Levels A & AA, Best Practices")
   console.log("=======================================================\n")
 

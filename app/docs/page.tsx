@@ -14,17 +14,17 @@ const SCAN_EXAMPLES: CodeExample[] = [
   {
     lang: "curl",
     label: "cURL",
-    code: `# 1. Queue an asynchronous WCAG 2.2 scan\ncurl -X POST https://a11ytica-pro.vercel.app/api/scan \\\n  -H "Content-Type: application/json" \\\n  -H "x-api-key: aud_live_xxxxxxxxxxxxxxxxxxxxxxxx" \\\n  -d '{"url":"https://example.com"}'\n\n# 2. Poll scan status and fetch violation results\ncurl -X GET "https://a11ytica-pro.vercel.app/api/scan?scanId=8f8e02d0-5b5c-4d89-8d76-e17f058022a1" \\\n  -H "x-api-key: aud_live_xxxxxxxxxxxxxxxxxxxxxxxx"`,
+    code: `# 1. Queue an asynchronous WCAG 2.2 scan\ncurl -X POST https://equivance.app/api/scan \\\n  -H "Content-Type: application/json" \\\n  -H "x-api-key: aud_live_xxxxxxxxxxxxxxxxxxxxxxxx" \\\n  -d '{"url":"https://example.com"}'\n\n# 2. Poll scan status and fetch violation results\ncurl -X GET "https://equivance.app/api/scan?scanId=8f8e02d0-5b5c-4d89-8d76-e17f058022a1" \\\n  -H "x-api-key: aud_live_xxxxxxxxxxxxxxxxxxxxxxxx"`,
   },
   {
     lang: "javascript",
     label: "JavaScript",
-    code: `const response = await fetch("https://a11ytica-pro.vercel.app/api/scan", {\n  method: "POST",\n  headers: {\n    "Content-Type": "application/json",\n    "x-api-key": "aud_live_xxxxxxxxxxxxxxxxxxxxxxxx"\n  },\n  body: JSON.stringify({\n    url: "https://example.com"\n  })\n});\n\nconst { scanId } = await response.json();\nconsole.log("Scan Queued. ID:", scanId);\n\n// Poll for completion\nconst statusRes = await fetch(\`https://a11ytica-pro.vercel.app/api/scan?scanId=\${scanId}\`, {\n  headers: { "x-api-key": "aud_live_xxxxxxxxxxxxxxxxxxxxxxxx" }\n});\nconst result = await statusRes.json();\nconsole.log("Status:", result.status, "Score:", result.score);`,
+    code: `const response = await fetch("https://equivance.app/api/scan", {\n  method: "POST",\n  headers: {\n    "Content-Type": "application/json",\n    "x-api-key": "aud_live_xxxxxxxxxxxxxxxxxxxxxxxx"\n  },\n  body: JSON.stringify({\n    url: "https://example.com"\n  })\n});\n\nconst { scanId } = await response.json();\nconsole.log("Scan Queued. ID:", scanId);\n\n// Poll for completion\nconst statusRes = await fetch(\`https://equivance.app/api/scan?scanId=\${scanId}\`, {\n  headers: { "x-api-key": "aud_live_xxxxxxxxxxxxxxxxxxxxxxxx" }\n});\nconst result = await statusRes.json();\nconsole.log("Status:", result.status, "Score:", result.score);`,
   },
   {
     lang: "python",
     label: "Python",
-    code: `import requests\n\nurl = "https://a11ytica-pro.vercel.app/api/scan"\nheaders = {\n    "Content-Type": "application/json",\n    "x-api-key": "aud_live_xxxxxxxxxxxxxxxxxxxxxxxx"\n}\n\n# 1. Start Scan\nresponse = requests.post(url, headers=headers, json={"url": "https://example.com"})\nscan_id = response.json().get("scanId")\nprint("Scan Queued. ID:", scan_id)\n\n# 2. Poll Scan Status\nresult = requests.get(f"{url}?scanId={scan_id}", headers=headers).json()\nprint("Status:", result.get("status"), "Score:", result.get("score"))`,
+    code: `import requests\n\nurl = "https://equivance.app/api/scan"\nheaders = {\n    "Content-Type": "application/json",\n    "x-api-key": "aud_live_xxxxxxxxxxxxxxxxxxxxxxxx"\n}\n\n# 1. Start Scan\nresponse = requests.post(url, headers=headers, json={"url": "https://example.com"})\nscan_id = response.json().get("scanId")\nprint("Scan Queued. ID:", scan_id)\n\n# 2. Poll Scan Status\nresult = requests.get(f"{url}?scanId={scan_id}", headers=headers).json()\nprint("Status:", result.get("status"), "Score:", result.get("score"))`,
   },
 ]
 
@@ -32,21 +32,21 @@ const FIX_EXAMPLES: CodeExample[] = [
   {
     lang: "javascript",
     label: "JavaScript",
-    code: `const response = await fetch("https://a11ytica-pro.vercel.app/api/fix-suggestions", {\n  method: "POST",\n  headers: {\n    "Content-Type": "application/json",\n    "x-api-key": "aud_live_xxxxxxxxxxxxxxxxxxxxxxxx"\n  },\n  body: JSON.stringify({\n    issues: [\n      {\n        id: "image-alt",\n        impact: "critical",\n        description: "Ensures images have alt text",\n        help: "Images must have alternate text",\n        tags: ["wcag2a"],\n        nodes: [\n          { html: '<img src="logo.png">', target: ['img'], failureSummary: 'No alt attribute' }\n        ]\n      }\n    ],\n    limit: 1,\n    model: "gpt-4o",\n    framework: "react-tailwind" // "html" | "react-tailwind" | "vue" | "angular"\n  })\n});\n\nconst data = await response.json();\nconsole.log(data.fixes);`,
+    code: `const response = await fetch("https://equivance.app/api/fix-suggestions", {\n  method: "POST",\n  headers: {\n    "Content-Type": "application/json",\n    "x-api-key": "aud_live_xxxxxxxxxxxxxxxxxxxxxxxx"\n  },\n  body: JSON.stringify({\n    issues: [\n      {\n        id: "image-alt",\n        impact: "critical",\n        description: "Ensures images have alt text",\n        help: "Images must have alternate text",\n        tags: ["wcag2a"],\n        nodes: [\n          { html: '<img src="logo.png">', target: ['img'], failureSummary: 'No alt attribute' }\n        ]\n      }\n    ],\n    limit: 1,\n    model: "gpt-4o",\n    framework: "react-tailwind" // "html" | "react-tailwind" | "vue" | "angular"\n  })\n});\n\nconst data = await response.json();\nconsole.log(data.fixes);`,
   },
 ]
 
-const CICD_SNIPPET = `- name: Trigger & Verify A11ytica Pro Compliance Scan
+const CICD_SNIPPET = `- name: Trigger & Verify Equivance Compliance Scan
   run: |
-    SCAN_ID=$(curl -s -X POST https://a11ytica-pro.vercel.app/api/scan \\
+    SCAN_ID=$(curl -s -X POST https://equivance.app/api/scan \\
       -H "Content-Type: application/json" \\
-      -H "x-api-key: \${{ secrets.A11YTICA_API_KEY }}" \\
+      -H "x-api-key: \${{ secrets.EQUIVANCE_API_KEY }}" \\
       -d '{"url": "https://staging.yourdomain.com"}' | jq -r '.scanId')
     echo "Queued Scan ID: $SCAN_ID"
     for i in {1..15}; do
       sleep 3
-      RES=$(curl -s "https://a11ytica-pro.vercel.app/api/scan?scanId=$SCAN_ID" \\
-        -H "x-api-key: \${{ secrets.A11YTICA_API_KEY }}")
+      RES=$(curl -s "https://equivance.app/api/scan?scanId=$SCAN_ID" \\
+        -H "x-api-key: \${{ secrets.EQUIVANCE_API_KEY }}")
       STATUS=$(echo "$RES" | jq -r '.status')
       if [ "$STATUS" = "completed" ]; then
         CRITICAL=$(echo "$RES" | jq -r '.summary.critical')
@@ -100,7 +100,7 @@ export default function DocsPage() {
           <Link href="/" className="flex items-center gap-2.5 group">
             <BrandLogo size={32} />
             <span className="text-xl font-bold text-slate-50 group-hover:text-indigo-300 transition-colors duration-300">
-              A11ytica Pro
+              Equivance
             </span>
           </Link>
           <div className="flex gap-4">
@@ -180,12 +180,12 @@ export default function DocsPage() {
           <section id="introduction" className="scroll-mt-24 space-y-4">
             <h1 className="text-3xl font-black text-slate-50 tracking-tight">API Documentation</h1>
             <p className="text-sm text-slate-400">
-              Welcome to the A11ytica Pro Developer API. Our programmatic endpoints allow you to schedule automated website audits, poll scan completion status, query WCAG 2.2 violations, and fetch AI-driven accessibility fixes straight from your repository or CI/CD deployment pipeline.
+              Welcome to the Equivance Developer API. Our programmatic endpoints allow you to schedule automated website audits, poll scan completion status, query WCAG 2.2 violations, and fetch AI-driven accessibility fixes straight from your repository or CI/CD deployment pipeline.
             </p>
             <div className="bg-slate-900/40 border border-slate-800/80 p-4 rounded-xl space-y-1">
               <span className="text-3xs font-bold text-slate-500 uppercase tracking-wider block">Base API URL</span>
               <code className="text-xs text-indigo-300 font-mono select-all block">
-                https://a11ytica-pro.vercel.app
+                https://equivance.app
               </code>
             </div>
           </section>
@@ -420,7 +420,7 @@ export default function DocsPage() {
                 <span className="text-3xs font-extrabold uppercase tracking-widest text-slate-500">HTML Embed Snippet</span>
                 <button
                   type="button"
-                  onClick={() => handleCopy('<script src="https://a11ytica.com/widget.js" data-scan-id="YOUR_SCAN_ID" data-position="bottom-right" async defer></script>', "widget-embed")}
+                  onClick={() => handleCopy('<script src="https://equivance.app/widget.js" data-scan-id="YOUR_SCAN_ID" data-position="bottom-right" async defer></script>', "widget-embed")}
                   className="text-2xs font-bold text-indigo-400 hover:text-indigo-300 transition-colors cursor-pointer"
                 >
                   {copiedText === "widget-embed" ? "Copied!" : "Copy Snippet"}
@@ -431,7 +431,7 @@ export default function DocsPage() {
                 aria-label="Widget HTML embed snippet"
                 className="text-2xs font-mono text-cyan-300 overflow-x-auto focus:outline-hidden focus:ring-1 focus:ring-cyan-500"
               >
-                {`<script src="https://a11ytica.com/widget.js" data-scan-id="YOUR_SCAN_ID" data-position="bottom-right" async defer></script>`}
+                {`<script src="https://equivance.app/widget.js" data-scan-id="YOUR_SCAN_ID" data-position="bottom-right" async defer></script>`}
               </pre>
             </div>
 

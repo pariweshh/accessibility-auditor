@@ -1,16 +1,16 @@
 /**
- * A11ytica Pro — Embeddable Public Compliance & Accessibility Statement Widget
+ * Equivance — Embeddable Public Compliance & Accessibility Statement Widget
  * Zero-dependency, lightweight, Shadow-DOM isolated WCAG 2.2 AA conformance trigger & dialog.
  * 
  * Usage:
- * <script src="https://a11ytica.com/widget.js" data-scan-id="<SCAN_UUID>" data-position="bottom-right" async defer></script>
+ * <script src="https://equivance.app/widget.js" data-scan-id="<SCAN_UUID>" data-position="bottom-right" async defer></script>
  */
 (function () {
   "use strict";
 
   // Prevent double-initialization
-  if (window.__A11YTICA_WIDGET_LOADED__) return;
-  window.__A11YTICA_WIDGET_LOADED__ = true;
+  if (window.__EQUIVANCE_WIDGET_LOADED__) return;
+  window.__EQUIVANCE_WIDGET_LOADED__ = true;
 
   // Locate the executing script tag
   const currentScript =
@@ -27,13 +27,13 @@
     })();
 
   if (!currentScript) {
-    console.warn("[A11ytica Widget] Unable to identify widget script tag.");
+    console.warn("[Equivance Widget] Unable to identify widget script tag.");
     return;
   }
 
   const scanId = currentScript.getAttribute("data-scan-id");
   if (!scanId) {
-    console.warn("[A11ytica Widget] Missing required attribute 'data-scan-id'.");
+    console.warn("[Equivance Widget] Missing required attribute 'data-scan-id'.");
     return;
   }
 
@@ -44,7 +44,7 @@
   const contactOverride = currentScript.getAttribute("data-contact");
 
   // Derive API origin from script source URL
-  let apiOrigin = "https://a11ytica.com";
+  let apiOrigin = "https://equivance.app";
   try {
     if (currentScript.src) {
       const parsed = new URL(currentScript.src);
@@ -56,18 +56,18 @@
 
   // Create isolated container host
   const host = document.createElement("div");
-  host.id = "a11ytica-compliance-widget";
+  host.id = "equivance-compliance-widget";
   host.setAttribute("role", "region");
   host.setAttribute("aria-label", "Accessibility Statement Widget");
 
   function mountHost() {
     if (document.body) {
-      if (!document.getElementById("a11ytica-compliance-widget")) {
+      if (!document.getElementById("equivance-compliance-widget")) {
         document.body.appendChild(host);
       }
     } else {
       document.addEventListener("DOMContentLoaded", function () {
-        if (!document.getElementById("a11ytica-compliance-widget")) {
+        if (!document.getElementById("equivance-compliance-widget")) {
           document.body.appendChild(host);
         }
       });
@@ -82,9 +82,9 @@
     .then(function (res) {
       if (!res.ok) {
         if (res.status === 403) {
-          console.warn("[A11ytica Widget] Widget embed requires an active Pro or Agency subscription.");
+          console.warn("[Equivance Widget] Widget embed requires an active Pro or Agency subscription.");
         } else if (res.status === 404) {
-          console.warn("[A11ytica Widget] Scan record not found or not completed.");
+          console.warn("[Equivance Widget] Scan record not found or not completed.");
         }
         return null;
       }
@@ -95,13 +95,13 @@
       initWidget(data);
     })
     .catch(function (err) {
-      console.error("[A11ytica Widget] Error loading widget data:", err);
+      console.error("[Equivance Widget] Error loading widget data:", err);
     });
 
   function initWidget(data) {
     const isDark = theme !== "light";
     const brandColor = customColor || data.branding.color || "#4f46e5";
-    const brandName = data.branding.name || "A11ytica Pro";
+    const brandName = data.branding.name || "Equivance";
     const isWhiteLabel = Boolean(data.branding.whiteLabel);
     const score = data.score || 0;
     const scoreColor = score >= 90 ? "#10b981" : score >= 70 ? "#f59e0b" : "#f43f5e";
@@ -514,7 +514,7 @@
 
     // Root HTML container
     const container = document.createElement("div");
-    container.className = "a11ytica-widget-wrapper";
+    container.className = "equivance-widget-wrapper";
 
     // 1. Trigger Pill Button
     const trigger = document.createElement("button");
@@ -522,7 +522,7 @@
     trigger.className = "widget-trigger";
     trigger.setAttribute("aria-haspopup", "dialog");
     trigger.setAttribute("aria-expanded", "false");
-    trigger.setAttribute("aria-controls", "a11ytica-dialog");
+    trigger.setAttribute("aria-controls", "equivance-dialog");
     trigger.setAttribute("aria-label", "Accessibility Statement & Compliance Status");
 
     trigger.innerHTML = `
@@ -547,8 +547,8 @@
     dialog.className = "widget-dialog";
     dialog.setAttribute("role", "dialog");
     dialog.setAttribute("aria-modal", "true");
-    dialog.setAttribute("aria-labelledby", "a11ytica-title");
-    dialog.id = "a11ytica-dialog";
+    dialog.setAttribute("aria-labelledby", "equivance-title");
+    dialog.id = "equivance-dialog";
 
     // Build POUR cards
     const pour = data.pour || {};
@@ -578,7 +578,7 @@
               : `<div class="trigger-icon" aria-hidden="true" style="width:28px;height:28px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="4.5" r="2.5"></circle><path d="M4 8.5h16"></path><path d="M12 8.5v6"></path><path d="m8 20.5 4-6 4 6"></path></svg></div>`
           }
           <div>
-            <h3 class="brand-title" id="a11ytica-title">${brandName}</h3>
+            <h3 class="brand-title" id="equivance-title">${brandName}</h3>
             <p class="brand-subtitle">${data.branding.tagline || "Accessibility Conformance"}</p>
           </div>
         </div>
@@ -630,7 +630,7 @@
         ${
           !isWhiteLabel
             ? `<div class="footer-brand-tag">
-                <span>Verified by <a href="${apiOrigin}" target="_blank" rel="noopener noreferrer">A11ytica Pro</a></span>
+                <span>Verified by <a href="${apiOrigin}" target="_blank" rel="noopener noreferrer">Equivance</a></span>
                 <span>ISO/IEC 40500</span>
                </div>`
             : data.branding.footerText

@@ -114,7 +114,7 @@ export async function POST(req: Request) {
 * Under ARIA 1.2+, putting `aria-label` directly on generic `<span>` tags without an ARIA role triggers `aria-prohibited-attr`.
 * When splitting titles into individual animated character spans (e.g. `framer-motion`), always wrap the split animated container in `aria-hidden="true"` and supply an adjacent, non-split accessible label:
 ```tsx
-<span className="sr-only">A11ytica Pro</span>
+<span className="sr-only">Equivance</span>
 <span aria-hidden="true">
   {letters.map((char, i) => (
     <motion.span key={i}>{char}</motion.span>

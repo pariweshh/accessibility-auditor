@@ -9,7 +9,7 @@
 
 ## 01 System Overview
 
-A11ytica Pro is built as an asynchronous, distributed accessibility auditing engine designed to eliminate the timeout constraints of serverless environments while maintaining real-time feedback for users.
+Equivance is built as an asynchronous, distributed accessibility auditing engine designed to eliminate the timeout constraints of serverless environments while maintaining real-time feedback for users.
 
 ### High-Level Topology
 
@@ -273,7 +273,7 @@ accessibility-auditor/
 
 ### 2. Next.js `after()` Lifecycle Safeguard
 * In serverless hosting (Vercel), terminating an HTTP response (`202 Accepted`) immediately freezes the CPU container.
-* Un-awaited background tasks (`fetch(edgeFnUrl)`) would be abruptly killed. A11ytica Pro utilizes Next.js's native `after()` callback (`app/api/scan/route.ts`), keeping the container alive until the dispatch request is delivered to Supabase.
+* Un-awaited background tasks (`fetch(edgeFnUrl)`) would be abruptly killed. Equivance utilizes Next.js's native `after()` callback (`app/api/scan/route.ts`), keeping the container alive until the dispatch request is delivered to Supabase.
 
 ### 3. AI Token Optimization & Cost Control
 * Accessibility issues are highly repetitive across the web (e.g., standard React button missing text, `<img src="...">` missing `alt`).
@@ -283,7 +283,7 @@ accessibility-auditor/
 
 ## 06 Team Access & Quota Pooling Architecture
 
-For Agency tier accounts ($59/mo), A11ytica Pro supports up to 3 collaborative team seats pooling a shared monthly allowance of 600 audits.
+For Agency tier accounts ($59/mo), Equivance supports up to 3 collaborative team seats pooling a shared monthly allowance of 600 audits.
 
 ### 1. Data Model & Hierarchy
 * **`teams` Table:** Owned by an Agency subscriber (`owner_id`), tracks custom branding assets and max seat allocation (`max_seats = 3`).
@@ -332,7 +332,7 @@ Agency subscribers can completely white-label client-facing web audit reports (`
    * Real-time preview renders an interactive simulated document canvas using the exact CSS variables and layout parameters.
 2. **Server-Side Branding Injection (`lib/report-template.ts` & `app/api/badge/[scanId]/route.ts`):**
    * Web reports (`app/report/[scanId]/page.tsx`), PDF export route (`app/api/reports/pdf/route.ts`), and SVG badge route (`app/api/badge/[scanId]/route.ts`) query the owner's `teams` record.
-   * The template engine swaps default A11ytica Pro styling with the agency's primary color, injects the agency logo, customizes header/footer disclaimers, includes the **WCAG 2.2 4-Principle (POUR) Conformance Summary Matrix**, and removes the "Powered by A11ytica Pro" watermark.
+   * The template engine swaps default Equivance styling with the agency's primary color, injects the agency logo, customizes header/footer disclaimers, includes the **WCAG 2.2 4-Principle (POUR) Conformance Summary Matrix**, and removes the "Powered by Equivance" watermark.
 3. **Storage & Cache Bypassing:**
    * Generated PDFs are stored in Supabase private bucket `reports/{scanId}.pdf`.
    * When agency branding settings are saved, or when a forced export is requested (`POST /api/reports/pdf` with `{ force: true }`), the server invalidates the cached PDF in Supabase Storage and regenerates a fresh branded document.
@@ -341,7 +341,7 @@ Agency subscribers can completely white-label client-facing web audit reports (`
 
 ## 08 Scheduled Monitoring & Degradation Alert Architecture
 
-A11ytica Pro incorporates an automated compliance monitoring pipeline allowing Pro and Agency subscribers to continuously track production URLs, detect regressions, and receive immediate actionable email alerts.
+Equivance incorporates an automated compliance monitoring pipeline allowing Pro and Agency subscribers to continuously track production URLs, detect regressions, and receive immediate actionable email alerts.
 
 ```
 ┌────────────────────────┐
@@ -396,16 +396,16 @@ A11ytica Pro incorporates an automated compliance monitoring pipeline allowing P
 
 ## 09 Embeddable Public Compliance Widget Architecture
 
-A11ytica Pro enables subscribers to embed an interactive, fully accessible compliance widget directly on their external web properties with a single script tag:
+Equivance enables subscribers to embed an interactive, fully accessible compliance widget directly on their external web properties with a single script tag:
 ```html
-<script src="https://a11ytica.com/widget.js" data-scan-id="<scanId>" data-position="bottom-right" async defer></script>
+<script src="https://equivance.app/widget.js" data-scan-id="<scanId>" data-position="bottom-right" async defer></script>
 ```
 
 ```
 ┌────────────────────────────────────────────────────────┐
 │                    HOST WEBSITE                        │
 │                                                        │
-│  <script src="https://a11ytica.com/widget.js" ...>    │
+│  <script src="https://equivance.app/widget.js" ...>    │
 └───────────────────────────┬────────────────────────────┘
                             │
                             │ 1. Mounts host container to document.body
@@ -442,7 +442,7 @@ A11ytica Pro enables subscribers to embed an interactive, fully accessible compl
 ```
 
 ### 1. Zero-Overlay Design Philosophy
-Unlike controversial commercial overlays that inject destructive DOM hacks that often interfere with screen readers, A11ytica Pro's widget is strictly an **Accessibility Statement & Conformance Status Badge**. It does not intercept keyboard commands, re-map DOM nodes, or alter host styling.
+Unlike controversial commercial overlays that inject destructive DOM hacks that often interfere with screen readers, Equivance's widget is strictly an **Accessibility Statement & Conformance Status Badge**. It does not intercept keyboard commands, re-map DOM nodes, or alter host styling.
 
 ### 2. Shadow DOM CSS Isolation
 The client script (`public/widget.js`, served via `/widget.js`) uses an open **Shadow DOM** (`host.attachShadow({ mode: "open" })`) to ensure:
@@ -451,14 +451,14 @@ The client script (`public/widget.js`, served via `/widget.js`) uses an open **S
 
 ### 3. Accessible Dialog Lifecycle (WCAG 2.2 AA)
 * **Trigger Element:** Standard `<button>` with `role="button"`, `aria-haspopup="dialog"`, `aria-expanded="false"`, and accessible label.
-* **Dialog Element:** `<div role="dialog" aria-modal="true" aria-labelledby="a11ytica-title">`.
+* **Dialog Element:** `<div role="dialog" aria-modal="true" aria-labelledby="equivance-title">`.
 * **Focus Management:** Focus is automatically directed to the dialog close button upon opening; keyboard focus is trapped within the dialog cycling via `Tab` / `Shift+Tab`; pressing `Escape` closes the dialog and restores focus to the trigger button.
 * **Motion Preferences:** `@media (prefers-reduced-motion: reduce)` disables slide transitions and transform scaling.
 
 ### 4. Cross-Origin Data Delivery & Tier Gating
 * `GET /api/widget/[scanId]` provides CORS headers (`Access-Control-Allow-Origin: *`).
 * If the scan belongs to a **Free** tier account, the endpoint returns `403 Forbidden` (`tier: "free"`), preventing unauthorized embeds.
-* If the scan belongs to an **Agency** account, the endpoint queries `public.teams` and injects the agency's custom brand name, logo URL, and primary hex color, removing all A11ytica Pro watermarks.
+* If the scan belongs to an **Agency** account, the endpoint queries `public.teams` and injects the agency's custom brand name, logo URL, and primary hex color, removing all Equivance watermarks.
 
 ---
 
@@ -484,7 +484,7 @@ The client script (`public/widget.js`, served via `/widget.js`) uses an open **S
 
 ## 11 Self-Accessibility (Dogfooding) & Zero-Violation Architecture
 
-As an accessibility testing and compliance product, A11ytica Pro dogfoods its own platform with zero-violation standards across all public and authenticated surfaces.
+As an accessibility testing and compliance product, Equivance dogfoods its own platform with zero-violation standards across all public and authenticated surfaces.
 
 ### 1. Zero-Dependency Focus Trapping (`hooks/use-focus-trap.ts`)
 * Modal dialogs must trap keyboard focus so screen readers and keyboard users cannot inadvertently tab into background page elements behind backdrops.

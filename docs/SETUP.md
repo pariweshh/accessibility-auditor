@@ -1,7 +1,7 @@
 # Setup & Deployment Guide
 
 > **Status:** Active / Production Baseline  
-> **App Name:** A11ytica Pro  
+> **App Name:** Equivance  
 > **Framework:** Next.js 16 (App Router) + Turbopack  
 > **Database & Auth:** Supabase Cloud (Postgres 15+, RLS, Edge Functions, Realtime, Storage)  
 > **Last Updated:** October 2026  
@@ -73,8 +73,8 @@ BROWSERLESS_TOKEN=your_browserless_api_token_here
 # 4. Transactional Email & Invites (Resend)
 # ----------------------------------------------------
 RESEND_API_KEY=your_resend_api_key_here
-EMAIL_FROM=A11ytica Pro <notifications@yourdomain.com>
-RESEND_FROM_EMAIL=A11ytica Pro <notifications@yourdomain.com>
+EMAIL_FROM=Equivance <notifications@yourdomain.com>
+RESEND_FROM_EMAIL=Equivance <notifications@yourdomain.com>
 
 # ----------------------------------------------------
 # 5. Billing & Subscriptions (Stripe)

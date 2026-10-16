@@ -10,7 +10,7 @@
 
 ## 01 Executive Security Summary
 
-A11ytica Pro processes arbitrary user-supplied URLs, executes headless browser automation on remote websites, and leverages Large Language Models (LLMs) to generate source code remediations. These operations introduce unique threat vectors—predominantly **Server-Side Request Forgery (SSRF)**, **Headless Browser Sandbox Escapes**, **API Token Compromise**, **Prompt Injection**, and **Data Leakage Across Multi-Tenant Boundaries**.
+Equivance processes arbitrary user-supplied URLs, executes headless browser automation on remote websites, and leverages Large Language Models (LLMs) to generate source code remediations. These operations introduce unique threat vectors—predominantly **Server-Side Request Forgery (SSRF)**, **Headless Browser Sandbox Escapes**, **API Token Compromise**, **Prompt Injection**, and **Data Leakage Across Multi-Tenant Boundaries**.
 
 This document outlines the defense-in-depth architecture implemented to mitigate these risks.
 
@@ -183,7 +183,7 @@ A malicious user stores script tags, arbitrary HTML, or CSS injection inside age
 ## 10 Threat 9: Open Redirect & Parameter Poisoning
 
 ### Attack Vector
-An attacker crafts a link such as `https://a11ytica-pro.vercel.app/login?returnTo=//evil.com` or `https://a11ytica-pro.vercel.app/auth/callback?next=https://phishing.com` to deceive authenticating users into being redirected to an adversary-controlled credential harvester.
+An attacker crafts a link such as `https://equivance.app/login?returnTo=//evil.com` or `https://equivance.app/auth/callback?next=https://phishing.com` to deceive authenticating users into being redirected to an adversary-controlled credential harvester.
 
 ### Implemented Defenses
 1. **Centralized Safe Redirect Sanitization (`lib/safe-redirect.ts`):**
@@ -228,7 +228,7 @@ Non-compliance with GDPR, ePrivacy, and CCPA regulations regarding session cooki
 ### Implemented Defenses
 1. **Essential Cookie Disclosure (`components/cookie_consent.tsx`):**
    * Pinned, non-intrusive consent banner informing visitors that only essential session (Supabase) and billing (Stripe) cookies are utilized.
-   * Persistent acknowledgment stored in `localStorage` under `a11ytica_consent_acknowledged`.
+   * Persistent acknowledgment stored in `localStorage` under `equivance_consent_acknowledged`.
    * Transparent link to in-app legal terms (`/legal`).
    * Zero third-party ad tracking, fingerprinting, or user behavioral resale.
 2. **Self-Serve Account & Data Deletion (`DELETE /api/auth/account`):**

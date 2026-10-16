@@ -351,7 +351,7 @@ export default function HomeClient({ features }: HomeClientProps) {
             <Link href="/" className="flex items-center gap-2.5 group">
               <BrandLogo size={32} />
               <span className="text-lg sm:text-xl font-bold bg-linear-to-r from-indigo-400 via-indigo-300 to-indigo-400 bg-clip-text text-transparent group-hover:from-indigo-300 group-hover:to-indigo-300 transition-all duration-300">
-                A11ytica Pro
+                Equivance
               </span>
             </Link>
             <div className="hidden md:flex items-center gap-6 text-xs font-semibold text-slate-400">
@@ -395,7 +395,7 @@ export default function HomeClient({ features }: HomeClientProps) {
         {/* Hero Section */}
         <div className="text-center pt-8 pb-6 animate-slideUp">
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-3xs font-bold rounded-full uppercase tracking-[0.16em] mb-7 select-none">
-            <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse" /> Introducing A11ytica Pro 1.0
+            <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse" /> Introducing Equivance 1.0
           </div>
           <h1 className="text-3xl sm:text-5xl md:text-7xl font-semibold bg-gradient-to-br from-slate-50 via-slate-100 to-slate-400 bg-clip-text text-transparent mb-6 tracking-tight leading-[1.1] sm:leading-[1.02] max-w-3xl mx-auto font-display break-words">
             <AnimatedText text="Continuous Web Accessibility." />
@@ -554,7 +554,7 @@ export default function HomeClient({ features }: HomeClientProps) {
             </Link>
           </p>
           <p className="text-3xs text-slate-400 font-semibold tracking-wide flex items-center justify-center gap-3">
-            <span>&copy; {new Date().getFullYear()} A11ytica Pro. All rights reserved.</span>
+            <span>&copy; {new Date().getFullYear()} Equivance. All rights reserved.</span>
             <span>·</span>
             <Link href="/legal" className="text-slate-400 hover:text-indigo-400 transition-colors underline underline-offset-2">
               Legal, Terms & Compliance Disclaimers

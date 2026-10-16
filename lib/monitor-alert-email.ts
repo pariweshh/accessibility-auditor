@@ -32,7 +32,7 @@ export function generateMonitorAlertHtml({
   const siteUrl = SITE.url
   const reportUrl = `${siteUrl}/report/${scanId}`
   const primaryColor = brandPrimaryColor || "#6366f1"
-  const platformName = brandName || "A11ytica Pro"
+  const platformName = brandName || SITE.name
 
   const scoreDrop = previousScore !== null ? previousScore - newScore : null
   const isDrop = scoreDrop !== null && scoreDrop > 0

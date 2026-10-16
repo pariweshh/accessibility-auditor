@@ -9,7 +9,7 @@
 
 ## 01 Overview
 
-This guide defines how autonomous AI agents collaborate on the A11ytica Pro (`accessibility-auditor`) codebase. By specifying clear roles, tooling boundaries, verification protocols, and safety guardrails, multiple autonomous agents can execute parallel features, refactors, and audits without collisions or regressions.
+This guide defines how autonomous AI agents collaborate on the Equivance (`accessibility-auditor`) codebase. By specifying clear roles, tooling boundaries, verification protocols, and safety guardrails, multiple autonomous agents can execute parallel features, refactors, and audits without collisions or regressions.
 
 ```
 ┌────────────────────────────────────────────────────────────────────────┐

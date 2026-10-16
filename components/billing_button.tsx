@@ -141,15 +141,20 @@ const BillingButton = forwardRef<BillingButtonHandle, BillingButtonProps>(
 
               {/* Close Button */}
               <button
+                type="button"
                 onClick={() => setShowPricingModal(false)}
-                className="absolute top-4 right-4 text-slate-400 hover:text-slate-50 transition-colors p-1 rounded-md hover:bg-white/5 cursor-pointer z-10 text-sm"
+                className="absolute top-4 right-4 text-slate-400 hover:text-slate-50 transition-colors p-1.5 rounded-lg hover:bg-white/5 cursor-pointer z-10"
+                aria-label="Close pricing modal"
               >
-                ✕
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
               </button>
 
               <div className="text-center mb-8 relative z-10">
                 <h3 className="text-2xl font-black bg-linear-to-r from-white to-slate-300 bg-clip-text text-transparent mb-2">
-                  Upgrade to A11ytica Pro
+                  Upgrade Your Equivance Plan
                 </h3>
                 <p className="text-xs text-slate-400 max-w-md mx-auto">
                   Unlock detailed scan history, multi-page crawling, and PDF

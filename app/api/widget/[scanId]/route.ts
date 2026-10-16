@@ -99,7 +99,7 @@ export async function GET(
 
     // Check for Agency white-label branding
     const branding = {
-      name: "A11ytica Pro",
+      name: SITE.name,
       logo: null as string | null,
       color: "#4f46e5",
       tagline: "WCAG 2.2 Level AA Verified",

@@ -168,20 +168,20 @@ export async function POST(request: NextRequest) {
     const emailFrom =
       process.env.EMAIL_FROM ||
       process.env.RESEND_FROM_EMAIL ||
-      "A11ytica Pro <invites@yourdomain.com>"
+      "Equivance <notifications@yourdomain.com>"
 
     try {
       await resend.emails.send({
         from: emailFrom,
         to: targetEmail,
-        subject: `You've been invited to join ${team.name} on A11ytica Pro`,
+        subject: `You've been invited to join ${team.name} on Equivance`,
         html: `
           <!DOCTYPE html>
           <html>
           <head>
             <meta charset="utf-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Team Invitation - A11ytica Pro</title>
+            <title>Team Invitation - Equivance</title>
             <style>
               body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #020617; color: #f1f5f9; margin: 0; padding: 0; }
               .container { max-width: 500px; margin: 40px auto; padding: 32px; background-color: #0f172a; border: 1px solid #1e293b; border-radius: 16px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3); }
@@ -198,12 +198,12 @@ export async function POST(request: NextRequest) {
           <body>
             <div class="container">
               <div class="logo">
-                <img src="${origin}/logo.png" width="32" height="32" style="vertical-align: middle; border-radius: 8px; margin-right: 8px;" alt="A11ytica Pro" />
-                <span>A11ytica Pro</span>
+                <img src="${origin}/logo.png" width="32" height="32" style="vertical-align: middle; border-radius: 8px; margin-right: 8px;" alt="Equivance" />
+                <span>Equivance</span>
               </div>
               <h1>You're invited to collaborate</h1>
               <p>
-                <strong>${user.email}</strong> has invited you to join <strong>${team.name}</strong> on A11ytica Pro with full agency member privileges.
+                <strong>${user.email}</strong> has invited you to join <strong>${team.name}</strong> on Equivance with full agency member privileges.
               </p>
               <div class="perks">
                 <ul>

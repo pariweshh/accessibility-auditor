@@ -25,25 +25,25 @@ export function BrandLogo({
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       className={`shrink-0 ${className}`}
-      aria-label="A11ytica Pro Universal Beacon Logo"
+      aria-label="Equivance Universal Beacon Logo"
       role="img"
     >
       <defs>
-        <linearGradient id="a11y_beacon_bg" x1="0" y1="0" x2="120" y2="120" gradientUnits="userSpaceOnUse">
+        <linearGradient id="equivance_beacon_bg" x1="0" y1="0" x2="120" y2="120" gradientUnits="userSpaceOnUse">
           <stop offset="0%" stopColor="#0f172a" />
           <stop offset="100%" stopColor="#020617" />
         </linearGradient>
-        <linearGradient id="a11y_beacon_legs" x1="30" y1="30" x2="90" y2="100" gradientUnits="userSpaceOnUse">
+        <linearGradient id="equivance_beacon_legs" x1="30" y1="30" x2="90" y2="100" gradientUnits="userSpaceOnUse">
           <stop offset="0%" stopColor="#38bdf8" />
           <stop offset="45%" stopColor="#6366f1" />
           <stop offset="100%" stopColor="#8b5cf6" />
         </linearGradient>
-        <linearGradient id="a11y_beacon_arms" x1="35" y1="65" x2="85" y2="65" gradientUnits="userSpaceOnUse">
+        <linearGradient id="equivance_beacon_arms" x1="35" y1="65" x2="85" y2="65" gradientUnits="userSpaceOnUse">
           <stop offset="0%" stopColor="#0ea5e9" />
           <stop offset="50%" stopColor="#6366f1" />
           <stop offset="100%" stopColor="#a855f7" />
         </linearGradient>
-        <filter id="a11y_beacon_glow" x="40" y="7" width="40" height="40" filterUnits="userSpaceOnUse">
+        <filter id="equivance_beacon_glow" x="40" y="7" width="40" height="40" filterUnits="userSpaceOnUse">
           <feGaussianBlur stdDeviation="3" result="blur" />
           <feComposite in="SourceGraphic" in2="blur" operator="over" />
         </filter>
@@ -52,7 +52,7 @@ export function BrandLogo({
       {/* Rounded squircle card background */}
       {withBackground && (
         <>
-          <rect width="120" height="120" rx="28" fill="url(#a11y_beacon_bg)" />
+          <rect width="120" height="120" rx="28" fill="url(#equivance_beacon_bg)" />
           <rect
             width="118"
             height="118"
@@ -71,7 +71,7 @@ export function BrandLogo({
       {/* Stylized 'A' Wings / Legs */}
       <path
         d="M36 93 L54 44 C56 39 64 39 66 44 L84 93"
-        stroke="url(#a11y_beacon_legs)"
+        stroke="url(#equivance_beacon_legs)"
         strokeWidth="8.5"
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -80,13 +80,13 @@ export function BrandLogo({
       {/* Welcoming Open Arms Crossbar */}
       <path
         d="M41 73 Q60 59 79 73"
-        stroke="url(#a11y_beacon_arms)"
+        stroke="url(#equivance_beacon_arms)"
         strokeWidth="7"
         strokeLinecap="round"
       />
 
       {/* Radiant Beacon Head (Universal Human Focus) */}
-      <circle cx="60" cy="27" r="8" fill="#38bdf8" filter="url(#a11y_beacon_glow)" />
+      <circle cx="60" cy="27" r="8" fill="#38bdf8" filter="url(#equivance_beacon_glow)" />
       <circle cx="60" cy="27" r="3.5" fill="#ffffff" />
     </svg>
   )
@@ -102,10 +102,7 @@ export function BrandLogo({
         <span
           className={`font-black tracking-tight text-white font-display text-base md:text-lg flex items-center gap-1.5 leading-none ${wordmarkClassName}`}
         >
-          A11ytica{" "}
-          <span className="bg-linear-to-r from-indigo-400 via-sky-400 to-indigo-300 bg-clip-text text-transparent">
-            Pro
-          </span>
+          Equivance
         </span>
         {subtitle && (
           <span className="text-[9px] font-semibold tracking-wider text-slate-400 uppercase mt-0.5">

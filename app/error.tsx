@@ -30,7 +30,7 @@ export default function GlobalError({ error, reset }: ErrorProps) {
         <Link href="/" className="flex items-center gap-2.5 group">
           <BrandLogo size={32} />
           <span className="text-xl font-bold bg-linear-to-r from-indigo-400 via-indigo-300 to-indigo-400 bg-clip-text text-transparent group-hover:from-indigo-300 transition-all duration-300 font-display">
-            A11ytica Pro
+            Equivance
           </span>
         </Link>
         <button
@@ -98,7 +98,7 @@ export default function GlobalError({ error, reset }: ErrorProps) {
 
       {/* Footer */}
       <footer className="w-full border-t border-slate-900 py-6 px-6 text-center text-xs text-slate-500 relative z-10">
-        Safe failure protection powered by A11ytica Pro Error Boundaries
+        Safe failure protection powered by Equivance Error Boundaries
       </footer>
     </main>
   )

@@ -1,7 +1,7 @@
-# A11ytica Pro — Public Launch Checklist
+# Equivance — Public Launch Checklist
 
 > **Document Status:** Living Pre-Launch Tracker (Editable)  
-> **Target Product:** A11ytica Pro (`accessibility-auditor`)  
+> **Target Product:** Equivance (`accessibility-auditor`)  
 > **How to Use:** Replace `- [ ]` with `- [x]` as each item is completed and verified.
 
 ---
@@ -147,7 +147,7 @@
 ---
 
 ## Phase 5: Self-Accessibility (Dogfooding), UI/UX & Design Polish
-*As an accessibility compliance platform, A11ytica Pro will be immediately audited by skeptical accessibility engineers and competitors on launch day.*
+*As an accessibility compliance platform, Equivance will be immediately audited by skeptical accessibility engineers and competitors on launch day.*
 
 - [x] **Zero-Violation Self-Audit across All Public & Authenticated Routes**
   - Run `axe-core` and Lighthouse Accessibility audits (`a11y-debugging` skill) on:
@@ -180,7 +180,7 @@
 ## Phase 6: Legal, Privacy & Compliance Readiness
 
 - [ ] **Update Contact Emails & Business Entity Details in Legal Docs**
-  - Verify `legal@a11yticapro.app` and `security@a11yticapro.app` (or your actual production domain emails) have active mailboxes or forwarding rules.
+  - Verify `legal@equivance.app` and `security@equivance.app` (or your actual production domain emails) have active mailboxes or forwarding rules.
   - Update the registered business entity name, governing jurisdiction, and physical mailing address in [`docs/LEGAL.md`](./LEGAL.md) and [`app/legal/page.tsx`](../app/legal/page.tsx).
 - [ ] **Verify Automated Testing Scope Disclaimers**
   - Confirm the ~30%–50% automated detection disclaimer is visible on the landing scanner, scan results view, shared web reports (`/report/[scanId]`), and exported PDF reports (`lib/report-template.ts`).

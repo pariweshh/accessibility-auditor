@@ -128,7 +128,7 @@ export default function DashboardMockup() {
             </div>
             <div className="flex items-center gap-2 text-[10px] bg-slate-900/60 border border-slate-850 px-2.5 py-1 rounded-xl">
               <span className="text-slate-400 font-medium">Domain:</span>
-              <code className="text-indigo-300 font-mono">staging-design.a11ytica.net</code>
+              <code className="text-indigo-300 font-mono">staging-design.equivance.net</code>
             </div>
           </div>
 
@@ -294,14 +294,14 @@ export default function DashboardMockup() {
               <div className="space-y-1">
                 <h5 className="text-xs font-bold text-slate-200">AI Code Integration Active</h5>
                 <p className="text-[10px] text-slate-500 max-w-sm leading-relaxed">
-                  A11ytica Pro is integrated with your repository. Accessibility fixes are compiled automatically on every push and queued as code-suggest PRs.
+                  Equivance is integrated with your repository. Accessibility fixes are compiled automatically on every push and queued as code-suggest PRs.
                 </p>
               </div>
               <div className="bg-slate-950/60 border border-slate-900 rounded-xl p-3 font-mono text-[10px] text-slate-400 w-full max-w-md text-left">
                 <span className="text-slate-600 block mb-1">// System telemetry output</span>
-                <span className="text-emerald-400">✓ git branch</span> integration-ready<br />
-                <span className="text-emerald-400">✓ axe-core schema</span> parsed successfully<br />
-                <span className="text-indigo-400">→ suggestions:</span> 3 critical contrast ratios resolved automatically
+                <span className="text-emerald-400">[ok] git branch</span> integration-ready<br />
+                <span className="text-emerald-400">[ok] axe-core schema</span> parsed successfully<br />
+                <span className="text-indigo-400">-&gt; suggestions:</span> 3 critical contrast ratios resolved automatically
               </div>
             </div>
           )}

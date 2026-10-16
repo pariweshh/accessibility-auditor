@@ -87,7 +87,7 @@ async function processDueMonitors(request: NextRequest) {
   const emailFrom =
     process.env.EMAIL_FROM ||
     process.env.RESEND_FROM_EMAIL ||
-    "A11ytica Pro Alerts <alerts@a11ytica.com>"
+    "Equivance Alerts <alerts@equivance.app>"
 
   for (const monitor of monitors) {
     try {

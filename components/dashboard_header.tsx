@@ -30,7 +30,7 @@ export default function DashboardHeader({ user, profile }: DashboardHeaderProps)
           <Link href="/" className="flex items-center gap-2 group">
             <BrandLogo size={26} />
             <span className="text-base sm:text-lg font-bold bg-linear-to-r from-indigo-400 via-indigo-300 to-indigo-400 bg-clip-text text-transparent">
-              A11ytica Pro
+              Equivance
             </span>
           </Link>
           {/* Breadcrumb */}

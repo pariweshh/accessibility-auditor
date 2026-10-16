@@ -1,6 +1,6 @@
 # Design System & UI/UX Guidelines
 
-> **Standard:** A11ytica Pro High-End Engineering Design System  
+> **Standard:** Equivance High-End Engineering Design System  
 > **Status:** Active / Production Baseline  
 > **Version:** 2.4.0  
 > **Skill Directives:** `design-taste-frontend`, `high-end-visual-design`, `impeccable`, `a11y-debugging`
@@ -9,7 +9,7 @@
 
 ## 01 Design Philosophy & Baseline Configuration
 
-A11ytica Pro is a specialized software tool designed for software engineers, QA teams, and accessibility compliance specialists. The interface reflects the precision and gravitas of security and compliance infrastructure.
+Equivance is a specialized software tool designed for software engineers, QA teams, and accessibility compliance specialists. The interface reflects the precision and gravitas of security and compliance infrastructure.
 
 ### Baseline Parameters
 * **DESIGN_VARIANCE:** `8` (Asymmetric layout elements, split-screen balance, crisp negative space, offset technical panels; mobile strictly collapses to clean single-column `px-4 py-8`).
@@ -41,7 +41,7 @@ Code & Metrics:     Geist Mono · font-mono · tabular-nums
 
 ## 03 Color System & Token Palette
 
-A11ytica Pro implements a strict dark-mode-first aesthetic. It complies with the **Anti-Slop Color Directives** (strict prohibition of generic purple glows, neon gradient overlays, or multi-hue noise).
+Equivance implements a strict dark-mode-first aesthetic. It complies with the **Anti-Slop Color Directives** (strict prohibition of generic purple glows, neon gradient overlays, or multi-hue noise).
 
 ### 1. Foundation Neutrals (Deep Space Slate)
 
@@ -133,7 +133,7 @@ const animationProps = shouldReduce ? {} : { initial: { opacity: 0, y: 12 }, ani
 
 ## 06 Accessibility (A11y) Design Mandates
 
-As an accessibility testing product, A11ytica Pro must maintain a flawless self-audit record.
+As an accessibility testing product, Equivance must maintain a flawless self-audit record.
 
 1. **Contrast Ratio Strictness:**
    * Normal text ($\le 18\text{pt}$ / $24\text{px}$): Minimum **$4.5:1$** contrast against background.
@@ -193,7 +193,7 @@ export function SeverityBadge({ impact }: { impact: "critical" | "serious" | "mo
 ## 08 Universal Beacon Brand System & Iconography
 
 ### 1. Logo Philosophy & Geometry
-The **Universal Beacon** is the unifying brand mark for A11ytica Pro across the web application, favicon ecosystem, Apple touch icons, and OpenGraph social cards:
+The **Universal Beacon** is the unifying brand mark for Equivance across the web application, favicon ecosystem, Apple touch icons, and OpenGraph social cards:
 * **Squircle Foundation:** Deep slate gradient squircle (`#0f172a` to `#020617`) with a 1.5px subtle border stroke (`rgba(255,255,255,0.12)`).
 * **The 'A' Human Legs / Wings:** A clean, dual-pillar architectural 'A' stroke with gradient (`#38bdf8` -> `#6366f1` -> `#8b5cf6`), signifying structural strength and universal web standards.
 * **The Welcoming Open-Arms Crossbar:** An upward arc (`#0ea5e9` -> `#6366f1` -> `#a855f7`) evoking universal human embrace and accessibility for all individuals.
@@ -244,5 +244,5 @@ import { BrandLogo } from "@/components/brand_logo"
 ### 4. Floating Cookie Consent Notice (`components/cookie_consent.tsx`)
 * Floating, non-blocking toast positioned at the bottom viewport on initial visit.
 * Explicitly discloses essential-only session and billing cookies.
-* `localStorage` persistence under `a11ytica_consent_acknowledged`.
+* `localStorage` persistence under `equivance_consent_acknowledged`.
 * Strict compliance with Anti-Emoji policy (SVG shield icon).

@@ -4,11 +4,11 @@ import { SITE } from "@/lib/site"
 export const metadata: Metadata = {
   title: "API Documentation — Scan & AI Fix Endpoints",
   description:
-    "Developer reference for the A11ytica Pro API: queue WCAG accessibility scans, fetch AI-powered fixes, and wire compliance checks into your CI/CD pipeline.",
+    "Developer reference for the Equivance API: queue WCAG accessibility scans, fetch AI-powered fixes, and wire compliance checks into your CI/CD pipeline.",
   alternates: { canonical: "/docs" },
   openGraph: {
     type: "article",
-    title: "A11ytica Pro API Documentation",
+    title: "Equivance API Documentation",
     description:
       "Programmatic access to accessibility scans and AI-powered WCAG fixes.",
     url: `${SITE.url}/docs`,

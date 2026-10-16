@@ -30,8 +30,8 @@ const MOCK_ISSUES: MockIssue[] = [
     issueHelp: "Images must have alternate text (WCAG 2.1 A)",
     impact: "serious",
     brokenHtml: `<img src="/assets/logo.png" width="120" height="40" />`,
-    fixedHtml: `<img src="/assets/logo.png" width="120" height="40" alt="A11ytica Pro SaaS Logo" />`,
-    explanation: "The image tag lacked an 'alt' attribute, leaving screen reader users unaware of the graphic's meaning. Appended `alt=\"A11ytica Pro SaaS Logo\"` to provide a clear, descriptive text alternative.",
+    fixedHtml: `<img src="/assets/logo.png" width="120" height="40" alt="Equivance SaaS Logo" />`,
+    explanation: "The image tag lacked an 'alt' attribute, leaving screen reader users unaware of the graphic's meaning. Appended `alt=\"Equivance SaaS Logo\"` to provide a clear, descriptive text alternative.",
     confidence: "high",
   },
   {
@@ -194,7 +194,7 @@ export default function InteractiveSandbox() {
             See the AI Engine in Action
           </h2>
           <p className="text-xs text-slate-400 max-w-md mx-auto mt-2 leading-relaxed">
-            Select a common accessibility violation below and witness how A11ytica Pro detects and automatically suggests WCAG-compliant fixes.
+            Select a common accessibility violation below and witness how Equivance detects and automatically suggests WCAG-compliant fixes.
           </p>
         </div>
 

@@ -8,7 +8,7 @@ export default function CookieConsent() {
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const acknowledged = localStorage.getItem("a11ytica_consent_acknowledged")
+      const acknowledged = localStorage.getItem("equivance_consent_acknowledged")
       if (!acknowledged) {
         setShowConsent(true)
       }
@@ -18,7 +18,7 @@ export default function CookieConsent() {
   const handleDismiss = () => {
     setShowConsent(false)
     if (typeof window !== "undefined") {
-      localStorage.setItem("a11ytica_consent_acknowledged", "true")
+      localStorage.setItem("equivance_consent_acknowledged", "true")
     }
   }
 

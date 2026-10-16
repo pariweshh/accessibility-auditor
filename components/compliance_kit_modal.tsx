@@ -132,7 +132,7 @@ export default function ComplianceKitModal({
       : "World Wide Web Consortium (W3C) Web Content Accessibility Guidelines (WCAG) 2.2 Level AA"
 
   const origin =
-    typeof window !== "undefined" ? window.location.origin : "https://a11ytica.com"
+    typeof window !== "undefined" ? window.location.origin : "https://equivance.app"
   const effectiveScanId = scanId || "00000000-0000-0000-0000-000000000000"
   const badgeUrl = `${origin}/api/badge/${effectiveScanId}`
   const verifyUrl = `${origin}/report/${effectiveScanId}?verify=1`
@@ -456,7 +456,7 @@ We welcome your feedback on the accessibility of ${orgName}. Please let us know 
                     <span className="inline-flex items-center rounded-md overflow-hidden border border-slate-700 text-2xs font-bold">
                       <span className="bg-slate-950 text-slate-100 px-2.5 py-1 flex items-center gap-1.5">
                         <span className="w-2 h-2 rounded-full bg-indigo-500" />
-                        A11ytica Audit
+                        Equivance Audit
                       </span>
                       <span
                         className={`px-2.5 py-1 text-white ${
@@ -614,7 +614,7 @@ We welcome your feedback on the accessibility of ${orgName}. Please let us know 
                     onClick={() =>
                       handleCopy(
                         "widget-script",
-                        `<!-- A11ytica Pro Accessibility Statement & Compliance Widget -->\n<script src="${origin}/widget.js" data-scan-id="${effectiveScanId}" data-position="${widgetPosition}" data-theme="${widgetTheme}" async defer></script>`
+                        `<!-- Equivance Accessibility Statement & Compliance Widget -->\n<script src="${origin}/widget.js" data-scan-id="${effectiveScanId}" data-position="${widgetPosition}" data-theme="${widgetTheme}" async defer></script>`
                       )
                     }
                     className="text-2xs font-bold text-indigo-300 hover:text-indigo-200 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/25 px-2.5 py-1 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
@@ -623,7 +623,7 @@ We welcome your feedback on the accessibility of ${orgName}. Please let us know 
                   </button>
                 </div>
                 <pre className="text-2xs bg-slate-950 border border-slate-800 p-3 rounded-xl overflow-x-auto font-mono text-cyan-300">
-                  {`<!-- A11ytica Pro Accessibility Statement & Compliance Widget -->\n<script src="${origin}/widget.js" data-scan-id="${effectiveScanId}" data-position="${widgetPosition}" data-theme="${widgetTheme}" async defer></script>`}
+                  {`<!-- Equivance Accessibility Statement & Compliance Widget -->\n<script src="${origin}/widget.js" data-scan-id="${effectiveScanId}" data-position="${widgetPosition}" data-theme="${widgetTheme}" async defer></script>`}
                 </pre>
               </div>
             </div>

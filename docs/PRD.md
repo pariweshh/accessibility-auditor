@@ -1,7 +1,7 @@
 # Product Requirements Document (PRD)
 
 > **Document Status:** Active / Authoritative  
-> **Product Name:** A11ytica Pro (`accessibility-auditor`)  
+> **Product Name:** Equivance (`accessibility-auditor`)  
 > **Version:** 2.8.0  
 > **Last Updated:** October 2026  
 > **Target Standard:** WCAG 2.2 Level AA, Section 508, ADA Title III, European Accessibility Act (EAA 2025)
@@ -11,14 +11,14 @@
 ## 01 Product Overview
 
 ### Product Identity
-* **Product Name:** A11ytica Pro
+* **Product Name:** Equivance
 * **Repository:** `pariweshh/accessibility-auditor`
-* **Canonical URL:** `https://a11ytica-pro.vercel.app` (configured via `lib/site.ts`)
+* **Canonical URL:** `https://equivance.app` (configured via `lib/site.ts`)
 * **Tagline:** Automated WCAG 2.2 audits with deterministic AI code remediation.
-* **Elevator Pitch:** A11ytica Pro is an enterprise-grade accessibility auditing platform that combines headless browser automation (Puppeteer + axe-core 4.12) with targeted generative AI (OpenAI GPT-4o / GPT-4o-mini). It evaluates live, fully rendered JavaScript web applications, detects WCAG 2.2 Level A/AA violations, flags criteria requiring manual human review, generates drop-in framework-aware code fixes (`HTML`, `React / JSX + Tailwind`, `Vue 3`, `Angular`), and outputs audit-ready PDF reports, EAA 2025 / ADA Compliance Kits, live SVG badges, and developer APIs for CI/CD pipelines.
+* **Elevator Pitch:** Equivance is an enterprise-grade accessibility auditing platform that combines headless browser automation (Puppeteer + axe-core 4.12) with targeted generative AI (OpenAI GPT-4o / GPT-4o-mini). It evaluates live, fully rendered JavaScript web applications, detects WCAG 2.2 Level A/AA violations, flags criteria requiring manual human review, generates drop-in framework-aware code fixes (`HTML`, `React / JSX + Tailwind`, `Vue 3`, `Angular`), and outputs audit-ready PDF reports, EAA 2025 / ADA Compliance Kits, live SVG badges, and developer APIs for CI/CD pipelines.
 
 ### Core Value Proposition
-1. **Zero False Promises:** Unlike predatory "accessibility overlay widgets" that inject superficial scripts and frequently attract ADA lawsuits, A11ytica Pro focuses on root-cause source code remediation.
+1. **Zero False Promises:** Unlike predatory "accessibility overlay widgets" that inject superficial scripts and frequently attract ADA lawsuits, Equivance focuses on root-cause source code remediation.
 2. **Honest Conformance Model:** Explicitly differentiates between automated detection (~30–50% of WCAG criteria) and manual verification checkpoints (focus obscuration, dragging movements, cognitive authentication).
 3. **Actionable Developer Feedback:** Instead of opaque error messages, developers receive concrete, before-and-after code diffs tailored to their frontend framework (`HTML`, `React / Tailwind`, `Vue 3`, `Angular`) with confidence scoring and educational rationale.
 4. **Frictionless Integration:** Available via Web UI, programmatic REST API (`POST /api/scan` + `GET /api/scan`), and an interactive Turnkey CI/CD Quality Gate Builder (GitHub Actions, GitLab CI, Bash/cURL).
@@ -160,7 +160,7 @@
 * [x] Accessible text alternative data tables for Recharts visual graphs (`components/dashboard/trend_chart.tsx`).
 
 ### Phase 4: Developer Ecosystem (Future)
-* [ ] Official `@a11ytica/cli` NPM package for local pre-commit hooks and zero-dependency terminal runs.
-* [ ] Official GitHub Action (`a11ytica/action`) with PR status checks and branch gate rules.
+* [ ] Official `@equivance/cli` NPM package for local pre-commit hooks and zero-dependency terminal runs.
+* [ ] Official GitHub Action (`equivance/action`) with PR status checks and branch gate rules.
 * [ ] Chrome/Brave Browser Extension enabling one-click DOM audits directly inside developer DevTools.
 * [ ] Multi-page recursive crawler parsing `sitemap.xml` with parallel workers.

@@ -9,12 +9,12 @@
 
 ## 01 Testing Philosophy
 
-A11ytica Pro is an accessibility testing tool; therefore, our testing standards must be exceptionally rigorous. An undetected bug could lead to false negatives for our customers, creating real-world legal liabilities under ADA Title III or the European Accessibility Act (EAA).
+Equivance is an accessibility testing tool; therefore, our testing standards must be exceptionally rigorous. An undetected bug could lead to false negatives for our customers, creating real-world legal liabilities under ADA Title III or the European Accessibility Act (EAA).
 
 ### The Four Pillars of Quality
 1. **Zero Type Errors:** The codebase must compile cleanly under TypeScript 6 Strict Mode (`npx tsc --noEmit`).
 2. **Scanner Accuracy:** Automated axe-core runs must accurately identify 100% of standard WCAG 2.2 rules on known test suites.
-3. **Self-Compliance:** A11ytica Pro itself must achieve zero automated violations during self-audits.
+3. **Self-Compliance:** Equivance itself must achieve zero automated violations during self-audits.
 4. **Resilient Failure Testing:** All external dependencies (Browserless, OpenAI, Stripe, Supabase) must have tested fallback and error-handling paths.
 
 ---
@@ -23,7 +23,7 @@ A11ytica Pro is an accessibility testing tool; therefore, our testing standards 
 
 ```
                 ┌───────────────────────────────┐
-                │     Self-A11y Audits (a11y)   │  axe-core on A11ytica Pro
+                │     Self-A11y Audits (a11y)   │  axe-core on Equivance
                 ├───────────────────────────────┤
                 │      E2E Integration Tests    │  Full Scan Flow & Realtime
                 ├───────────────────────────────┤
@@ -160,7 +160,7 @@ Automated scanning must be validated against three distinct tiers of external we
 
 ## 05 Self-Accessibility Auditing (Dogfooding)
 
-A11ytica Pro runs an automated regression test suite via `npm run test:a11y` ([`scripts/self-a11y-audit.mjs`](../scripts/self-a11y-audit.mjs)) against its own routes using local headless Chrome and `axe-core 4.12`.
+Equivance runs an automated regression test suite via `npm run test:a11y` ([`scripts/self-a11y-audit.mjs`](../scripts/self-a11y-audit.mjs)) against its own routes using local headless Chrome and `axe-core 4.12`.
 
 ### Audited Routes & Current Status
 | Route | Standard Rules Tested | Axe-Core Violations | Conformance Status |

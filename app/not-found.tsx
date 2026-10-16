@@ -19,7 +19,7 @@ export default function NotFound() {
         <Link href="/" className="flex items-center gap-2.5 group">
           <BrandLogo size={32} />
           <span className="text-xl font-bold bg-linear-to-r from-indigo-400 via-indigo-300 to-indigo-400 bg-clip-text text-transparent group-hover:from-indigo-300 transition-all duration-300 font-display">
-            A11ytica Pro
+            Equivance
           </span>
         </Link>
         <Link

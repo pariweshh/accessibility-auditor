@@ -83,7 +83,7 @@ export default function LandingFeatures() {
             Developer-First Accessibility Tooling
           </h2>
           <p className="text-xs text-slate-400 max-w-md mx-auto mt-2 leading-relaxed">
-            A11ytica Pro combines headless browser automation, accessibility standard rulesets, and AI to help you build WCAG-compliant web apps.
+            Equivance combines headless browser automation, accessibility standard rulesets, and AI to help you build WCAG-compliant web apps.
           </p>
         </div>
 

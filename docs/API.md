@@ -5,7 +5,7 @@
 > **Base URL:** `https://accessibility-auditor.vercel.app` (Production) / `http://localhost:3000` (Local)  
 > **Last Updated:** October 2026  
 
-Welcome to the A11ytica Pro Developer API reference. The API enables automated accessibility scanning, AI-powered remediation, team workspace collaboration, custom white-label reports, and programmatic API key management.
+Welcome to the Equivance Developer API reference. The API enables automated accessibility scanning, AI-powered remediation, team workspace collaboration, custom white-label reports, and programmatic API key management.
 
 ---
 
@@ -433,7 +433,7 @@ Content-Disposition: attachment; filename="accessibility-report-example-com.pdf"
 
 #### `GET /api/badge/[scanId]`
 Returns a live, cache-optimized `image/svg+xml` compliance shield for completed scans owned by Pro or Agency subscribers.
-* **Pro Tier:** Displays `WCAG 2.2 AA · A11ytica` on the left segment and `{score}% · {Pass|Review}` on the right segment.
+* **Pro Tier:** Displays `WCAG 2.2 AA · Equivance` on the left segment and `{score}% · {Pass|Review}` on the right segment.
 * **Agency Tier:** Automatically white-labels the left segment using the workspace's `brand_name` (`WCAG 2.2 · {brand_name}`) and custom `brand_primary_color` when configured.
 * **Public Verification Link (`/report/[scanId]?verify=1`):** Embedding the badge alongside `<a href="https://.../report/{scanId}?verify=1">` opens a read-only public verification view of the audit report with the scan owner's email address masked for privacy.
 
@@ -673,7 +673,7 @@ Returns public WCAG 2.2 AA conformance metadata, POUR principle status, and whit
     "footerText": "Compliance verified quarterly.",
     "whiteLabel": true
   },
-  "verifyUrl": "https://a11ytica.com/report/8f8e02d0-5b5c-4d89-8d76-e17f058022a1?verify=1"
+  "verifyUrl": "https://equivance.app/report/8f8e02d0-5b5c-4d89-8d76-e17f058022a1?verify=1"
 }
 ```
 
@@ -682,7 +682,7 @@ Returns public WCAG 2.2 AA conformance metadata, POUR principle status, and whit
 {
   "error": "Widget embedding requires an active Pro or Agency subscription",
   "tier": "free",
-  "upgradeUrl": "https://a11ytica.com/#pricing"
+  "upgradeUrl": "https://equivance.app/#pricing"
 }
 ```
 

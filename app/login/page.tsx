@@ -186,7 +186,7 @@ export default function LoginPage() {
           <Link href="/" className="inline-flex items-center gap-2.5 group mb-2">
             <BrandLogo size={36} />
             <h1 className="text-2xl font-bold bg-linear-to-r from-indigo-400 via-indigo-300 to-indigo-400 bg-clip-text text-transparent group-hover:from-indigo-300 group-hover:to-indigo-300 transition-all duration-300">
-              A11ytica Pro
+              Equivance
             </h1>
           </Link>
           <p className="text-sm text-slate-400">

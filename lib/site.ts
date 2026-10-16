@@ -20,10 +20,10 @@ function resolveSiteUrl(): string {
 }
 
 export const SITE = {
-  name: "A11ytica Pro",
+  name: "Equivance",
   url: resolveSiteUrl(),
-  title: "A11ytica Pro — AI Web Accessibility Scanner & WCAG Audits",
+  title: "Equivance — Continuous Web Accessibility & WCAG Governance",
   description:
-    "Scan any website for WCAG accessibility violations and get AI-powered, drop-in HTML fixes. Export professional compliance reports in one click.",
-  twitterHandle: "@a11yticapro",
+    "Enterprise web accessibility auditing, continuous WCAG 2.2 monitoring, and framework-aware AI code remediation. Fast-track ADA & EAA 2025 compliance.",
+  twitterHandle: "@equivance",
 } as const

@@ -1,4 +1,4 @@
-# A11ytica Pro
+# Equivance
 
 > **The Enterprise-Grade Accessibility Auditing Engine & Compliance Platform**  
 > Automated WCAG 2.0, 2.1 & 2.2 Level A/AA audits, real-time streaming scans, OpenAI GPT-4o code remediation, Developer API keys, 3-seat Agency collaboration, and white-label reporting.

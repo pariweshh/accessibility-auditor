@@ -35,7 +35,7 @@ export default function HowItWorks() {
             Operation Flow
           </span>
           <h2 className="text-2xl md:text-3xl font-black text-slate-50 mt-3.5 tracking-tight">
-            How A11ytica Pro Works
+            How Equivance Works
           </h2>
           <p className="text-xs text-slate-400 max-w-md mx-auto mt-2 leading-relaxed">
             A three-step continuous compliance pipeline designed for modern development and engineering cycles.
