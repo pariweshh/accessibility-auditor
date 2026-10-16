@@ -22,39 +22,39 @@
   --font-display: 'Outfit', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-body: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 
-  /* Default Theme (Dark Mode) color tokens */
-  --bg-slate-950: #020617;
-  --bg-slate-900: #0f172a;
-  --bg-slate-850: #1e293b;
-  --border-slate-800: #1e293b;
-  --text-slate-700: #334155;
-  --text-slate-600: #475569;
-  --text-slate-500: #64748b;
-  --text-slate-400: #94a3b8;
-  --text-slate-300: #cbd5e1;
-  --text-slate-200: #e2e8f0;
-  --text-slate-100: #f1f5f9;
-  --text-slate-50: #f8fafc;
+  /* Default Theme (Dark Mode) — warm-neutral near-black + neutral grays */
+  --bg-slate-950: #0a0a0a; /* page background */
+  --bg-slate-900: #111111; /* card surface */
+  --bg-slate-850: #181818; /* elevated surface */
+  --border-slate-800: #242424; /* hairline borders */
+  --text-slate-700: #2e2e2e;
+  --text-slate-600: #525252;
+  --text-slate-500: #737373;
+  --text-slate-400: #a3a3a3; /* muted body text */
+  --text-slate-300: #d4d4d4;
+  --text-slate-200: #e5e5e5;
+  --text-slate-100: #f5f5f5;
+  --text-slate-50: #fafafa;
 
-  --grid-line-color: rgba(255, 255, 255, 0.02);
+  --grid-line-color: rgba(255, 255, 255, 0.025);
 }
 
 :root.light {
-  /* Light Theme overrides */
-  --bg-slate-950: #f8fafc; /* light background */
+  /* Light Theme — neutral, paper-warm light */
+  --bg-slate-950: #fafafa; /* light background */
   --bg-slate-900: #ffffff; /* white card background */
-  --bg-slate-850: #f1f5f9; /* slate-100 card border */
-  --border-slate-800: #e2e8f0; /* light border */
-  --text-slate-700: #cbd5e1; /* slate-300 text */
-  --text-slate-600: #94a3b8; /* slate-400 text */
-  --text-slate-500: #64748b; /* slate-500 text */
-  --text-slate-400: #475569; /* slate-600 text */
-  --text-slate-300: #334155; /* slate-700 text */
-  --text-slate-200: #1e293b; /* slate-800 text */
-  --text-slate-100: #0f172a; /* dark heading text */
-  --text-slate-50: #020617;  /* dark body text */
+  --bg-slate-850: #f5f5f5; /* subtle elevated surface */
+  --border-slate-800: #e5e5e5; /* light border */
+  --text-slate-700: #d4d4d4;
+  --text-slate-600: #a3a3a3;
+  --text-slate-500: #737373;
+  --text-slate-400: #525252; /* muted body text */
+  --text-slate-300: #404040;
+  --text-slate-200: #262626;
+  --text-slate-100: #171717; /* dark heading text */
+  --text-slate-50: #0a0a0a;  /* dark body text */
 
-  --grid-line-color: rgba(0, 0, 0, 0.04);
+  --grid-line-color: rgba(0, 0, 0, 0.045);
 }
 
 /* Smooth scrolling */
@@ -68,10 +68,27 @@ body {
   background-color: var(--color-slate-950);
   color: var(--color-slate-50);
   transition: background-color 0.2s, color 0.2s;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
+/* Refined editorial headings: tight negative tracking, balanced wraps */
 h1, h2, h3, h4, h5, h6, .font-display {
   font-family: var(--font-display);
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+}
+
+h1, .text-display {
+  letter-spacing: -0.04em;
+  text-wrap: balance;
+}
+
+/* Tabular figures for data-dense numbers */
+.tabular-nums,
+[class*="font-mono"] {
+  font-variant-numeric: tabular-nums;
 }
 
 /* Custom scrollbars */
@@ -144,19 +161,25 @@ h1, h2, h3, h4, h5, h6, .font-display {
   animation: pulse-slow 8s ease-in-out infinite;
 }
 
-/* Glassmorphism custom styling */
+/* True glassmorphism: blur + 1px inner edge highlight + tinted depth shadow */
 .glass-panel {
-  background: rgba(15, 23, 42, 0.45);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background: rgba(17, 17, 17, 0.55);
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
   border: 1px solid var(--color-slate-800);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.04),
+    0 24px 60px -20px rgba(0, 0, 0, 0.7);
 }
 
 :root.light .glass-panel {
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
   border: 1px solid var(--color-slate-800);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.6),
+    0 24px 60px -24px rgba(15, 15, 15, 0.18);
 }
 
 /* Marquee infinite scroll animation */
@@ -206,8 +229,95 @@ h1, h2, h3, h4, h5, h6, .font-display {
 }
 
 .token-comment {
-  color: #64748b;
+  color: #737373;
   font-style: italic;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   Revamp utilities — depth, grain, perspective & spring motion
+   ───────────────────────────────────────────────────────────── */
+
+/* Fixed grain overlay to break digital flatness (sits above bg, below content) */
+.grain-overlay::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0.5;
+  mix-blend-mode: soft-light;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+:root.light .grain-overlay::before { opacity: 0.28; }
+
+/* 3D perspective product shot — refined isometric tilt that levels on hover */
+.perspective-stage { perspective: 2000px; }
+.tilt-3d {
+  transform: rotateX(18deg) rotateZ(-1deg) scale(0.97);
+  transform-origin: center top;
+  transition: transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform;
+}
+.perspective-stage:hover .tilt-3d {
+  transform: rotateX(4deg) rotateZ(0deg) scale(1);
+}
+@media (max-width: 768px) {
+  .tilt-3d, .perspective-stage:hover .tilt-3d { transform: none; }
+}
+
+/* Cursor-tracked spotlight border for cards (set --mx/--my via JS or fallback center) */
+.spotlight {
+  position: relative;
+  isolation: isolate;
+}
+.spotlight::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: radial-gradient(
+    240px circle at var(--mx, 50%) var(--my, 0%),
+    rgba(129, 140, 248, 0.55),
+    transparent 60%
+  );
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity 0.35s ease;
+  pointer-events: none;
+}
+.spotlight:hover::before { opacity: 1; }
+
+/* Ambient indigo glow halo for hero / CTA surfaces */
+.glow-indigo {
+  box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.12),
+              0 18px 50px -12px rgba(99, 102, 241, 0.35);
+}
+
+/* Staggered spring reveal — pair with .reveal-up + inline animation-delay */
+@keyframes revealUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.reveal-up {
+  opacity: 0;
+  animation: revealUp 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* Slow conic shimmer for accent rings */
+@keyframes spinSlow { to { transform: rotate(1turn); } }
+.animate-spin-slow { animation: spinSlow 14s linear infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  .tilt-3d { transform: none !important; }
 }
 
 

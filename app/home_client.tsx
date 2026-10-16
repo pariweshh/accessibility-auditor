@@ -20,6 +20,7 @@ import FAQsSection from "@/components/faqs_section"
 import { motion } from "motion/react"
 import { AnimatedText } from "@/components/motion/animated-text"
 import { useScrollReveal } from "@/hooks/use-scroll-reveal"
+import { BrandLogo } from "@/components/brand_logo"
 
 type ScanStatus = "pending" | "processing" | "completed" | "failed"
 
@@ -37,6 +38,7 @@ interface HomeClientProps {
 
 export default function HomeClient({ features }: HomeClientProps) {
   const [scanResult, setScanResult] = useState<ScanResult | null>(null)
+  const [currentScanId, setCurrentScanId] = useState<string | null>(null)
   const [activeScan, setActiveScan] = useState<ActiveScan | null>(null)
   const [user, setUser] = useState<any>(null)
   const [profile, setProfile] = useState<any>(null)
@@ -74,13 +76,17 @@ export default function HomeClient({ features }: HomeClientProps) {
       .gte("created_at", startOfMonth.toISOString())
     setScansUsed(count ?? 0)
 
+    const userTier = prof?.subscription_tier ?? "free"
+    const isPaid = userTier === "pro" || userTier === "agency"
+    const historyLimit = isPaid ? 10 : 1
+
     const { data: history } = await supabase
       .from("scans")
       .select("id, url, created_at, violations, passes, summary, result")
       .eq("user_id", userId)
       .eq("status", "completed")
       .order("created_at", { ascending: false })
-      .limit(10)
+      .limit(historyLimit)
     setRecentScans(history ?? [])
   }
 
@@ -149,6 +155,7 @@ export default function HomeClient({ features }: HomeClientProps) {
 
           if (status === "completed" && row.result) {
             // Scan done — show results
+            setCurrentScanId(scanId)
             setScanResult(row.result as ScanResult)
             setActiveScan(null)
             // Refresh quota + history
@@ -189,6 +196,7 @@ export default function HomeClient({ features }: HomeClientProps) {
 
             const status = scan.status as ScanStatus
             if (status === "completed" && scan.result) {
+              setCurrentScanId(scanId)
               setScanResult(scan.result as ScanResult)
               supabase.auth.getUser().then(({ data: { user: currentUser } }) => {
                 if (currentUser) fetchUserData(currentUser.id)
@@ -222,6 +230,7 @@ export default function HomeClient({ features }: HomeClientProps) {
       const url = params.get("url")
       if (scanId && url) {
         setScanResult(null)
+        setCurrentScanId(scanId)
         setActiveScan({ scanId, url, status: "pending" })
         subscribeToScan(scanId, url)
 
@@ -229,8 +238,25 @@ export default function HomeClient({ features }: HomeClientProps) {
         const newUrl = window.location.pathname
         window.history.replaceState(null, "", newUrl)
       }
+
+      const checkoutPlan = params.get("checkout")
+      if (checkoutPlan && (checkoutPlan === "pro" || checkoutPlan === "agency") && user) {
+        const cleanUrl = window.location.pathname + window.location.hash
+        window.history.replaceState(null, "", cleanUrl)
+
+        fetch("/api/billing/checkout", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ plan: checkoutPlan }),
+        })
+          .then((res) => res.json())
+          .then((data) => {
+            if (data.url) window.location.href = data.url
+          })
+          .catch((err) => console.error("Auto checkout error:", err))
+      }
     }
-  }, [isLoadingUser])
+  }, [isLoadingUser, user])
 
   const handleSignOut = async () => {
     await supabase.auth.signOut()
@@ -240,12 +266,14 @@ export default function HomeClient({ features }: HomeClientProps) {
   // Called by ScanForm when the API returns 202 with { scanId }
   const handleScanStarted = (scanId: string, url: string) => {
     setScanResult(null)
+    setCurrentScanId(scanId)
     setActiveScan({ scanId, url, status: "pending" })
     subscribeToScan(scanId, url)
   }
 
   const handleNewScan = () => {
     setScanResult(null)
+    setCurrentScanId(null)
     setActiveScan(null)
     if (realtimeChannelRef.current) {
       supabase.removeChannel(realtimeChannelRef.current)
@@ -259,7 +287,7 @@ export default function HomeClient({ features }: HomeClientProps) {
   // Decide what main content to render
   const renderMainContent = () => {
     if (scanResult) {
-      return <ResultsDisplay result={scanResult} onNewScan={handleNewScan} tier={tier} />
+      return <ResultsDisplay result={scanResult} scanId={currentScanId} onNewScan={handleNewScan} tier={tier} />
     }
 
     if (activeScan) {
@@ -274,7 +302,7 @@ export default function HomeClient({ features }: HomeClientProps) {
             <div className="flex justify-center">
               <button
                 onClick={handleNewScan}
-                className="text-xs text-slate-400 hover:text-white underline underline-offset-2 transition-colors cursor-pointer"
+                className="text-xs text-slate-400 hover:text-slate-50 underline underline-offset-2 transition-colors cursor-pointer"
               >
                 ← Try another URL
               </button>
@@ -297,7 +325,12 @@ export default function HomeClient({ features }: HomeClientProps) {
         {user && recentScans.length > 0 && (
           <ScanHistory
             scans={recentScans}
-            onLoadResult={(result) => setScanResult(result)}
+            tier={tier}
+            onLoadResult={(result, id) => {
+              setCurrentScanId(id ?? null)
+              setScanResult(result)
+            }}
+            onUpgradeClick={() => billingButtonRef.current?.openModal()}
           />
         )}
       </>
@@ -305,62 +338,66 @@ export default function HomeClient({ features }: HomeClientProps) {
   }
 
   return (
-    <main className="min-h-screen bg-slate-950 text-slate-100 pt-28 pb-12 px-4 relative overflow-x-hidden bg-grid-pattern">
+    <div className="min-h-screen bg-slate-950 text-slate-100 relative overflow-x-hidden bg-grid-pattern grain-overlay">
       {/* Decorative Orbs */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-[600px] bg-radial from-indigo-500/10 via-transparent to-transparent pointer-events-none z-0" />
-      <div className="absolute top-[200px] left-1/4 w-96 h-96 bg-blue-600/5 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2 pointer-events-none animate-pulse-slow"></div>
-      <div className="absolute top-[400px] right-1/4 w-96 h-96 bg-purple-600/5 rounded-full blur-3xl translate-x-1/2 translate-y-1/2 pointer-events-none animate-pulse-slow"></div>
+      <div className="absolute top-[200px] left-1/4 w-96 h-96 bg-indigo-600/5 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2 pointer-events-none animate-pulse-slow"></div>
+      <div className="absolute top-[400px] right-1/4 w-96 h-96 bg-indigo-600/5 rounded-full blur-3xl translate-x-1/2 translate-y-1/2 pointer-events-none animate-pulse-slow"></div>
 
-      {/* Navbar */}
-      <nav className="w-full bg-slate-950/75 backdrop-blur-md border-b border-slate-900 py-3.5 px-6 flex justify-between items-center fixed top-0 left-0 z-40">
-        <div className="flex items-center gap-8">
-          <Link href="/" className="flex items-center gap-2.5 group">
-            <img src="/logo.png" alt="A11ytica Pro Logo" className="w-8 h-8 object-contain rounded-lg border border-white/10" />
-            <span className="text-xl font-bold bg-linear-to-r from-blue-400 via-indigo-300 to-purple-400 bg-clip-text text-transparent group-hover:from-blue-300 group-hover:to-purple-300 transition-all duration-300">
-              A11ytica Pro
-            </span>
-          </Link>
-          <div className="hidden md:flex items-center gap-6 text-xs font-semibold text-slate-400">
-            <a href="#scanner" className="hover:text-slate-200 transition-colors">Scanner</a>
-            <a href="#sandbox" className="hover:text-slate-200 transition-colors">AI Sandbox</a>
-            <a href="#features" className="hover:text-slate-200 transition-colors">Features</a>
-            <a href="#pricing" className="hover:text-slate-200 transition-colors">Pricing</a>
-            <Link href="/docs" className="hover:text-slate-200 transition-colors">Docs</Link>
+      {/* Navbar Header */}
+      <header>
+        <nav aria-label="Main Navigation" className="w-full bg-slate-950/75 backdrop-blur-md border-b border-slate-900 py-3.5 px-4 sm:px-6 flex justify-between items-center fixed top-0 left-0 z-40">
+          <div className="flex items-center gap-8">
+            <Link href="/" className="flex items-center gap-2.5 group">
+              <BrandLogo size={32} />
+              <span className="text-lg sm:text-xl font-bold bg-linear-to-r from-indigo-400 via-indigo-300 to-indigo-400 bg-clip-text text-transparent group-hover:from-indigo-300 group-hover:to-indigo-300 transition-all duration-300">
+                A11ytica Pro
+              </span>
+            </Link>
+            <div className="hidden md:flex items-center gap-6 text-xs font-semibold text-slate-400">
+              <a href="#scanner" className="hover:text-slate-200 transition-colors">Scanner</a>
+              <a href="#sandbox" className="hover:text-slate-200 transition-colors">AI Sandbox</a>
+              <a href="#features" className="hover:text-slate-200 transition-colors">Features</a>
+              <a href="#pricing" className="hover:text-slate-200 transition-colors">Pricing</a>
+              <Link href="/docs" className="hover:text-slate-200 transition-colors">Docs</Link>
+            </div>
           </div>
-        </div>
 
-        <div className="flex items-center gap-4">
-          {!isLoadingUser && (
-            <>
-              {user ? (
-                <UserMenu
-                  user={user}
-                  profile={profile}
-                  tier={tier}
-                  onSignOut={handleSignOut}
-                  onOpenSettings={() => setIsSettingsOpen(true)}
-                  showDashboardLink={true}
-                />
-              ) : (
-                <Link
-                  href="/login"
-                  className="text-xs font-bold text-slate-100 bg-indigo-600 hover:bg-indigo-500 px-4 py-2 rounded-xl transition-all shadow-md hover:shadow-lg cursor-pointer"
-                >
-                  Sign In
-                </Link>
-              )}
-            </>
-          )}
-        </div>
-      </nav>
+          <div className="flex items-center gap-4">
+            {!isLoadingUser && (
+              <>
+                {user ? (
+                  <UserMenu
+                    user={user}
+                    profile={profile}
+                    tier={tier}
+                    onSignOut={handleSignOut}
+                    onOpenSettings={() => setIsSettingsOpen(true)}
+                    showDashboardLink={true}
+                  />
+                ) : (
+                  <Link
+                    href="/login"
+                    className="text-xs font-bold text-slate-100 bg-indigo-600 hover:bg-indigo-500 px-3.5 sm:px-4 py-2 rounded-xl transition-all shadow-md hover:shadow-lg cursor-pointer"
+                  >
+                    Sign In
+                  </Link>
+                )}
+              </>
+            )}
+          </div>
+        </nav>
+      </header>
 
-      <div className="container mx-auto max-w-5xl relative z-10">
+      {/* Main Content Area */}
+      <main id="main-content" tabIndex={-1} className="pt-28 pb-12 px-4 focus:outline-none">
+        <div className="container mx-auto max-w-5xl relative z-10">
         {/* Hero Section */}
         <div className="text-center pt-8 pb-6 animate-slideUp">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-3xs font-extrabold rounded-full uppercase tracking-wider mb-6 animate-pulse select-none">
-            <span>🚀</span> Introducing A11ytica Pro 1.0
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-3xs font-bold rounded-full uppercase tracking-[0.16em] mb-7 select-none">
+            <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse" /> Introducing A11ytica Pro 1.0
           </div>
-          <h1 className="text-4.5xl md:text-6xl font-black bg-gradient-to-r from-white via-slate-100 to-slate-400 bg-clip-text text-transparent mb-5 tracking-tight leading-[1.1] max-w-3xl mx-auto font-display">
+          <h1 className="text-3xl sm:text-5xl md:text-7xl font-semibold bg-gradient-to-br from-slate-50 via-slate-100 to-slate-400 bg-clip-text text-transparent mb-6 tracking-tight leading-[1.1] sm:leading-[1.02] max-w-3xl mx-auto font-display break-words">
             <AnimatedText text="Continuous Web Accessibility." />
             <br />
             <AnimatedText text="Remediated by AI." />
@@ -374,30 +411,30 @@ export default function HomeClient({ features }: HomeClientProps) {
               <>
                 <Link
                   href="/dashboard"
-                  className="px-5 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-xs rounded-xl shadow-lg hover:shadow-indigo-500/20 transition-all select-none hover:scale-[1.02] cursor-pointer"
+                  className="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-full shadow-lg glow-indigo transition-all select-none hover:scale-[1.03] active:scale-[0.98] cursor-pointer"
                 >
-                  📊 Go to Dashboard
+                  Go to Dashboard
                 </Link>
                 <a
                   href="#scanner"
-                  className="px-5 py-3 bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 hover:text-white font-extrabold text-xs rounded-xl transition-all select-none hover:scale-[1.02] cursor-pointer"
+                  className="px-6 py-3 bg-slate-900 hover:bg-slate-850 text-slate-300 border border-slate-800 hover:text-slate-50 font-bold text-xs rounded-full transition-all select-none hover:scale-[1.03] active:scale-[0.98] cursor-pointer"
                 >
-                  🎯 Start Scanning
+                  Start Scanning
                 </a>
               </>
             ) : (
               <>
                 <a
                   href="#scanner"
-                  className="px-5 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-xs rounded-xl shadow-lg hover:shadow-indigo-500/20 transition-all select-none hover:scale-[1.02] cursor-pointer"
+                  className="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-full shadow-lg glow-indigo transition-all select-none hover:scale-[1.03] active:scale-[0.98] cursor-pointer"
                 >
-                  ✨ Try Free Scanner
+                  Try Free Scanner
                 </a>
                 <a
                   href="#pricing"
-                  className="px-5 py-3 bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 hover:text-white font-extrabold text-xs rounded-xl transition-all select-none hover:scale-[1.02] cursor-pointer"
+                  className="px-6 py-3 bg-slate-900 hover:bg-slate-850 text-slate-300 border border-slate-800 hover:text-slate-50 font-bold text-xs rounded-full transition-all select-none hover:scale-[1.03] active:scale-[0.98] cursor-pointer"
                 >
-                  💳 View Pricing
+                  View Pricing
                 </a>
               </>
             )}
@@ -439,7 +476,7 @@ export default function HomeClient({ features }: HomeClientProps) {
             <span className="text-2xs font-extrabold uppercase tracking-widest text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-3 py-1 rounded-full">
               Free Scanner
             </span>
-            <h3 className="text-xl md:text-2xl font-black text-white mt-3 font-display tracking-tight">Run a quick audit</h3>
+            <h3 className="text-xl md:text-2xl font-black text-slate-50 mt-3 font-display tracking-tight">Run a quick audit</h3>
           </div>
           {renderMainContent()}
         </div>
@@ -464,7 +501,7 @@ export default function HomeClient({ features }: HomeClientProps) {
 
         {/* Newsletter conversion card */}
         <div className="mt-28 relative animate-slideUp">
-          <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/5 via-purple-500/5 to-blue-500/5 rounded-3xl blur-md -z-10" />
+          <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/5 via-indigo-500/5 to-indigo-500/5 rounded-3xl blur-md -z-10" />
           <div className="glass-panel p-8 md:p-12 rounded-3xl border border-slate-800 text-center space-y-6 max-w-3xl mx-auto relative overflow-hidden">
             <div className="absolute -top-20 -right-20 w-48 h-48 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
             
@@ -472,7 +509,7 @@ export default function HomeClient({ features }: HomeClientProps) {
               Stay Compliant
             </span>
             
-            <h3 className="text-xl md:text-2xl font-black text-white font-display tracking-tight">
+            <h3 className="text-xl md:text-2xl font-black text-slate-50 font-display tracking-tight">
               Get weekly accessibility engineering guides
             </h3>
             
@@ -485,20 +522,23 @@ export default function HomeClient({ features }: HomeClientProps) {
                 type="email"
                 placeholder="you@domain.com"
                 required
-                className="flex-1 bg-slate-950/60 border border-slate-850 rounded-xl px-4 py-3 text-xs text-white placeholder-slate-600 focus:outline-hidden focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all font-medium"
+                className="flex-1 bg-slate-950/60 border border-slate-850 rounded-xl px-4 py-3 text-xs text-slate-50 placeholder-slate-600 focus:outline-hidden focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all font-medium"
               />
               <button
                 type="submit"
-                className="py-3 px-6 rounded-xl font-extrabold text-xs bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white transition-all shadow-md select-none hover:scale-[1.01] cursor-pointer"
+                className="py-3 px-6 rounded-xl font-extrabold text-xs bg-linear-to-r from-indigo-500 to-indigo-600 hover:from-indigo-400 hover:to-indigo-500 text-white transition-all shadow-md select-none hover:scale-[1.01] cursor-pointer"
               >
                 Subscribe
               </button>
             </form>
           </div>
         </div>
+        </div>
+      </main>
 
-        {/* Page Footer */}
-        <footer className="mt-28 text-center text-xs text-slate-500 border-t border-slate-900/80 pt-10 pb-6">
+      {/* Page Footer */}
+      <footer className="mt-28 text-center text-xs text-slate-400 border-t border-slate-900/80 pt-10 pb-6 px-4">
+        <div className="container mx-auto max-w-5xl">
           <p className="mb-2.5 font-medium">
             Powered by{" "}
             <Link href="https://www.deque.com/axe/" target="_blank" className="text-indigo-400 hover:text-indigo-300 hover:underline font-bold">
@@ -513,11 +553,15 @@ export default function HomeClient({ features }: HomeClientProps) {
               OpenAI
             </Link>
           </p>
-          <p className="text-3xs text-slate-600 font-semibold tracking-wide">
-            &copy; {new Date().getFullYear()} A11ytica Pro. All rights reserved.
+          <p className="text-3xs text-slate-400 font-semibold tracking-wide flex items-center justify-center gap-3">
+            <span>&copy; {new Date().getFullYear()} A11ytica Pro. All rights reserved.</span>
+            <span>·</span>
+            <Link href="/legal" className="text-slate-400 hover:text-indigo-400 transition-colors underline underline-offset-2">
+              Legal, Terms & Compliance Disclaimers
+            </Link>
           </p>
-        </footer>
-      </div>
+        </div>
+      </footer>
 
       {/* Settings Modal */}
       <SettingsModal
@@ -527,6 +571,6 @@ export default function HomeClient({ features }: HomeClientProps) {
         profile={profile}
         tier={tier}
       />
-    </main>
+    </div>
   )
 }

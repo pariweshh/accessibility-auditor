@@ -13,7 +13,7 @@ export default function PricingSection({ user, profile, tier }: PricingSectionPr
 
   const handleChoosePlan = async (plan: "pro" | "agency") => {
     if (!user) {
-      window.location.href = `/login?plan=${plan}`
+      window.location.href = `/login?returnTo=${encodeURIComponent(`/?checkout=${plan}#pricing`)}`
       return
     }
 
@@ -77,7 +77,7 @@ export default function PricingSection({ user, profile, tier }: PricingSectionPr
           <span className="text-2xs font-extrabold uppercase tracking-widest text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-3 py-1 rounded-full">
             Pricing Plans
           </span>
-          <h2 className="text-2xl md:text-3xl font-black text-white mt-3.5 tracking-tight">
+          <h2 className="text-2xl md:text-3xl font-black text-slate-50 mt-3.5 tracking-tight">
             Simple, Transparent Pricing
           </h2>
           <p className="text-xs text-slate-400 max-w-md mx-auto mt-2 leading-relaxed">
@@ -94,24 +94,45 @@ export default function PricingSection({ user, profile, tier }: PricingSectionPr
                 <h3 className="text-sm font-bold text-slate-200">Free Tier</h3>
               </div>
               <div className="flex items-baseline gap-1 mb-5">
-                <span className="text-3xl font-black text-white">$0</span>
+                <span className="text-3xl font-black text-slate-50">$0</span>
                 <span className="text-xs text-slate-500 font-semibold">/ month</span>
               </div>
               <ul className="space-y-3 text-xs text-slate-400 mb-8">
                 <li className="flex items-start gap-2">
-                  <span className="text-indigo-400 font-bold">✓</span> 5 automated scans / month
+                  <svg className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span><span className="sr-only">Included: </span>5 automated scans / month</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-indigo-400 font-bold">✓</span> Standard AI suggestions (gpt-4o-mini)
+                  <svg className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span><span className="sr-only">Included: </span>Standard HTML/CSS AI fixes (gpt-4o-mini)</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-slate-600 font-bold">✗</span> Dedicated scan history log
+                  <svg className="w-4 h-4 text-slate-600 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                  <span><span className="sr-only">Not included: </span>React, Vue 3 &amp; Angular AI code fixes</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-slate-600 font-bold">✗</span> PDF compliance report exports
+                  <svg className="w-4 h-4 text-slate-600 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                  <span><span className="sr-only">Not included: </span>EAA 2025 / ADA Statement &amp; Live Badge</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-slate-600 font-bold">✗</span> Developer API & keys
+                  <svg className="w-4 h-4 text-slate-600 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                  <span><span className="sr-only">Not included: </span>PDF POUR Conformance Matrix &amp; History</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <svg className="w-4 h-4 text-slate-600 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                  <span><span className="sr-only">Not included: </span>Developer API &amp; CI/CD Quality Gates</span>
                 </li>
               </ul>
             </div>
@@ -125,7 +146,7 @@ export default function PricingSection({ user, profile, tier }: PricingSectionPr
           </div>
 
           {/* Pro Tier */}
-          <div className="glass-panel rounded-2xl p-6 flex flex-col justify-between border-indigo-500/35 relative overflow-hidden shadow-2xl scale-[1.02] md:scale-[1.03]">
+          <div className="glass-panel rounded-2xl p-6 flex flex-col justify-between border-indigo-500/35 relative overflow-hidden shadow-2xl md:scale-[1.03]">
             {/* Ambient Popular Accent */}
             <div className="absolute top-0 right-0 px-3 py-1 bg-indigo-600 text-white text-[9px] font-black uppercase tracking-widest rounded-bl-xl border-l border-b border-indigo-500/30">
               Popular
@@ -133,30 +154,60 @@ export default function PricingSection({ user, profile, tier }: PricingSectionPr
 
             <div>
               <div className="flex justify-between items-start mb-3">
-                <h3 className="text-sm font-bold text-white">Pro Plan</h3>
+                <h3 className="text-sm font-bold text-slate-50">Pro Plan</h3>
               </div>
               <div className="flex items-baseline gap-1 mb-5">
-                <span className="text-3xl font-black text-white">$29</span>
+                <span className="text-3xl font-black text-slate-50">$19</span>
                 <span className="text-xs text-slate-500 font-semibold">/ month</span>
               </div>
               <ul className="space-y-3 text-xs text-slate-300 mb-8">
                 <li className="flex items-start gap-2">
-                  <span className="text-indigo-400 font-bold">✓</span> 200 automated scans / month
+                  <svg className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span><span className="sr-only">Included: </span>150 automated scans / month</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-indigo-400 font-bold">✓</span> Unlimited AI-powered fixes
+                  <svg className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span><span className="sr-only">Included: </span>React/Tailwind, Vue 3 &amp; Angular AI fixes</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-indigo-400 font-bold">✓</span> Select default engine (gpt-4o)
+                  <svg className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span><span className="sr-only">Included: </span>Premium AI engine (gpt-4o) &amp; history</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-indigo-400 font-bold">✓</span> Searchable scan history
+                  <svg className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span><span className="sr-only">Included: </span>Live SVG Compliance Badge &amp; verification</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-indigo-400 font-bold">✓</span> PDF compliance report exports
+                  <svg className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span><span className="sr-only">Included: </span>EAA 2025 &amp; ADA Statement generator</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-slate-600 font-bold">✗</span> White-label custom branding
+                  <svg className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span><span className="sr-only">Included: </span>PDF exports with WCAG 2.2 POUR Matrix</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <svg className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span><span className="sr-only">Included: </span>Turnkey CI/CD Quality Gate &amp; API keys</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <svg className="w-4 h-4 text-slate-600 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                  <span><span className="sr-only">Not included: </span>White-label custom branding &amp; 3 seats</span>
                 </li>
               </ul>
             </div>
@@ -187,24 +238,51 @@ export default function PricingSection({ user, profile, tier }: PricingSectionPr
                 <h3 className="text-sm font-bold text-slate-200">Agency Plan</h3>
               </div>
               <div className="flex items-baseline gap-1 mb-5">
-                <span className="text-3xl font-black text-white">$99</span>
+                <span className="text-3xl font-black text-slate-50">$59</span>
                 <span className="text-xs text-slate-500 font-semibold">/ month</span>
               </div>
               <ul className="space-y-3 text-xs text-slate-400 mb-8">
                 <li className="flex items-start gap-2">
-                  <span className="text-indigo-400 font-bold">✓</span> 1,000 automated scans / month
+                  <svg className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span><span className="sr-only">Included: </span>600 automated scans / month</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-indigo-400 font-bold">✓</span> Everything in Pro Plan
+                  <svg className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span><span className="sr-only">Included: </span>Everything in Pro Plan</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-indigo-400 font-bold">✓</span> White-label custom branding
+                  <svg className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span><span className="sr-only">Included: </span>White-label PDF reports &amp; POUR Matrix</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-indigo-400 font-bold">✓</span> Team access (3 seats)
+                  <svg className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span><span className="sr-only">Included: </span>White-label Live SVG Compliance Badges</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-indigo-400 font-bold">✓</span> Full Developer API & Keys
+                  <svg className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span><span className="sr-only">Included: </span>Client-ready EAA 2025 / ADA Kits</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <svg className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span><span className="sr-only">Included: </span>Team access (3 multi-user seats)</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <svg className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span><span className="sr-only">Included: </span>Full Developer API &amp; CI/CD Builder</span>
                 </li>
               </ul>
             </div>
@@ -221,7 +299,7 @@ export default function PricingSection({ user, profile, tier }: PricingSectionPr
               <button
                 onClick={() => handleChoosePlan("agency")}
                 disabled={loadingPlan !== null}
-                className="w-full py-2.5 text-2xs font-extrabold bg-purple-600 hover:bg-purple-500 text-white rounded-xl transition-all cursor-pointer shadow-md hover:shadow-lg shadow-purple-500/10 disabled:opacity-50 select-none"
+                className="w-full py-2.5 text-2xs font-extrabold bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl transition-all cursor-pointer shadow-md hover:shadow-lg shadow-indigo-500/10 disabled:opacity-50 select-none"
               >
                 {loadingPlan === "agency" ? "Starting Checkout..." : "Choose Agency"}
               </button>

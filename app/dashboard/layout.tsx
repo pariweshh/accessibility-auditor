@@ -14,7 +14,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  if (!user) redirect("/login")
+  if (!user) redirect("/login?returnTo=/dashboard")
 
   const { data: profile } = await supabase
     .from("profiles")
@@ -30,7 +30,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
       {/* Navbar */}
       <DashboardHeader user={user} profile={profile} />
 
-      <main className="relative z-10 pt-20 pb-12 px-4">
+      <main id="main-content" tabIndex={-1} className="relative z-10 pt-20 pb-12 px-4 focus:outline-hidden">
         {children}
       </main>
     </div>

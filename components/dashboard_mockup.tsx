@@ -49,15 +49,15 @@ export default function DashboardMockup() {
   const pathD = `M ${chartPoints.map((p) => `${p.x} ${p.y}`).join(" L ")}`
 
   return (
-    <div className="w-full max-w-4xl mx-auto mt-12 relative group animate-slideUp">
+    <div className="w-full max-w-4xl mx-auto mt-12 relative group animate-slideUp perspective-stage">
       {/* Absolute back-glow elements */}
-      <div className="absolute -inset-px bg-gradient-to-r from-blue-500/20 via-indigo-500/20 to-purple-500/20 rounded-2xl blur-xs group-hover:from-blue-500/30 group-hover:to-purple-500/30 transition-all duration-500" />
-      
-      {/* Main Glass Frame */}
-      <div className="relative glass-panel rounded-2xl overflow-hidden shadow-2xl flex flex-col md:flex-row h-auto min-h-[460px] border border-slate-800">
+      <div className="absolute -inset-px bg-gradient-to-r from-indigo-500/25 via-indigo-500/15 to-indigo-500/25 rounded-2xl blur-md group-hover:from-indigo-500/40 group-hover:to-indigo-500/40 transition-all duration-500" />
+
+      {/* Main Glass Frame — isometric tilt at rest, levels on hover for interaction */}
+      <div className="relative tilt-3d glass-panel rounded-2xl overflow-hidden shadow-2xl flex flex-col md:flex-row h-auto min-h-[460px] border border-slate-800">
         
         {/* Mock Sidebar */}
-        <aside className="w-full md:w-48 shrink-0 bg-slate-950/60 md:border-r border-slate-800/85 p-4 flex flex-row md:flex-col justify-between md:justify-start gap-4">
+        <div className="w-full md:w-48 shrink-0 bg-slate-950/60 md:border-r border-slate-800/85 p-4 flex flex-row md:flex-col justify-between md:justify-start gap-4">
           <div className="flex md:flex-col items-center md:items-start gap-5 w-full justify-between md:justify-start">
             {/* Header branding */}
             <div className="flex items-center gap-2 px-1 select-none">
@@ -68,7 +68,7 @@ export default function DashboardMockup() {
             </div>
             
             {/* Navigation Tabs */}
-            <nav className="flex flex-row md:flex-col gap-1 w-full overflow-x-auto md:overflow-x-visible">
+            <nav aria-label="Interactive preview tabs" className="flex flex-row md:flex-col gap-1 w-full overflow-x-auto md:overflow-x-visible">
               <button
                 type="button"
                 onClick={() => setActiveTab("radar")}
@@ -78,7 +78,7 @@ export default function DashboardMockup() {
                     : "text-slate-500 hover:text-slate-300 border border-transparent"
                 }`}
               >
-                <span>📡</span> Radar Audit
+                Radar Audit
               </button>
               <button
                 type="button"
@@ -89,7 +89,7 @@ export default function DashboardMockup() {
                     : "text-slate-500 hover:text-slate-300 border border-transparent"
                 }`}
               >
-                <span>⚡</span> AI Pipeline
+                AI Pipeline
               </button>
               <button
                 type="button"
@@ -100,7 +100,7 @@ export default function DashboardMockup() {
                     : "text-slate-500 hover:text-slate-300 border border-transparent"
                 }`}
               >
-                <span>📄</span> Export Portal
+                Export Portal
               </button>
             </nav>
           </div>
@@ -115,15 +115,15 @@ export default function DashboardMockup() {
               <span className="text-[8px] text-indigo-400 uppercase tracking-widest font-extrabold">Active</span>
             </div>
           </div>
-        </aside>
+        </div>
 
         {/* Mock Main Dashboard View */}
-        <main className="flex-1 p-5 md:p-6 bg-slate-950/20 flex flex-col gap-6 justify-between">
+        <div className="flex-1 p-5 md:p-6 bg-slate-950/20 flex flex-col gap-6 justify-between">
           
           {/* Header Row */}
           <div className="flex items-center justify-between border-b border-slate-900 pb-4 flex-wrap gap-3">
             <div>
-              <h4 className="text-sm font-bold text-white tracking-tight">Interactive Platform Sandbox</h4>
+              <h2 className="text-sm font-bold text-slate-50 tracking-tight">Interactive Platform Sandbox</h2>
               <p className="text-[10px] text-slate-500 mt-0.5">Toggle issues to simulate AI repair workflows</p>
             </div>
             <div className="flex items-center gap-2 text-[10px] bg-slate-900/60 border border-slate-850 px-2.5 py-1 rounded-xl">
@@ -212,7 +212,7 @@ export default function DashboardMockup() {
                       />
                     </svg>
                     <div className="text-center leading-none">
-                      <span className="text-2xl font-black text-white tracking-tight tabular-nums">
+                      <span className="text-2xl font-black text-slate-50 tracking-tight tabular-nums">
                         {complianceScore}%
                       </span>
                       <p className="text-[8px] font-extrabold uppercase tracking-widest text-slate-500 mt-1">
@@ -222,7 +222,7 @@ export default function DashboardMockup() {
                   </div>
                   <p className="text-[10px] text-slate-400 font-semibold leading-relaxed max-w-[160px]">
                     {complianceScore === 100
-                      ? "🎉 Excellent! Perfect compliance status achieved."
+                      ? "Excellent! Perfect compliance status achieved."
                       : "Click red badges to apply automated AI patches."}
                   </p>
                 </div>
@@ -286,8 +286,10 @@ export default function DashboardMockup() {
 
           {activeTab === "pipeline" && (
             <div className="flex-1 flex flex-col justify-center items-center py-6 text-center space-y-4 animate-fadeIn">
-              <div className="w-12 h-12 rounded-2xl bg-indigo-600/10 border border-indigo-500/25 flex items-center justify-center text-lg shadow-sm">
-                ⚙️
+              <div className="w-12 h-12 rounded-2xl bg-indigo-600/10 border border-indigo-500/25 flex items-center justify-center text-indigo-400 shadow-sm">
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
               </div>
               <div className="space-y-1">
                 <h5 className="text-xs font-bold text-slate-200">AI Code Integration Active</h5>
@@ -306,8 +308,10 @@ export default function DashboardMockup() {
 
           {activeTab === "exporter" && (
             <div className="flex-1 flex flex-col justify-center items-center py-6 text-center space-y-4 animate-fadeIn">
-              <div className="w-12 h-12 rounded-2xl bg-purple-600/10 border border-purple-500/25 flex items-center justify-center text-lg shadow-sm">
-                📄
+              <div className="w-12 h-12 rounded-2xl bg-indigo-600/10 border border-indigo-500/25 flex items-center justify-center text-indigo-400 shadow-sm">
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
               </div>
               <div className="space-y-1">
                 <h5 className="text-xs font-bold text-slate-200">Executive PDF Compliance Exports</h5>
@@ -331,7 +335,7 @@ export default function DashboardMockup() {
             <span>Health Status: <strong className="text-emerald-400">● 100% Operational</strong></span>
           </div>
 
-        </main>
+        </div>
       </div>
     </div>
   )

@@ -1,5 +1,5 @@
 import OpenAI from "openai"
-import { AccessibilityIssue, FixSuggestion } from "./types"
+import { AccessibilityIssue, AIFramework, FixSuggestion } from "./types"
 import crypto from "crypto"
 
 let openaiClient: OpenAI | null = null
@@ -13,15 +13,40 @@ function getOpenAIClient(): OpenAI {
   return openaiClient
 }
 
+const FRAMEWORK_INSTRUCTIONS: Record<AIFramework, { label: string; promptRule: string }> = {
+  html: {
+    label: "Standard HTML / CSS",
+    promptRule:
+      "Output standard semantic HTML5 and inline or standard CSS attributes (`class`, `for`, `aria-*`).",
+  },
+  "react-tailwind": {
+    label: "React / Next.js (JSX + Tailwind CSS)",
+    promptRule:
+      "Output idiomatic React / Next.js JSX using `className`, `htmlFor`, camelCase event/DOM props, and accessible Tailwind CSS utilities (e.g. `sr-only`, `focus-visible:ring-2`, high-contrast color tokens).",
+  },
+  vue: {
+    label: "Vue 3 (SFC Template)",
+    promptRule:
+      "Output idiomatic Vue 3 Single-File Component `<template>` markup using semantic elements, `:aria-*` bindings where dynamic, and clean utility classes.",
+  },
+  angular: {
+    label: "Angular / Web Components",
+    promptRule:
+      "Output idiomatic Angular template markup (`[attr.aria-*]` where dynamic, semantic HTML5 controls, and accessible label associations).",
+  },
+}
+
 export async function generateFixSuggestion(
   issue: AccessibilityIssue,
   model: string = "gpt-4o-mini",
-  supabase?: any
+  supabase?: any,
+  framework: AIFramework = "html"
 ): Promise<FixSuggestion> {
   const originalCode = issue.nodes[0]?.html || ""
-  
-  // ─── Cache Key Calculation ────────────────────────────────────────────────
-  const keyRaw = `${issue.id}:${originalCode}:${model}`
+  const fwConfig = FRAMEWORK_INSTRUCTIONS[framework] ?? FRAMEWORK_INSTRUCTIONS.html
+
+  // ─── Cache Key Calculation (includes framework to prevent cross-stack collisions) ───
+  const keyRaw = `${issue.id}:${framework}:${originalCode}:${model}`
   const keyHash = crypto.createHash("sha256").update(keyRaw).digest("hex")
 
   // ─── Cache Lookup ─────────────────────────────────────────────────────────
@@ -41,6 +66,7 @@ export async function generateFixSuggestion(
           suggestedFix: data.suggested_fix,
           explanation: data.explanation,
           confidence: data.confidence as "high" | "medium" | "low",
+          framework,
         }
       }
     } catch (dbError) {
@@ -50,13 +76,15 @@ export async function generateFixSuggestion(
 
   // ─── OpenAI Generation ────────────────────────────────────────────────────
   try {
-    const prompt = `You are an accessibility expert. Analyze this accessibility issue and provide a specific code fix.
+    const prompt = `You are an accessibility expert. Analyze this accessibility issue and provide a specific code fix targeted for ${fwConfig.label}.
 
 Issue: ${issue.help}
 Description: ${issue.description}
 Impact: ${issue.impact}
+Target Stack: ${fwConfig.label}
+Stack Guideline: ${fwConfig.promptRule}
 
-Problematic HTML:
+Problematic DOM HTML:
 ${originalCode || "No HTML available"}
 
 Failure Summary: ${issue.nodes[0]?.failureSummary || "No summary available"}
@@ -64,13 +92,13 @@ Failure Summary: ${issue.nodes[0]?.failureSummary || "No summary available"}
 WCAG Tags: ${issue.tags.join(", ")}
 
 Provide:
-1. The corrected HTML code
-2. A brief explanation of what was wrong and how you fixed it
+1. The corrected code snippet in ${fwConfig.label}
+2. A brief explanation of what was wrong and how you fixed it for ${fwConfig.label}
 3. Your confidence level in this fix (high/medium/low)
 
 Format your response as JSON:
 {
-  "suggestedFix": "corrected HTML code here",
+  "suggestedFix": "corrected code here",
   "explanation": "explanation here",
   "confidence": "high/medium/low"
 }`
@@ -81,7 +109,7 @@ Format your response as JSON:
         {
           role: "system",
           content:
-            "You are an expert in web accessibility (WCAG) and provide precise, actionable code fixes. Always return valid JSON.",
+            "You are an expert in web accessibility (WCAG 2.2) and modern frontend frameworks. You provide precise, drop-in accessible code fixes. Always return valid JSON.",
         },
         {
           role: "user",
@@ -90,7 +118,7 @@ Format your response as JSON:
       ],
       response_format: { type: "json_object" },
       temperature: 0.3, // Lower temperature for more consistent fixes
-      max_tokens: 500, // Limit tokens to save costs
+      max_tokens: 550, // Limit tokens to save costs
     })
 
     const response = JSON.parse(completion.choices[0].message.content || "{}")
@@ -106,7 +134,7 @@ Format your response as JSON:
           key_hash: keyHash,
           issue_id: issue.id,
           original_html: originalCode || null,
-          model,
+          model: `${model}:${framework}`,
           suggested_fix: suggestedFix,
           explanation,
           confidence,
@@ -132,6 +160,7 @@ Format your response as JSON:
       suggestedFix,
       explanation,
       confidence,
+      framework,
     }
   } catch (error) {
     console.error("AI fix generation error:", error)
@@ -145,6 +174,7 @@ Format your response as JSON:
         error instanceof Error ? error.message : "Unknown error"
       }`,
       confidence: "low",
+      framework,
     }
   }
 }
@@ -153,7 +183,8 @@ export async function generateBatchFixes(
   issues: AccessibilityIssue[],
   limit: number = 5,
   model: string = "gpt-4o-mini",
-  supabase?: any
+  supabase?: any,
+  framework: AIFramework = "html"
 ): Promise<FixSuggestion[]> {
   // Only process the most critical issues to save on API costs
   const impactOrder = { critical: 4, serious: 3, moderate: 2, minor: 1 }
@@ -167,7 +198,7 @@ export async function generateBatchFixes(
 
   for (const issue of priorityIssues) {
     try {
-      const fix = await generateFixSuggestion(issue, model, supabase)
+      const fix = await generateFixSuggestion(issue, model, supabase, framework)
       fixes.push(fix)
     } catch (error) {
       console.error(`Failed to generate fix for issue ${issue.id}:`, error)

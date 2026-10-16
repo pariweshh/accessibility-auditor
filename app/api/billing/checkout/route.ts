@@ -57,9 +57,15 @@ export async function POST(request: NextRequest) {
     }
 
     let customerId = profile.stripe_customer_id
-
-    // If customer ID doesn't exist, create a new one in Stripe
-    if (!customerId) {
+    if (customerId) {
+      try {
+        await stripe.customers.update(customerId, {
+          metadata: { supabase_user_id: user.id },
+        })
+      } catch (err) {
+        console.warn("Could not update existing customer metadata:", err)
+      }
+    } else {
       const customer = await stripe.customers.create({
         email: user.email,
         metadata: {
@@ -93,8 +99,8 @@ export async function POST(request: NextRequest) {
         },
       ],
       mode: "subscription",
-      success_url: `${origin}/?success=true&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${origin}/?success=false`,
+      success_url: `${origin}/dashboard?checkout_success=true&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${origin}/#pricing`,
       metadata: {
         supabase_user_id: user.id,
       },

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
+import { resolveEffectiveTier } from "@/lib/quota"
 import crypto from "crypto"
 
 export const runtime = "nodejs"
@@ -51,14 +52,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    // Check user tier
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("subscription_tier")
-      .eq("id", user.id)
-      .single()
+    // Check effective user tier (verifies team owner's active Agency subscription)
+    const { tier } = await resolveEffectiveTier(user.id, supabase)
 
-    if (!profile || !PAID_TIERS.includes(profile.subscription_tier)) {
+    if (!PAID_TIERS.includes(tier)) {
       return NextResponse.json(
         { error: "upgrade_required", message: "Developer API access is available on Pro and Agency plans." },
         { status: 403 }

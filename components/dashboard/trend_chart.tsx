@@ -31,7 +31,11 @@ export default function TrendChart({ scans, selectedUrl }: TrendChartProps) {
   if (data.length < 2) {
     return (
       <div className="h-48 flex flex-col items-center justify-center text-center p-4">
-        <p className="text-3xl mb-2">📈</p>
+        <div className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 mb-2">
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+          </svg>
+        </div>
         <p className="text-sm font-medium text-slate-400">
           {selectedUrl ? "Not enough scans for this URL yet." : "Run at least 2 scans to see a trend."}
         </p>
@@ -51,7 +55,7 @@ export default function TrendChart({ scans, selectedUrl }: TrendChartProps) {
           <div key={p.name} className="flex items-center gap-2 mb-1">
             <span className="w-2 h-2 rounded-full" style={{ background: p.color }} />
             <span className="text-slate-400">{p.name}:</span>
-            <span className="font-bold text-white">{p.value}</span>
+            <span className="font-bold text-slate-50">{p.value}</span>
           </div>
         ))}
       </div>
@@ -59,30 +63,60 @@ export default function TrendChart({ scans, selectedUrl }: TrendChartProps) {
   }
 
   return (
-    <ResponsiveContainer width="100%" height={220}>
-      <LineChart data={data} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-        <XAxis
-          dataKey="date"
-          tick={{ fill: "#64748b", fontSize: 11 }}
-          axisLine={{ stroke: "#1e293b" }}
-          tickLine={false}
-        />
-        <YAxis
-          tick={{ fill: "#64748b", fontSize: 11 }}
-          axisLine={false}
-          tickLine={false}
-          allowDecimals={false}
-        />
-        <Tooltip content={customTooltip} />
-        <Legend
-          wrapperStyle={{ fontSize: 11, color: "#64748b", paddingTop: 8 }}
-        />
-        <Line type="monotone" dataKey="Critical" stroke="#ef4444" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />
-        <Line type="monotone" dataKey="Serious"  stroke="#f97316" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />
-        <Line type="monotone" dataKey="Moderate" stroke="#eab308" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />
-        <Line type="monotone" dataKey="Minor"    stroke="#3b82f6" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />
-      </LineChart>
-    </ResponsiveContainer>
+    <div>
+      <div className="sr-only">
+        <table>
+          <caption>Accessibility violation trends over time for {selectedUrl || "all scanned URLs"}</caption>
+          <thead>
+            <tr>
+              <th scope="col">Date</th>
+              <th scope="col">Critical</th>
+              <th scope="col">Serious</th>
+              <th scope="col">Moderate</th>
+              <th scope="col">Minor</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.map((d, i) => (
+              <tr key={i}>
+                <td>{d.date}</td>
+                <td>{d.Critical}</td>
+                <td>{d.Serious}</td>
+                <td>{d.Moderate}</td>
+                <td>{d.Minor}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div aria-hidden="true">
+        <ResponsiveContainer width="100%" height={220}>
+          <LineChart data={data} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+            <XAxis
+              dataKey="date"
+              tick={{ fill: "#64748b", fontSize: 11 }}
+              axisLine={{ stroke: "#1e293b" }}
+              tickLine={false}
+            />
+            <YAxis
+              tick={{ fill: "#64748b", fontSize: 11 }}
+              axisLine={false}
+              tickLine={false}
+              allowDecimals={false}
+            />
+            <Tooltip content={customTooltip} />
+            <Legend
+              wrapperStyle={{ fontSize: 11, color: "#64748b", paddingTop: 8 }}
+            />
+            <Line type="monotone" dataKey="Critical" stroke="#ef4444" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />
+            <Line type="monotone" dataKey="Serious"  stroke="#f97316" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />
+            <Line type="monotone" dataKey="Moderate" stroke="#eab308" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />
+            <Line type="monotone" dataKey="Minor"    stroke="#3b82f6" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
   )
 }

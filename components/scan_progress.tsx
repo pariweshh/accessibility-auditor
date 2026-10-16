@@ -11,10 +11,10 @@ interface ScanProgressProps {
 }
 
 const STATUS_STEPS = [
-  { key: "pending",    label: "Queuing scan...",              icon: "⏳" },
-  { key: "processing", label: "Launching headless browser...", icon: "🌐" },
-  { key: "completed",  label: "Audit complete!",               icon: "✅" },
-  { key: "failed",     label: "Scan failed",                   icon: "❌" },
+  { key: "pending",    label: "Queuing scan..." },
+  { key: "processing", label: "Launching headless browser..." },
+  { key: "completed",  label: "Audit complete!" },
+  { key: "failed",     label: "Scan failed" },
 ]
 
 // Cycling sub-messages shown while processing to keep the user engaged
@@ -52,9 +52,13 @@ export default function ScanProgress({ url, status, errorMessage }: ScanProgress
 
   return (
     <div className="w-full max-w-2xl mx-auto">
-      <div className={`relative bg-slate-900/40 backdrop-blur-md border rounded-2xl p-6 md:p-8 shadow-2xl overflow-hidden transition-colors duration-500 ${
-        isFailed ? "border-rose-500/30" : "border-slate-800/80"
-      }`}>
+      <div
+        role={isFailed ? "alert" : "status"}
+        aria-live="polite"
+        className={`relative bg-slate-900/40 backdrop-blur-md border rounded-2xl p-6 md:p-8 shadow-2xl overflow-hidden transition-colors duration-500 ${
+          isFailed ? "border-rose-500/30" : "border-slate-800/80"
+        }`}
+      >
         {/* Ambient glow */}
         <div className={`absolute -top-16 left-1/2 -translate-x-1/2 w-72 h-72 rounded-full blur-3xl pointer-events-none transition-colors duration-1000 ${
           isFailed ? "bg-rose-500/10" : "bg-indigo-500/10"
@@ -83,7 +87,7 @@ export default function ScanProgress({ url, status, errorMessage }: ScanProgress
           <div className="space-y-3">
             {STATUS_STEPS.filter((s) => s.key !== "completed" || status === "completed")
               .filter((s) => s.key !== "failed" || isFailed)
-              .map((step, i) => {
+              .map((step) => {
                 const stepOrder = ["pending", "processing", "completed", "failed"]
                 const currentIndex = stepOrder.indexOf(status)
                 const stepIndex = stepOrder.indexOf(step.key)
@@ -109,17 +113,21 @@ export default function ScanProgress({ url, status, errorMessage }: ScanProgress
                         ? "bg-rose-500/20 border border-rose-500/40 text-rose-400"
                         : "bg-slate-800/60 border border-slate-700/40 text-slate-600"
                     }`}>
-                      {isDone ? (
-                        <svg className="w-3 h-3 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                      {isDone || step.key === "completed" ? (
+                        <svg className="w-3 h-3 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3} aria-hidden="true">
                           <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                         </svg>
                       ) : isActive && !isFailed ? (
-                        <svg className="animate-spin w-3 h-3 text-indigo-400" fill="none" viewBox="0 0 24 24">
+                        <svg className="animate-spin w-3 h-3 text-indigo-400" fill="none" viewBox="0 0 24 24" aria-hidden="true">
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                         </svg>
+                      ) : step.key === "failed" ? (
+                        <svg className="w-3 h-3 text-rose-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3} aria-hidden="true">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
                       ) : (
-                        <span>{step.icon}</span>
+                        <div className="w-1.5 h-1.5 rounded-full bg-current" aria-hidden="true" />
                       )}
                     </div>
 
@@ -129,7 +137,7 @@ export default function ScanProgress({ url, status, errorMessage }: ScanProgress
                         isDone
                           ? "text-emerald-400"
                           : isActive && !isFailed
-                          ? "text-white"
+                          ? "text-slate-50"
                           : isFailed && step.key === "failed"
                           ? "text-rose-400"
                           : "text-slate-500"
@@ -156,8 +164,12 @@ export default function ScanProgress({ url, status, errorMessage }: ScanProgress
 
           {/* Indeterminate progress bar (shown while not failed) */}
           {!isFailed && status !== "completed" && (
-            <div className="w-full h-0.5 bg-slate-800 rounded-full overflow-hidden">
-              <div className="h-full bg-linear-to-r from-indigo-500 to-purple-500 rounded-full animate-[shimmer_2s_ease-in-out_infinite]"
+            <div
+              role="progressbar"
+              aria-label="Scan execution progress"
+              className="w-full h-0.5 bg-slate-800 rounded-full overflow-hidden"
+            >
+              <div className="h-full bg-linear-to-r from-indigo-500 to-indigo-500 rounded-full animate-[shimmer_2s_ease-in-out_infinite]"
                 style={{ width: "40%", animation: "shimmer 2s ease-in-out infinite" }} />
             </div>
           )}

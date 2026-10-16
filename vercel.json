@@ -7,6 +7,16 @@
     "app/api/fix-suggestions/route.ts": {
       "memory": 1024,
       "maxDuration": 10
+    },
+    "app/api/cron/monitors/route.ts": {
+      "memory": 1024,
+      "maxDuration": 60
     }
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/cron/monitors",
+      "schedule": "0 * * * *"
+    }
+  ]
 }

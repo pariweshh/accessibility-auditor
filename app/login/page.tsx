@@ -3,6 +3,8 @@
 import { useState } from "react"
 import { createClient } from "@/lib/supabase/client"
 import Link from "next/link"
+import { BrandLogo } from "@/components/brand_logo"
+import { getSafeRedirectUrl } from "@/lib/safe-redirect"
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
@@ -14,6 +16,20 @@ export default function LoginPage() {
   const [devLink, setDevLink] = useState<string | null>(null)
 
   const supabase = createClient()
+
+  const getReturnUrl = () => {
+    if (typeof window === "undefined") return "/dashboard"
+    const params = new URLSearchParams(window.location.search)
+    return getSafeRedirectUrl(params.get("returnTo") || params.get("next"), "/dashboard")
+  }
+
+  const getCallbackUrl = () => {
+    if (typeof window === "undefined") return "/auth/callback"
+    const returnTo = getReturnUrl()
+    return returnTo && returnTo !== "/"
+      ? `${window.location.origin}/auth/callback?next=${encodeURIComponent(returnTo)}`
+      : `${window.location.origin}/auth/callback`
+  }
 
   const handleMagicLink = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -27,7 +43,7 @@ export default function LoginPage() {
       const response = await fetch("/api/auth/magic-link", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email, returnTo: getReturnUrl() }),
       })
       const data = await response.json()
 
@@ -37,7 +53,7 @@ export default function LoginPage() {
 
       setMessage({
         type: "success",
-        text: "✨ Check your inbox! We've sent a magic login link to your email.",
+        text: "Check your inbox! We've sent a magic login link to your email.",
       })
 
       if (data.devLink) {
@@ -70,12 +86,12 @@ export default function LoginPage() {
 
       setMessage({
         type: "success",
-        text: "🎉 Success! Redirecting...",
+        text: "Success! Redirecting...",
       })
 
-      // Wait a moment then redirect to homepage
+      // Wait a moment then redirect to target destination
       setTimeout(() => {
-        window.location.href = "/"
+        window.location.href = getReturnUrl()
       }, 1000)
     } catch (err: any) {
       setMessage({
@@ -99,7 +115,7 @@ export default function LoginPage() {
         email,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
+          emailRedirectTo: getCallbackUrl(),
         },
       })
 
@@ -108,15 +124,15 @@ export default function LoginPage() {
       if (data.session) {
         setMessage({
           type: "success",
-          text: "🎉 Account created successfully! Redirecting...",
+          text: "Account created successfully! Redirecting...",
         })
         setTimeout(() => {
-          window.location.href = "/"
+          window.location.href = getReturnUrl()
         }, 1000)
       } else {
         setMessage({
           type: "success",
-          text: "📧 Account created! Please check your email to confirm your registration.",
+          text: "Account created! Please check your email to confirm your registration.",
         })
       }
     } catch (err: any) {
@@ -136,7 +152,7 @@ export default function LoginPage() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: getCallbackUrl(),
         },
       })
       if (error) throw error
@@ -149,20 +165,29 @@ export default function LoginPage() {
     }
   }
 
+  const handleTabKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+      e.preventDefault()
+      setIsPasswordLogin(!isPasswordLogin)
+      setMessage(null)
+      setDevLink(null)
+    }
+  }
+
   return (
-    <main className="relative min-h-screen flex items-center justify-center bg-linear-to-br from-slate-950 via-indigo-950 to-slate-900 px-4 overflow-hidden">
+    <main id="main-content" tabIndex={-1} className="relative min-h-screen flex items-center justify-center bg-linear-to-br from-slate-950 via-indigo-950 to-slate-900 px-4 overflow-hidden focus:outline-hidden">
       {/* Decorative Orbs */}
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2"></div>
-      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-600/10 rounded-full blur-3xl translate-x-1/2 translate-y-1/2"></div>
+      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-indigo-600/10 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2"></div>
+      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-indigo-600/10 rounded-full blur-3xl translate-x-1/2 translate-y-1/2"></div>
 
       <div className="relative z-10 w-full max-w-md">
         {/* Logo / Header */}
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-2.5 group mb-2">
-            <img src="/logo.png" alt="A11ytica Pro Logo" className="w-9 h-9 object-contain rounded-lg border border-white/10" />
-            <span className="text-2xl font-bold bg-linear-to-r from-blue-400 via-indigo-300 to-purple-400 bg-clip-text text-transparent group-hover:from-blue-300 group-hover:to-purple-300 transition-all duration-300">
+            <BrandLogo size={36} />
+            <h1 className="text-2xl font-bold bg-linear-to-r from-indigo-400 via-indigo-300 to-indigo-400 bg-clip-text text-transparent group-hover:from-indigo-300 group-hover:to-indigo-300 transition-all duration-300">
               A11ytica Pro
-            </span>
+            </h1>
           </Link>
           <p className="text-sm text-slate-400">
             Sign in to access advanced auditing history & custom reports
@@ -172,8 +197,19 @@ export default function LoginPage() {
         {/* Card */}
         <div className="bg-white/5 backdrop-blur-xl border border-white/10 shadow-2xl rounded-2xl p-6 md:p-8">
           {/* Tabs */}
-          <div className="flex gap-2 p-1 bg-slate-900/50 rounded-lg mb-6 border border-white/5">
+          <div
+            role="tablist"
+            aria-label="Authentication method"
+            onKeyDown={handleTabKeyDown}
+            className="flex gap-2 p-1 bg-slate-900/50 rounded-lg mb-6 border border-white/5"
+          >
             <button
+              type="button"
+              role="tab"
+              id="tab-passwordless"
+              aria-selected={!isPasswordLogin}
+              aria-controls="panel-login-form"
+              tabIndex={!isPasswordLogin ? 0 : -1}
               onClick={() => {
                 setIsPasswordLogin(false)
                 setMessage(null)
@@ -188,6 +224,12 @@ export default function LoginPage() {
               Passwordless Link
             </button>
             <button
+              type="button"
+              role="tab"
+              id="tab-password"
+              aria-selected={isPasswordLogin}
+              aria-controls="panel-login-form"
+              tabIndex={isPasswordLogin ? 0 : -1}
               onClick={() => {
                 setIsPasswordLogin(true)
                 setMessage(null)
@@ -203,63 +245,70 @@ export default function LoginPage() {
             </button>
           </div>
 
-          {/* Form */}
-          <form
-            onSubmit={
-              isPasswordLogin
-                ? (isSignUp ? handlePasswordSignUp : handlePasswordLogin)
-                : handleMagicLink
-            }
-            className="space-y-4"
+          {/* Form Tabpanel */}
+          <div
+            role="tabpanel"
+            id="panel-login-form"
+            aria-labelledby={!isPasswordLogin ? "tab-passwordless" : "tab-password"}
           >
-            <div>
-              <label htmlFor="email" className="block text-xs font-medium text-slate-300 mb-1">
-                Email Address
-              </label>
-              <input
-                id="email"
-                type="email"
-                placeholder="you@example.com"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-slate-900/50 border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-hidden focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all duration-200"
-              />
-            </div>
-
-            {isPasswordLogin && (
+            <form
+              onSubmit={
+                isPasswordLogin
+                  ? (isSignUp ? handlePasswordSignUp : handlePasswordLogin)
+                  : handleMagicLink
+              }
+              className="space-y-4"
+            >
               <div>
-                <label htmlFor="password" className="block text-xs font-medium text-slate-300 mb-1">
-                  Password
+                <label htmlFor="email" className="block text-xs font-medium text-slate-300 mb-1">
+                  Email Address
                 </label>
                 <input
-                  id="password"
-                  type="password"
-                  placeholder="••••••••"
-                  required={isPasswordLogin}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-slate-900/50 border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-hidden focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all duration-200"
+                  id="email"
+                  type="email"
+                  placeholder="you@example.com"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full bg-slate-900/50 border border-white/10 rounded-lg px-4 py-2.5 text-sm text-slate-50 placeholder-slate-500 focus:outline-hidden focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all duration-200"
                 />
               </div>
-            )}
 
-            {message && (
-              <div
-                className={`p-3.5 rounded-lg text-xs font-medium border ${
-                  message.type === "success"
-                    ? "bg-emerald-500/10 text-emerald-300 border-emerald-500/20"
-                    : "bg-rose-500/10 text-rose-300 border-rose-500/20"
-                }`}
-              >
-                {message.text}
-              </div>
-            )}
+              {isPasswordLogin && (
+                <div>
+                  <label htmlFor="password" className="block text-xs font-medium text-slate-300 mb-1">
+                    Password
+                  </label>
+                  <input
+                    id="password"
+                    type="password"
+                    placeholder="••••••••"
+                    required={isPasswordLogin}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full bg-slate-900/50 border border-white/10 rounded-lg px-4 py-2.5 text-sm text-slate-50 placeholder-slate-500 focus:outline-hidden focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all duration-200"
+                  />
+                </div>
+              )}
+
+              {message && (
+                <div
+                  role={message.type === "error" ? "alert" : "status"}
+                  aria-live="polite"
+                  className={`p-3.5 rounded-lg text-xs font-medium border ${
+                    message.type === "success"
+                      ? "bg-emerald-500/10 text-emerald-300 border-emerald-500/20"
+                      : "bg-rose-500/10 text-rose-300 border-rose-500/20"
+                  }`}
+                >
+                  {message.text}
+                </div>
+              )}
 
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full relative overflow-hidden group bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-medium text-sm py-2.5 rounded-lg transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+              className="w-full relative overflow-hidden group bg-linear-to-r from-indigo-500 to-indigo-600 hover:from-indigo-400 hover:to-indigo-500 text-white font-medium text-sm py-2.5 rounded-lg transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             >
               {isLoading ? (
                 <span className="flex items-center justify-center gap-2">
@@ -296,7 +345,7 @@ export default function LoginPage() {
           {/* Magic link dev fallback */}
           {!isPasswordLogin && devLink && (
             <div className="mt-4 p-3.5 bg-indigo-950/40 border border-indigo-500/30 rounded-xl space-y-2 text-center animate-fadeIn">
-              <p className="text-2xs text-indigo-300 font-semibold leading-none">🔧 Development Link Generated:</p>
+              <p className="text-2xs text-indigo-300 font-semibold leading-none">Development Link Generated:</p>
               <p className="text-2xs text-slate-500 leading-relaxed">Resend is in dev-mode. Click below to bypass email inbox:</p>
               <a
                 href={devLink}
@@ -306,6 +355,7 @@ export default function LoginPage() {
               </a>
             </div>
           )}
+          </div>
 
           {/* Social Sign In Divider */}
           <div className="relative my-6">
@@ -324,7 +374,7 @@ export default function LoginPage() {
             type="button"
             onClick={handleGoogleSignIn}
             disabled={isLoading}
-            className="w-full py-2.5 px-4 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 text-white font-medium text-xs flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full py-2.5 px-4 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 text-slate-50 font-medium text-xs flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <svg className="w-4 h-4" viewBox="0 0 24 24">
               <path

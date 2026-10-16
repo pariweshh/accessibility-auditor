@@ -39,3 +39,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# tooling and temporary artifacts
+.playwright-mcp/
+scratch/
+nexusflow-full.jpeg

@@ -35,7 +35,7 @@ export default function FAQsSection() {
 
   return (
     <section className="mt-28 relative animate-slideUp">
-      <div className="absolute top-[20%] left-1/2 -translate-x-1/2 w-80 h-80 bg-purple-600/5 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute top-[20%] left-1/2 -translate-x-1/2 w-80 h-80 bg-indigo-600/5 rounded-full blur-3xl pointer-events-none" />
 
       <div className="max-w-3xl mx-auto px-4 relative z-10">
         {/* Section Header */}
@@ -43,7 +43,7 @@ export default function FAQsSection() {
           <span className="text-2xs font-extrabold uppercase tracking-widest text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-3 py-1 rounded-full">
             Knowledge Base
           </span>
-          <h2 className="text-2xl md:text-3xl font-black text-white mt-3.5 tracking-tight">
+          <h2 className="text-2xl md:text-3xl font-black text-slate-50 mt-3.5 tracking-tight">
             Frequently Asked Questions
           </h2>
           <p className="text-xs text-slate-400 max-w-sm mx-auto mt-2 leading-relaxed">
@@ -62,23 +62,40 @@ export default function FAQsSection() {
               >
                 <button
                   type="button"
+                  id={`faq-question-${idx}`}
                   onClick={() => handleToggle(idx)}
+                  aria-expanded={isOpen}
+                  aria-controls={`faq-answer-${idx}`}
                   className="w-full px-5 py-4 flex items-center justify-between gap-4 text-left cursor-pointer select-none"
                 >
-                  <span className="text-xs font-bold text-slate-100 hover:text-white transition-colors">
+                  <span className="text-xs font-bold text-slate-100 hover:text-slate-50 transition-colors">
                     {faq.question}
                   </span>
-                  <span className={`w-5 h-5 rounded-lg bg-slate-950 border border-slate-800 flex items-center justify-center text-[10px] font-bold text-slate-400 transition-transform duration-300 shrink-0 ${
-                    isOpen ? "rotate-180 text-white border-slate-700" : ""
-                  }`}>
-                    ▼
+                  <span className="w-5 h-5 rounded-lg bg-slate-950 border border-slate-800 flex items-center justify-center shrink-0">
+                    <svg
+                      className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-300 ${
+                        isOpen ? "rotate-180 text-slate-50" : ""
+                      }`}
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                      aria-hidden="true"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                    </svg>
                   </span>
                 </button>
 
                 {/* Animated collapse block */}
-                <div className={`transition-all duration-300 ease-in-out ${
-                  isOpen ? "max-h-[200px] border-t border-slate-900" : "max-h-0"
-                } overflow-hidden`}>
+                <div
+                  id={`faq-answer-${idx}`}
+                  role="region"
+                  aria-labelledby={`faq-question-${idx}`}
+                  className={`transition-all duration-300 ease-in-out ${
+                    isOpen ? "max-h-[200px] border-t border-slate-900" : "max-h-0"
+                  } overflow-hidden`}
+                >
                   <div className="p-5 text-xs text-slate-400 leading-relaxed bg-slate-950/15">
                     {faq.answer}
                   </div>

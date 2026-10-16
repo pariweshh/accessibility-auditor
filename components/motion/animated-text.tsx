@@ -25,35 +25,36 @@ export function AnimatedText({ text, className, stagger = 0.06 }: AnimatedTextPr
   const words = text.split(" ")
 
   return (
-    <motion.span
-      className={className}
-      variants={{
-        visible: { transition: { staggerChildren: reduce ? 0 : stagger } },
-      }}
-      initial="hidden"
-      animate="visible"
-      aria-label={text}
-    >
-      {words.map((word, i) => (
-        <motion.span
-          key={`${word}-${i}`}
-          className="inline-block"
-          aria-hidden="true"
-          variants={{
-            hidden: { opacity: 0, y: reduce ? 0 : 14 },
-            visible: {
-              opacity: 1,
-              y: 0,
-              transition: reduce
-                ? { duration: motionTokens.duration.instant }
-                : springs.gentle,
-            },
-          }}
-        >
-          {word}
-          {i < words.length - 1 ? " " : ""}
-        </motion.span>
-      ))}
-    </motion.span>
+    <span className={className}>
+      <span className="sr-only">{text}</span>
+      <motion.span
+        aria-hidden="true"
+        variants={{
+          visible: { transition: { staggerChildren: reduce ? 0 : stagger } },
+        }}
+        initial="hidden"
+        animate="visible"
+      >
+        {words.map((word, i) => (
+          <motion.span
+            key={`${word}-${i}`}
+            className="inline-block"
+            variants={{
+              hidden: { opacity: 0, y: reduce ? 0 : 14 },
+              visible: {
+                opacity: 1,
+                y: 0,
+                transition: reduce
+                  ? { duration: motionTokens.duration.instant }
+                  : springs.gentle,
+              },
+            }}
+          >
+            {word}
+            {i < words.length - 1 ? " " : ""}
+          </motion.span>
+        ))}
+      </motion.span>
+    </span>
   )
 }

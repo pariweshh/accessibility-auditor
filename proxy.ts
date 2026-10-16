@@ -1,14 +1,24 @@
 import { NextResponse, type NextRequest } from "next/server"
 import { updateSession } from "@/lib/supabase/proxy"
+import { getSafeRedirectUrl } from "@/lib/safe-redirect"
 
 export async function proxy(request: NextRequest) {
   const { supabaseResponse, user } = await updateSession(request)
 
   const isLoginPage = request.nextUrl.pathname.startsWith("/login")
+  const isDashboardPage = request.nextUrl.pathname.startsWith("/dashboard")
 
-  // Redirect authenticated users away from the login page
+  // Protect dashboard routes for unauthenticated users
+  if (!user && isDashboardPage) {
+    const returnTo = getSafeRedirectUrl(request.nextUrl.pathname + request.nextUrl.search, "/dashboard")
+    return NextResponse.redirect(new URL(`/login?returnTo=${encodeURIComponent(returnTo)}`, request.url))
+  }
+
+  // Redirect authenticated users away from the login page (respect returnTo if present, else dashboard)
   if (user && isLoginPage) {
-    return NextResponse.redirect(new URL("/", request.url))
+    const rawReturn = request.nextUrl.searchParams.get("returnTo") || request.nextUrl.searchParams.get("next")
+    const dest = getSafeRedirectUrl(rawReturn, "/dashboard")
+    return NextResponse.redirect(new URL(dest, request.url))
   }
 
   return supabaseResponse

@@ -82,19 +82,40 @@ export async function POST(request: NextRequest) {
         const dbTier = isActive ? tier : "free"
         const dbStatus = isActive ? "active" : status
 
-        const { error } = await supabaseAdmin
+        const { error, count } = await supabaseAdmin
           .from("profiles")
           .update({
             subscription_tier: dbTier,
             stripe_subscription_id: subscriptionId,
             subscription_status: dbStatus,
-          })
+          }, { count: "exact" })
           .eq("stripe_customer_id", customerId)
 
         if (error) {
           console.error("Error updating subscription status:", error)
           throw error
         }
+
+        // Resilient fallback: if out-of-order webhook delivery occurred before profile customerId was saved
+        if (count === 0) {
+          try {
+            const customer = await stripe.customers.retrieve(customerId)
+            if (!customer.deleted && customer.metadata?.supabase_user_id) {
+              await supabaseAdmin
+                .from("profiles")
+                .update({
+                  stripe_customer_id: customerId,
+                  subscription_tier: dbTier,
+                  stripe_subscription_id: subscriptionId,
+                  subscription_status: dbStatus,
+                })
+                .eq("id", customer.metadata.supabase_user_id)
+            }
+          } catch (custErr) {
+            console.error("Fallback customer lookup failed:", custErr)
+          }
+        }
+
         console.log(`Updated subscription for customer ${customerId}: Tier=${dbTier}, Status=${dbStatus}`)
         break
       }

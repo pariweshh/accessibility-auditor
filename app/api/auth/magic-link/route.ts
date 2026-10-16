@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient as createAdminClient } from "@supabase/supabase-js"
 import { Resend } from "resend"
+import { getSafeRedirectUrl } from "@/lib/safe-redirect"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
 
 export async function POST(request: NextRequest) {
   try {
-    const { email } = await request.json()
+    const { email, returnTo } = await request.json()
 
     if (!email || typeof email !== "string" || !email.includes("@")) {
       return NextResponse.json({ error: "A valid email is required" }, { status: 400 })
@@ -19,9 +20,10 @@ export async function POST(request: NextRequest) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     )
 
-    // Get request origin for redirect callback
+    // Get request origin for redirect callback and sanitize return destination
     const origin = new URL(request.url).origin
-    const redirectTo = `${origin}/auth/callback`
+    const safeReturnTo = getSafeRedirectUrl(returnTo, "/dashboard")
+    const redirectTo = `${origin}/auth/callback?next=${encodeURIComponent(safeReturnTo)}`
 
     // 2. Generate passwordless magic link
     const { data, error: generateError } = await adminSupabase.auth.admin.generateLink({
@@ -60,12 +62,15 @@ export async function POST(request: NextRequest) {
     }
 
     const resend = new Resend(resendKey)
-    const emailFrom = process.env.EMAIL_FROM || "A11ytica Pro <reports@yourdomain.com>"
+    const emailFrom =
+      process.env.EMAIL_FROM ||
+      process.env.RESEND_FROM_EMAIL ||
+      "A11ytica Pro <reports@yourdomain.com>"
 
     const { data: sendData, error: sendError } = await resend.emails.send({
       from: emailFrom,
       to: email.trim().toLowerCase(),
-      subject: "Sign in to A11ytica Pro 🎯",
+      subject: "Sign in to A11ytica Pro",
       html: `
         <!DOCTYPE html>
         <html>
@@ -76,7 +81,7 @@ export async function POST(request: NextRequest) {
           <style>
             body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #020617; color: #f1f5f9; margin: 0; padding: 0; }
             .container { max-width: 500px; margin: 40px auto; padding: 32px; background-color: #0f172a; border: 1px solid #1e293b; border-radius: 16px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3); }
-            .logo { font-size: 24px; font-weight: 800; color: #6366f1; text-align: center; margin-bottom: 24px; }
+            .logo { font-size: 22px; font-weight: 800; color: #f8fafc; text-align: center; margin-bottom: 24px; }
             h1 { font-size: 20px; font-weight: 700; color: #ffffff; text-align: center; margin-bottom: 8px; }
             p { font-size: 14px; line-height: 1.6; color: #94a3b8; text-align: center; margin-bottom: 24px; }
             .btn-container { text-align: center; margin-bottom: 24px; }
@@ -88,7 +93,10 @@ export async function POST(request: NextRequest) {
         </head>
         <body>
           <div class="container">
-            <div class="logo">🎯 A11ytica Pro</div>
+            <div class="logo">
+              <img src="${origin}/logo.png" width="32" height="32" style="vertical-align: middle; border-radius: 8px; margin-right: 8px;" alt="A11ytica Pro" />
+              <span>A11ytica Pro</span>
+            </div>
             <h1>Your magic login link is ready</h1>
             <p>Click the button below to sign in to your A11ytica Pro account. This link will expire shortly.</p>
             

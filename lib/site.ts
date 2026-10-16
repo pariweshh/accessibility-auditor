@@ -9,7 +9,7 @@
 const FALLBACK_URL = "http://localhost:3000"
 
 function resolveSiteUrl(): string {
-  const fromEnv = process.env.NEXT_PUBLIC_SITE_URL?.trim()
+  const fromEnv = (process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL)?.trim()
   if (fromEnv) return fromEnv.replace(/\/$/, "")
 
   // Vercel provides the deployment host without protocol

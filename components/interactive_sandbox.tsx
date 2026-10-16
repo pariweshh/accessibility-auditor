@@ -16,7 +16,7 @@ interface MockIssue {
 const MOCK_ISSUES: MockIssue[] = [
   {
     id: "contrast",
-    title: "🎨 Color Contrast Ratio",
+    title: "Color Contrast Ratio",
     issueHelp: "Elements must have sufficient color contrast (WCAG 2.1 AA)",
     impact: "critical",
     brokenHtml: `<button style="background: #e2e8f0; color: #94a3b8; border: none;">\n  Submit Now\n</button>`,
@@ -26,7 +26,7 @@ const MOCK_ISSUES: MockIssue[] = [
   },
   {
     id: "alt-text",
-    title: "🖼️ Missing Alt Tag",
+    title: "Missing Alt Tag",
     issueHelp: "Images must have alternate text (WCAG 2.1 A)",
     impact: "serious",
     brokenHtml: `<img src="/assets/logo.png" width="120" height="40" />`,
@@ -36,7 +36,7 @@ const MOCK_ISSUES: MockIssue[] = [
   },
   {
     id: "form-label",
-    title: "📝 Unassociated Input",
+    title: "Unassociated Input",
     issueHelp: "Form elements must have labels (WCAG 2.1 AA)",
     impact: "serious",
     brokenHtml: `<input type="email" placeholder="Enter email..." />`,
@@ -183,14 +183,14 @@ export default function InteractiveSandbox() {
   return (
     <section className="mt-28 relative animate-slideUp">
       {/* Background radial gradient */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-5xl h-[350px] bg-radial from-blue-500/5 via-transparent to-transparent pointer-events-none z-0" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-5xl h-[350px] bg-radial from-indigo-500/5 via-transparent to-transparent pointer-events-none z-0" />
 
       <div className="max-w-4xl mx-auto relative z-10">
         <div className="text-center mb-10">
           <span className="text-2xs font-extrabold uppercase tracking-widest text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-3 py-1 rounded-full">
             Try AI Remediation
           </span>
-          <h2 className="text-2xl md:text-3xl font-black text-white mt-3.5 tracking-tight">
+          <h2 className="text-2xl md:text-3xl font-black text-slate-50 mt-3.5 tracking-tight">
             See the AI Engine in Action
           </h2>
           <p className="text-xs text-slate-400 max-w-md mx-auto mt-2 leading-relaxed">
@@ -240,7 +240,7 @@ export default function InteractiveSandbox() {
               disabled={isFixing}
               className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 disabled:bg-slate-900 text-slate-950 disabled:text-slate-600 rounded-xl text-2xs font-extrabold transition-all cursor-pointer shadow-md hover:shadow-lg disabled:cursor-not-allowed select-none"
             >
-              {isFixing ? "Auditing Code..." : "✨ Simulate AI Fix"}
+              {isFixing ? "Auditing Code..." : "Simulate AI Fix"}
             </button>
           </div>
 
@@ -251,7 +251,7 @@ export default function InteractiveSandbox() {
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-3xs font-bold text-rose-400 uppercase tracking-widest block">
-                    ❌ Original HTML (Broken)
+                    Original HTML (Broken)
                   </span>
                   {/* macOS Editor Dots */}
                   <div className="flex gap-1.5">
@@ -265,7 +265,7 @@ export default function InteractiveSandbox() {
                 </div>
               </div>
               <p className="text-3xs text-slate-500 mt-3 flex items-start gap-1">
-                <span className="text-rose-500 font-bold">⚠</span> Screen readers and search crawlers struggle here.
+                <span className="text-rose-500 font-bold" aria-hidden="true">!</span> Screen readers and search crawlers struggle here.
               </p>
             </div>
 
@@ -287,7 +287,11 @@ export default function InteractiveSandbox() {
 
               {!isFixing && !showFix && (
                 <div className="h-full flex flex-col items-center justify-center text-center opacity-70 p-4">
-                  <span className="text-xl">🤖</span>
+                  <div className="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                  </div>
                   <p className="text-2xs text-slate-500 font-semibold mt-2 leading-relaxed">
                     Click "Simulate AI Fix" above to trigger compliance suggestions.
                   </p>
@@ -298,7 +302,7 @@ export default function InteractiveSandbox() {
                 <div className="animate-fadeIn">
                   <div className="flex justify-between items-center mb-2">
                     <span className="text-3xs font-bold text-emerald-400 uppercase tracking-widest">
-                      ✅ AI Suggested Fix
+                      AI Suggested Fix
                     </span>
                     <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-400 text-3xs font-extrabold border border-emerald-500/25 rounded-md uppercase tracking-wider">
                       {selectedIssue.confidence} confidence

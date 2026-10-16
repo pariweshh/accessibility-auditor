@@ -21,7 +21,9 @@ interface ScanRecord {
 
 interface ScanHistoryProps {
   scans: ScanRecord[]
-  onLoadResult: (result: ScanResult) => void
+  onLoadResult: (result: ScanResult, scanId?: string) => void
+  tier?: string
+  onUpgradeClick?: () => void
 }
 
 function timeAgo(dateStr: string): string {
@@ -49,7 +51,7 @@ function severityDot(count: number, color: string) {
   )
 }
 
-export default function ScanHistory({ scans, onLoadResult }: ScanHistoryProps) {
+export default function ScanHistory({ scans, onLoadResult, tier, onUpgradeClick }: ScanHistoryProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [loadingId, setLoadingId] = useState<string | null>(null)
   // Rows the user has swiped away this session (immutable Set updates).
@@ -66,7 +68,7 @@ export default function ScanHistory({ scans, onLoadResult }: ScanHistoryProps) {
     setLoadingId(scan.id)
     // Small delay for visual feedback
     setTimeout(() => {
-      onLoadResult(scan.result!)
+      onLoadResult(scan.result!, scan.id)
       setLoadingId(null)
     }, 150)
   }
@@ -78,8 +80,10 @@ export default function ScanHistory({ scans, onLoadResult }: ScanHistoryProps) {
         className="w-full flex items-center justify-between px-4 py-3 bg-slate-900/30 hover:bg-slate-900/50 border border-slate-800/60 rounded-xl text-sm text-slate-400 hover:text-slate-200 transition-all duration-200 cursor-pointer group"
       >
         <span className="flex items-center gap-2 font-medium">
-          <span className="text-base">🕒</span>
-          Recent Scans
+          <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          {tier === "free" ? "Latest Scan" : "Recent Scans"}
           <span className="px-1.5 py-0.5 text-2xs font-bold bg-slate-800 text-slate-400 rounded-md tabular-nums">
             {scans.length}
           </span>
@@ -111,7 +115,7 @@ export default function ScanHistory({ scans, onLoadResult }: ScanHistoryProps) {
 
               {/* URL */}
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-medium text-slate-300 group-hover:text-white truncate transition-colors">
+                <p className="text-xs font-medium text-slate-300 group-hover:text-slate-50 truncate transition-colors">
                   {scan.url.replace(/^https?:\/\//, "").replace(/\/$/, "")}
                 </p>
                 <div className="flex items-center gap-2.5 mt-0.5">
@@ -121,7 +125,7 @@ export default function ScanHistory({ scans, onLoadResult }: ScanHistoryProps) {
                       {severityDot(scan.summary.critical, "text-rose-400")}
                       {severityDot(scan.summary.serious, "text-orange-400")}
                       {severityDot(scan.summary.moderate, "text-amber-400")}
-                      {severityDot(scan.summary.minor, "text-blue-400")}
+                      {severityDot(scan.summary.minor, "text-sky-400")}
                     </span>
                   )}
                 </div>
@@ -154,6 +158,28 @@ export default function ScanHistory({ scans, onLoadResult }: ScanHistoryProps) {
             </button>
             </SwipeCard>
           ))}
+          {tier === "free" && (
+            <div className="p-3 bg-slate-950/70 border-t border-slate-850 flex items-center justify-between text-2xs text-slate-400">
+              <span className="flex items-center gap-1.5">
+                <svg className="w-3.5 h-3.5 text-slate-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+                <span>Displaying latest scan only. Unlock dedicated history with Pro.</span>
+              </span>
+              <a
+                href="#pricing"
+                onClick={(e) => {
+                  if (onUpgradeClick) {
+                    e.preventDefault()
+                    onUpgradeClick()
+                  }
+                }}
+                className="text-indigo-400 hover:text-indigo-300 font-bold underline underline-offset-2 shrink-0 cursor-pointer"
+              >
+                Upgrade →
+              </a>
+            </div>
+          )}
         </div>
       )}
     </div>

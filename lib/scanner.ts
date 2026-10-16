@@ -74,7 +74,7 @@ export async function scanURL(url: string): Promise<ScanResult> {
 
     // Inject axe-core from CDN (MORE RELIABLE)
     await page.addScriptTag({
-      url: "https://cdnjs.cloudflare.com/ajax/libs/axe-core/4.8.3/axe.min.js",
+      url: "https://cdnjs.cloudflare.com/ajax/libs/axe-core/4.12.0/axe.min.js",
     })
 
     // run axe-core in the browser context
@@ -100,26 +100,29 @@ export async function scanURL(url: string): Promise<ScanResult> {
       failureSummary?: string
     }
 
-    // Process violations
-    const violations: AccessibilityIssue[] = results.violations.map(
-      (violation: AxeViolation) => ({
-        id: violation.id,
-        impact: (violation.impact || "minor") as
-          | "minor"
-          | "moderate"
-          | "serious"
-          | "critical",
-        description: violation.description,
-        help: violation.help,
-        helpUrl: violation.helpUrl,
-        tags: violation.tags,
-        nodes: violation.nodes.map((node: AxeNode) => ({
-          html: node.html,
-          target: node.target,
-          failureSummary: node.failureSummary || "",
-        })),
-      })
-    )
+    // Map an axe result (violation or incomplete) to our issue shape.
+    const mapIssue = (violation: AxeViolation): AccessibilityIssue => ({
+      id: violation.id,
+      impact: (violation.impact || "minor") as
+        | "minor"
+        | "moderate"
+        | "serious"
+        | "critical",
+      description: violation.description,
+      help: violation.help,
+      helpUrl: violation.helpUrl,
+      tags: violation.tags,
+      nodes: violation.nodes.map((node: AxeNode) => ({
+        html: node.html,
+        target: node.target,
+        failureSummary: node.failureSummary || "",
+      })),
+    })
+
+    // Process violations and incomplete (needs-manual-review) results.
+    const violations: AccessibilityIssue[] = results.violations.map(mapIssue)
+    const incompleteItems: AccessibilityIssue[] =
+      results.incomplete.map(mapIssue)
 
     // Calculate summary
     const summary = {
@@ -135,6 +138,7 @@ export async function scanURL(url: string): Promise<ScanResult> {
       violations,
       passes: results.passes.length,
       incomplete: results.incomplete.length,
+      incompleteItems,
       summary,
     }
   } catch (error) {

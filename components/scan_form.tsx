@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import Link from "next/link"
 
 interface ScanFormProps {
   onScanStarted: (scanId: string, url: string) => void
@@ -82,7 +83,7 @@ export default function ScanForm({
               placeholder="https://example.com"
               required
               disabled={isScanning || isQuotaExceeded}
-              className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-3.5 text-sm text-white placeholder-slate-500 focus:outline-hidden focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 disabled:bg-slate-950/30 disabled:text-slate-600 disabled:cursor-not-allowed transition-all duration-200"
+              className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-3.5 text-sm text-slate-50 placeholder-slate-500 focus:outline-hidden focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 disabled:bg-slate-950/30 disabled:text-slate-600 disabled:cursor-not-allowed transition-all duration-200"
             />
           </div>
 
@@ -106,7 +107,14 @@ export default function ScanForm({
                 </span>
               </div>
               {/* Progress bar */}
-              <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+              <div
+                role="progressbar"
+                aria-valuenow={scansUsed}
+                aria-valuemin={0}
+                aria-valuemax={scansLimit}
+                aria-label="Monthly scans usage"
+                className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden"
+              >
                 <div
                   className={`h-full rounded-full transition-all duration-500 ${
                     isQuotaExceeded
@@ -151,20 +159,24 @@ export default function ScanForm({
           ) : (
             /* Anonymous user — static warning */
             <div className="p-4 bg-amber-500/5 border border-amber-500/15 rounded-xl flex items-start gap-2.5">
-              <span className="text-sm mt-0.5">⚠️</span>
+              <svg className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M5.07 19h13.86c1.54 0 2.5-1.67 1.73-3L13.73 4c-.77-1.33-2.69-1.33-3.46 0L3.34 16c-.77 1.33.19 3 1.73 3z" />
+              </svg>
               <p className="text-xs text-amber-300 leading-relaxed">
                 <strong>Free tier:</strong> Scans timeout after 10 seconds.{" "}
-                <a href="#" className="underline underline-offset-2 font-semibold hover:text-amber-200">
+                <Link href="/login" className="underline underline-offset-2 font-semibold hover:text-amber-200">
                   Sign in
-                </a>{" "}
+                </Link>{" "}
                 for tracked history and more scans.
               </p>
             </div>
           )}
 
           {error && (
-            <div className="p-4 bg-rose-500/10 border border-rose-500/15 rounded-xl flex items-start gap-2.5">
-              <span className="text-sm">❌</span>
+            <div role="alert" className="p-4 bg-rose-500/10 border border-rose-500/15 rounded-xl flex items-start gap-2.5">
+              <svg className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
               <p className="text-xs text-rose-300 leading-relaxed">{error}</p>
             </div>
           )}
@@ -175,13 +187,13 @@ export default function ScanForm({
               onClick={onUpgradeClick}
               className="w-full py-3.5 px-6 rounded-xl font-semibold text-sm bg-linear-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 transition-all duration-200 shadow-md hover:shadow-lg hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
             >
-              🚀 Upgrade to Keep Scanning
+              Upgrade to Keep Scanning
             </button>
           ) : (
             <button
               type="submit"
               disabled={isScanning}
-              className="w-full relative overflow-hidden group bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold py-3.5 px-6 rounded-xl transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer text-sm"
+              className="w-full relative overflow-hidden group bg-linear-to-r from-indigo-500 to-indigo-600 hover:from-indigo-400 hover:to-indigo-500 text-white font-semibold py-3.5 px-6 rounded-xl transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer text-sm"
             >
               {isScanning ? (
                 <span className="flex items-center justify-center gap-2">
@@ -213,6 +225,19 @@ export default function ScanForm({
             </button>
           )}
         </form>
+
+        {/* Industry Transparency & Scope Disclosure */}
+        <div className="mt-5 pt-4 border-t border-slate-800/60 flex items-start gap-2.5 text-2xs text-slate-400 leading-relaxed">
+          <svg className="w-3.5 h-3.5 text-indigo-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <p>
+            <strong className="text-slate-300">Automated Testing Scope:</strong> Algorithmic audits (axe-core) evaluate ~40%–57% of WCAG 2.2 rules (contrast, form labels, ARIA syntax, semantic structure). Full ADA Title III and European Accessibility Act (EAA) compliance requires human verification of keyboard navigation and screen reader journeys.{" "}
+            <Link href="/legal" className="text-indigo-400 hover:text-indigo-300 underline font-medium">
+              Read compliance disclaimers →
+            </Link>
+          </p>
+        </div>
       </div>
 
       {isScanning && (

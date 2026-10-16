@@ -91,7 +91,7 @@ const BillingButton = forwardRef<BillingButtonHandle, BillingButtonProps>(
         onClick={() => {
           window.location.href = "/login";
         }}
-        className="px-4 py-2 text-xs font-semibold bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-lg transition-all duration-200 shadow-md cursor-pointer select-none"
+        className="px-4 py-2 text-xs font-semibold bg-linear-to-r from-indigo-500 to-indigo-600 hover:from-indigo-400 hover:to-indigo-500 text-white rounded-lg transition-all duration-200 shadow-md cursor-pointer select-none"
       >
         Sign In
       </button>
@@ -104,7 +104,7 @@ const BillingButton = forwardRef<BillingButtonHandle, BillingButtonProps>(
       <span
         className={`px-2.5 py-1 text-xs font-bold rounded-full border tracking-wide ${
           profile?.subscription_tier === "agency"
-            ? "bg-purple-500/10 text-purple-400 border-purple-500/20"
+            ? "bg-indigo-500/10 text-indigo-400 border-indigo-500/20"
             : profile?.subscription_tier === "pro"
               ? "bg-indigo-500/10 text-indigo-400 border-indigo-500/20"
               : "bg-slate-800/60 text-slate-400 border-slate-700/60"
@@ -142,7 +142,7 @@ const BillingButton = forwardRef<BillingButtonHandle, BillingButtonProps>(
               {/* Close Button */}
               <button
                 onClick={() => setShowPricingModal(false)}
-                className="absolute top-4 right-4 text-slate-400 hover:text-white transition-colors p-1 rounded-md hover:bg-white/5 cursor-pointer z-10 text-sm"
+                className="absolute top-4 right-4 text-slate-400 hover:text-slate-50 transition-colors p-1 rounded-md hover:bg-white/5 cursor-pointer z-10 text-sm"
               >
                 ✕
               </button>
@@ -163,7 +163,7 @@ const BillingButton = forwardRef<BillingButtonHandle, BillingButtonProps>(
                 <div className="bg-slate-950/60 border border-indigo-500/30 rounded-xl p-5 flex flex-col justify-between hover:border-indigo-500/60 transition-colors shadow-xl">
                   <div>
                     <div className="flex justify-between items-start mb-2">
-                      <h4 className="text-base font-bold text-white">
+                      <h4 className="text-base font-bold text-slate-50">
                         Pro Plan
                       </h4>
                       <span className="px-2 py-0.5 text-2xs bg-indigo-500/10 text-indigo-400 border border-indigo-500/25 font-bold rounded-full font-mono uppercase">
@@ -171,8 +171,8 @@ const BillingButton = forwardRef<BillingButtonHandle, BillingButtonProps>(
                       </span>
                     </div>
                     <div className="flex items-baseline gap-1 mb-4">
-                      <span className="text-3xl font-black text-white">
-                        $29
+                      <span className="text-3xl font-black text-slate-50">
+                        $19
                       </span>
                       <span className="text-xs text-slate-500 font-medium">
                         / month
@@ -181,7 +181,7 @@ const BillingButton = forwardRef<BillingButtonHandle, BillingButtonProps>(
                     <ul className="space-y-2.5 text-xs text-slate-300 mb-6">
                       <li className="flex items-start gap-2">
                         <span className="text-emerald-400 font-bold">✓</span>{" "}
-                        200 site scans / month
+                        150 site scans / month
                       </li>
                       <li className="flex items-start gap-2">
                         <span className="text-emerald-400 font-bold">✓</span>{" "}
@@ -195,6 +195,10 @@ const BillingButton = forwardRef<BillingButtonHandle, BillingButtonProps>(
                         <span className="text-emerald-400 font-bold">✓</span>{" "}
                         PDF report downloads
                       </li>
+                      <li className="flex items-start gap-2">
+                        <span className="text-emerald-400 font-bold">✓</span>{" "}
+                        Full Developer API & CI/CD Keys
+                      </li>
                     </ul>
                   </div>
                   <button
@@ -207,16 +211,16 @@ const BillingButton = forwardRef<BillingButtonHandle, BillingButtonProps>(
                 </div>
 
                 {/* Agency Plan */}
-                <div className="bg-slate-950/60 border border-slate-800/80 rounded-xl p-5 flex flex-col justify-between hover:border-purple-500/40 transition-colors shadow-xl">
+                <div className="bg-slate-950/60 border border-slate-800/80 rounded-xl p-5 flex flex-col justify-between hover:border-indigo-500/40 transition-colors shadow-xl">
                   <div>
                     <div className="flex justify-between items-start mb-2">
-                      <h4 className="text-base font-bold text-white">
+                      <h4 className="text-base font-bold text-slate-50">
                         Agency Plan
                       </h4>
                     </div>
                     <div className="flex items-baseline gap-1 mb-4">
-                      <span className="text-3xl font-black text-white">
-                        $99
+                      <span className="text-3xl font-black text-slate-50">
+                        $59
                       </span>
                       <span className="text-xs text-slate-500 font-medium">
                         / month
@@ -225,7 +229,7 @@ const BillingButton = forwardRef<BillingButtonHandle, BillingButtonProps>(
                     <ul className="space-y-2.5 text-xs text-slate-300 mb-6">
                       <li className="flex items-start gap-2">
                         <span className="text-emerald-400 font-bold">✓</span>{" "}
-                        1,000 site scans / month
+                        600 site scans / month
                       </li>
                       <li className="flex items-start gap-2">
                         <span className="text-emerald-400 font-bold">✓</span>{" "}
@@ -244,7 +248,7 @@ const BillingButton = forwardRef<BillingButtonHandle, BillingButtonProps>(
                   <button
                     onClick={() => handleCheckout("agency")}
                     disabled={isLoading}
-                    className="w-full py-2.5 text-xs font-bold bg-purple-600 hover:bg-purple-500 text-white rounded-lg transition-all duration-200 disabled:opacity-50 cursor-pointer shadow-md shadow-purple-500/10 hover:shadow-purple-500/20"
+                    className="w-full py-2.5 text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition-all duration-200 disabled:opacity-50 cursor-pointer shadow-md shadow-indigo-500/10 hover:shadow-indigo-500/20"
                   >
                     {isLoading ? "Starting checkout..." : "Choose Agency"}
                   </button>

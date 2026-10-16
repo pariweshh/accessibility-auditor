@@ -1,203 +1,170 @@
-# Setup Guide
+# Setup & Deployment Guide
 
-Detailed step-by-step setup instructions for different environments.
+> **Status:** Active / Production Baseline  
+> **App Name:** A11ytica Pro  
+> **Framework:** Next.js 16 (App Router) + Turbopack  
+> **Database & Auth:** Supabase Cloud (Postgres 15+, RLS, Edge Functions, Realtime, Storage)  
+> **Last Updated:** October 2026  
+
+This guide provides step-by-step instructions for local development and cloud production deployment.
+
+---
 
 ## Local Development Setup
 
-### 1. Install Node.js
+### 1. Prerequisites
+- **Node.js:** `20.x` or higher (`node --version`)
+- **Package Manager:** `npm` (comes with Node)
+- **Git**
+- **Google Chrome** (for local Puppeteer fallback execution)
+- **Supabase Cloud Account** ([supabase.com](https://supabase.com))
+- **OpenAI API Key** ([platform.openai.com](https://platform.openai.com))
+- **Browserless.io Token** ([browserless.io](https://browserless.io))
+- **Resend API Key** ([resend.com](https://resend.com))
+- **Stripe Account** ([stripe.com](https://stripe.com))
 
-**macOS (using Homebrew):**
+---
 
-```bash
-brew install node@18
-```
-
-**Windows:**
-Download from [nodejs.org](https://nodejs.org/)
-
-**Linux (Ubuntu/Debian):**
-
-```bash
-curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
-sudo apt-get install -y nodejs
-```
-
-### 2. Install Chrome/Chromium
-
-**macOS:**
+### 2. Clone & Install Dependencies
 
 ```bash
-brew install --cask google-chrome
+git clone https://github.com/pariweshh/accessibility-auditor.git
+cd accessibility-auditor
+npm install
 ```
 
-**Windows:**
-Download from [google.com/chrome](https://www.google.com/chrome/)
+---
 
-**Linux (Ubuntu/Debian):**
+### 3. Database & Supabase Migrations
 
-```bash
-sudo apt-get install chromium-browser
-```
+1. Create a new Supabase project in your chosen region.
+2. In the Supabase Dashboard SQL Editor, execute migrations in chronological order from `supabase/migrations/`:
+   - `20260610000000_baseline_schema.sql` (Profiles, scans, violations, ai_fix_cache, api_keys, RLS)
+   - `20260613000000_team_access.sql` (Teams, team_members, pooled scans, RLS)
+   - `20260614000000_white_label_branding.sql` (Brand logo, hex color, tagline, footer text)
+   - `20260615000000_scheduled_monitors.sql` (Continuous scheduled monitors, cadence, alerts, failure threshold, RLS)
+3. Ensure a private Storage Bucket named `reports` is created for vector PDF document storage.
 
-### 3. Get OpenAI API Key
+---
 
-1. Visit [platform.openai.com](https://platform.openai.com/)
-2. Sign up or log in
-3. Go to API Keys section
-4. Create new secret key
-5. Copy and save it securely
+### 4. Configure Environment Variables
 
-### 3.5 Get Browserless.io API Token
-
-1. Visit [browserless.io/sign-up](https://www.browserless.io/sign-up)
-2. Sign up for free tier account
-3. Verify your email
-4. Go to Dashboard → API Tokens
-5. Copy your token (starts with a UUID)
-6. Keep it secure
-
-**Free Tier Includes:**
-
-- 1000 browser sessions per month
-- 1 concurrent sessions
-- US West (San Francisco) region
-- Perfect for portfolio projects
-
-### 4. Configure Environment
-
-Create `.env.local`:
+Create `.env.local` in the project root:
 
 ```env
-# Required: OpenAI API for fix suggestions
-OPENAI_API_KEY=sk-proj-xxxxxxxxxxxxxxxxxxxxxxxxx
+# ----------------------------------------------------
+# 1. Supabase (Database, Auth, Realtime, Storage)
+# ----------------------------------------------------
+NEXT_PUBLIC_SUPABASE_URL=https://your-project-id.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key_here
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key_here
 
-# Required for Vercel deployment: Browserless token
-BROWSERLESS_TOKEN=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+# ----------------------------------------------------
+# 2. AI Remediation Engine (OpenAI)
+# ----------------------------------------------------
+OPENAI_API_KEY=your_openai_api_key_here
 
-# Local development only
+# ----------------------------------------------------
+# 3. Headless Browser Automation (Browserless.io)
+# ----------------------------------------------------
+BROWSERLESS_TOKEN=your_browserless_api_token_here
+
+# ----------------------------------------------------
+# 4. Transactional Email & Invites (Resend)
+# ----------------------------------------------------
+RESEND_API_KEY=your_resend_api_key_here
+EMAIL_FROM=A11ytica Pro <notifications@yourdomain.com>
+RESEND_FROM_EMAIL=A11ytica Pro <notifications@yourdomain.com>
+
+# ----------------------------------------------------
+# 5. Billing & Subscriptions (Stripe)
+# ----------------------------------------------------
+STRIPE_SECRET_KEY=your_stripe_secret_key_here
+STRIPE_WEBHOOK_SECRET=your_stripe_webhook_secret_here
+STRIPE_PRO_PRICE_ID=your_stripe_pro_price_id_here
+STRIPE_AGENCY_PRICE_ID=your_stripe_agency_price_id_here
+
+# ----------------------------------------------------
+# 6. Scheduled Monitors Worker Secret (Vercel Cron)
+# ----------------------------------------------------
+CRON_SECRET=your-secure-cron-secret-string
+
+# ----------------------------------------------------
+# 7. Application URL & Environment
+# ----------------------------------------------------
+NEXT_PUBLIC_SITE_URL=http://localhost:3000
+NEXT_PUBLIC_APP_URL=http://localhost:3000
 NODE_ENV=development
+
+# Optional: Local Chrome executable path (macOS example)
 CHROME_EXECUTABLE_PATH=/Applications/Google Chrome.app/Contents/MacOS/Google Chrome
 ```
 
-````
+---
 
-### 5. Install Dependencies
-
-```bash
-npm install
-````
-
-### 6. Verify Installation
+### 5. Start Development Server
 
 ```bash
-# Check Node version
-node --version  # Should be 18.17+
-
-# Check npm version
-npm --version
-
-# Run development server
 npm run dev
 ```
 
-Visit `http://localhost:3000` - you should see the app!
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-**Test with these URLs:**
+---
 
-- `https://example.com` - Should complete in 3-5 seconds
-- `https://www.w3.org/WAI/demos/bad/` - Should find multiple issues
-- `https://developer.mozilla.org/` - Should handle modern site structure
+### 6. Verify Installation & Quality Gates
 
-## Production Deployment
-
-### Vercel Deployment
-
-1. **Prepare Repository:**
+Run the automated checks:
 
 ```bash
-   git init
-   git add .
-   git commit -m "Initial commit"
-   git remote add origin https://github.com/YOUR_USERNAME/accessibility-auditor.git
-   git push -u origin main
+# Type check strict mode (must output 0 errors)
+npx tsc --noEmit
+
+# Lint check (must output 0 warnings)
+npm run lint
+
+# Unit & integration test suites
+npm test
+
+# Self-accessibility dogfooding audit (must report 0 violations across all routes)
+npm run test:a11y
+
+# Production build verification
+npm run build
 ```
 
-2. **Deploy to Vercel:**
+---
 
-   - Go to [vercel.com/new](https://vercel.com/new)
-   - Import your GitHub repository
-   - Configure project settings:
-     - Framework: Next.js
-     - Root Directory: `./`
-     - Build Command: `npm run build`
-     - Output Directory: `.next`
+## Cloud Production Deployment (Vercel)
 
-3. **Add Environment Variables:**
-   - Go to Project Settings → Environment Variables
-   - Add these three variables:
-
-```
-     OPENAI_API_KEY = sk-your-key-here
-     BROWSERLESS_TOKEN = your-browserless-token
-     NODE_ENV = production
+### 1. Push to GitHub
+```bash
+git add .
+git commit -m "feat: complete production readiness"
+git push origin main
 ```
 
-⚠️ **Important:** Without BROWSERLESS_TOKEN, scans will fail in production!
+### 2. Link Project on Vercel
+1. Import repository on [vercel.com/new](https://vercel.com/new).
+2. Framework preset: **Next.js**.
+3. Add all variables from `.env.local` to **Project Settings → Environment Variables** (set `NEXT_PUBLIC_APP_URL=https://your-domain.vercel.app` and `CRON_SECRET`).
+4. Click **Deploy**.
 
-4. **Deploy:**
-   - Click "Deploy"
-   - Wait 2-3 minutes
-   - Your app is live!
+### 3. Configure Stripe Webhook
+1. Go to Stripe Dashboard → Developers → Webhooks.
+2. Add endpoint: `https://your-domain.vercel.app/api/billing/webhook`.
+3. Select events:
+   - `checkout.session.completed`
+   - `customer.subscription.updated`
+   - `customer.subscription.deleted`
+4. Copy Signing Secret into Vercel `STRIPE_WEBHOOK_SECRET`.
 
-### Custom Domain (Optional)
+---
 
-1. Go to Project Settings → Domains
-2. Add your custom domain
-3. Configure DNS records as shown
-4. Wait for DNS propagation (5-30 minutes)
+## Edge Function Deployment (Optional - Supabase CLI)
 
-## Troubleshooting
-
-### Common Issues
-
-**Issue: "Cannot find Chrome" (Local Development Only)**
+To deploy the asynchronous Browserless audit worker to Supabase Edge:
 
 ```bash
-# Set Chrome path in .env.local
-CHROME_EXECUTABLE_PATH=/path/to/chrome
+supabase functions deploy scan-site --project-ref your-supabase-ref
 ```
-
-**Note:** This only affects local development. Production uses Browserless.io.
-
-**Issue: "OpenAI API key not configured"**
-
-```bash
-# Verify .env.local exists and has correct key
-cat .env.local
-```
-
-**Issue: "Page timeout during scan"**
-
-- Try a simpler/faster website
-- Increase timeout in `lib/scanner.ts`
-- Upgrade to Vercel Pro for 60-second timeout
-
-**Issue: "Failed to connect to browser" (Production)**
-
-- Check BROWSERLESS_TOKEN is set in Vercel
-- Verify token is valid at browserless.io dashboard
-- Check you haven't exceeded 1000 sessions/month
-- Verify WebSocket connections allowed in your network
-
-**Issue: "Browserless session limit exceeded"**
-
-- Check usage at browserless.io dashboard
-- Free tier: 1000 sessions/month
-- Consider upgrading to Pro plan if needed
-- Or wait for monthly reset
-
-### Getting Help
-
-- Check [GitHub Issues](https://github.com/YOUR_USERNAME/accessibility-auditor/issues)
-- Read [Next.js Docs](https://nextjs.org/docs)
-- Ask on [Stack Overflow](https://stackoverflow.com/questions/tagged/nextjs)

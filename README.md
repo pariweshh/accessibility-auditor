@@ -1,463 +1,202 @@
-# 🎯 Accessibility Auditor
+# A11ytica Pro
 
-![Next.js](https://img.shields.io/badge/Next.js-16-black?style=flat-square&logo=next.js)
-![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?style=flat-square&logo=typescript)
-![Tailwind CSS](https://img.shields.io/badge/Tailwind-3.0-38bdf8?style=flat-square&logo=tailwind-css)
+> **The Enterprise-Grade Accessibility Auditing Engine & Compliance Platform**  
+> Automated WCAG 2.0, 2.1 & 2.2 Level A/AA audits, real-time streaming scans, OpenAI GPT-4o code remediation, Developer API keys, 3-seat Agency collaboration, and white-label reporting.
+
+![Next.js 16](https://img.shields.io/badge/Next.js-16-black?style=flat-square&logo=next.js)
+![React 19](https://img.shields.io/badge/React-19-blue?style=flat-square&logo=react)
+![TypeScript](https://img.shields.io/badge/TypeScript-Strict-blue?style=flat-square&logo=typescript)
+![Tailwind CSS v4](https://img.shields.io/badge/Tailwind-4.x-38bdf8?style=flat-square&logo=tailwind-css)
+![axe-core](https://img.shields.io/badge/axe--core-4.12-orange?style=flat-square)
+![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL%20%2B%20RLS-3ecf8e?style=flat-square&logo=supabase)
+![Stripe](https://img.shields.io/badge/Stripe-Subscriptions-635bff?style=flat-square&logo=stripe)
 ![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)
-
-An AI-powered web accessibility auditor that scans websites for WCAG compliance issues and provides intelligent fix suggestions using OpenAI GPT-4.
-
-## ✨ Features
-
-- 🔍 **Real Browser Testing** - Uses Puppeteer to test actual rendered pages with JavaScript
-- 🤖 **AI-Powered Fixes** - OpenAI GPT-4 generates contextual accessibility fixes
-- 📊 **Comprehensive Reporting** - Categorizes issues by severity (Critical, Serious, Moderate, Minor)
-- 🎨 **Beautiful UI** - Modern, responsive interface built with Tailwind CSS
-- ⚡ **Fast & Efficient** - Optimized for Vercel's free tier with serverless functions
-- 🌐 **WCAG Compliant** - Tests against Web Content Accessibility Guidelines (WCAG)
-
-## 🚀 Live Demo
-
-🔗 **[View Live Demo](https://accessibility-auditor.vercel.app/)** _(Update with your actual URL)_
-
-## 📸 Screenshots
-
-### Home Screen
-
-![Home Screen](./docs/screenshots/home.png)
-
-### Scan Results
-
-![Scan Results](./docs/screenshots/results.png)
-
-### AI Fix Suggestions
-
-![AI Fixes](./docs/screenshots/ai-fix.png)
-
-## 🛠️ Tech Stack
-
-| Technology             | Purpose                         |
-| ---------------------- | ------------------------------- |
-| **Next.js 16**         | React framework with App Router |
-| **TypeScript**         | Type-safe development           |
-| **Tailwind CSS**       | Utility-first styling           |
-| **Puppeteer Core**     | Headless browser automation     |
-| **Browserless.io**     | Managed browser infrastructure  |
-| **axe-core**           | Accessibility testing engine    |
-| **OpenAI GPT-4o-mini** | AI-powered fix suggestions      |
-| **Vercel**             | Serverless deployment platform  |
-
-## 📋 Prerequisites
-
-Before you begin, ensure you have:
-
-- **Node.js** 18.17 or higher
-- **npm** or **yarn** or **pnpm**
-- **OpenAI API Key** ([Get one here](https://platform.openai.com/api-keys))
-- **Browserless.io API Token** ([Get free tier here](https://www.browserless.io/sign-up))
-- **Google Chrome** or **Chromium** (for local development only)
-
-## 🔧 Installation
-
-### 1. Clone the Repository
-
-```bash
-git clone https://github.com/pariweshh/accessibility-auditor.git
-cd accessibility-auditor
-```
-
-### 2. Install Dependencies
-
-```bash
-npm install
-```
-
-### 3. Set Up Environment Variables
-
-Create a `.env.local` file in the root directory:
-
-```env
-# Required for AI fix suggestions
-OPENAI_API_KEY=sk-your-openai-api-key-here
-
-# Required for production deployment (Vercel)
-BROWSERLESS_TOKEN=your-browserless-token-here
-
-# Optional: For local development
-NODE_ENV=development
-CHROME_EXECUTABLE_PATH=/path/to/chrome  # Only needed for local dev
-```
-
-**For Chrome Path (Optional):**
-
-```env
-CHROME_EXECUTABLE_PATH=/path/to/your/chrome
-```
-
-### 4. Run Development Server
-
-```bash
-npm run dev
-```
-
-Open [http://localhost:3000](http://localhost:3000) in your browser.
-
-## 🌐 Deployment
-
-**Add Environment Variables:**
-
-- Go to Project Settings → Environment Variables
-- Add these variables:
-
-```
-     OPENAI_API_KEY=sk-your-key-here
-     BROWSERLESS_TOKEN=your-browserless-token
-```
-
-**Get Browserless Token:**
-
-- Visit [browserless.io/sign-up](https://www.browserless.io/sign-up)
-- Sign up for free tier (1000 sessions/month)
-- Copy your API token from dashboard
-- Add to Vercel environment variables
-
-⚠️ **Important Limitations:**
-
-**Vercel Free Tier:**
-
-- **10-second timeout** per function execution
-- **1024MB memory** per function
-- Works best with fast-loading websites
-
-**Browserless.io Free Tier:**
-
-- **1000 browser sessions/month**
-- **10 concurrent sessions**
-- **6-hour max session length**
-
-Combined, these free tiers support approximately 500-1000 scans per month depending on usage patterns.
-
-## 📖 Usage
-
-### Basic Scan
-
-1. Enter a website URL (e.g., `https://example.com`)
-2. Click "Scan for Accessibility Issues"
-3. Wait 5-10 seconds for results
-
-### Get AI Fix Suggestions
-
-1. Click "Show details" on any issue
-2. Click "✨ Get AI-Powered Fix Suggestion"
-3. View the AI-generated fix with explanation
-
-### Understanding Results
-
-Issues are categorized by severity:
-
-| Severity        | Description                      | Action Required      |
-| --------------- | -------------------------------- | -------------------- |
-| 🔴 **Critical** | Major barriers, fix immediately  | High priority        |
-| 🟠 **Serious**  | Significant issues, fix soon     | Medium-high priority |
-| 🟡 **Moderate** | Noticeable problems, should fix  | Medium priority      |
-| 🔵 **Minor**    | Small improvements, nice to have | Low priority         |
-
-## 📂 Project Structure
-
-```
-accessibility-auditor/
-├── app/
-│   ├── api/
-│   │   ├── scan/
-│   │   │   └── route.ts           # Scan endpoint
-│   │   └── fix-suggestions/
-│   │       └── route.ts           # AI fix endpoint
-│   ├── page.tsx                   # Home page
-│   ├── layout.tsx                 # Root layout
-│   └── globals.css                # Global styles
-├── components/
-│   ├── ScanForm.tsx               # URL input form
-│   ├── ResultsDisplay.tsx         # Results summary
-│   └── IssueCard.tsx              # Individual issue display
-├── lib/
-│   ├── scanner.ts                 # Puppeteer + Browserless integration
-│   ├── ai-fixer.ts                # OpenAI integration
-│   └── types.ts                   # TypeScript types
-├── public/                        # Static assets
-├── docs/                          # Documentation
-├── .env.local                     # Environment variables (gitignored)
-├── .gitignore
-├── next.config.js
-├── tailwind.config.js
-├── tsconfig.json
-├── vercel.json                    # Vercel configuration
-├── package.json
-└── README.md
-```
-
-## 🔌 API Routes
-
-### POST `/api/scan`
-
-Scans a URL for accessibility issues.
-
-**Request:**
-
-```json
-{
-  "url": "https://example.com",
-  "includeScreenshot": false
-}
-```
-
-**Response:**
-
-```json
-{
-  "url": "https://example.com",
-  "timestamp": "2025-01-15T10:30:00.000Z",
-  "violations": [...],
-  "passes": 45,
-  "incomplete": 2,
-  "summary": {
-    "critical": 2,
-    "serious": 5,
-    "moderate": 8,
-    "minor": 3
-  }
-}
-```
-
-### POST `/api/fix-suggestions`
-
-Generates AI-powered fix suggestions for issues.
-
-**Request:**
-
-```json
-{
-  "issues": [...],
-  "limit": 5
-}
-```
-
-**Response:**
-
-```json
-{
-  "fixes": [
-    {
-      "issueId": "image-alt",
-      "originalCode": "<img src=\"logo.png\">",
-      "suggestedFix": "<img src=\"logo.png\" alt=\"Company Logo\">",
-      "explanation": "Added descriptive alt text...",
-      "confidence": "high"
-    }
-  ],
-  "count": 5
-}
-```
-
-## ⚙️ Configuration
-
-### Customize Timeout (vercel.json)
-
-```json
-{
-  "functions": {
-    "app/api/scan/route.ts": {
-      "memory": 1024,
-      "maxDuration": 10
-    }
-  }
-}
-```
-
-### Customize AI Model (lib/ai-fixer.ts)
-
-```typescript
-const completion = await openai.chat.completions.create({
-  model: "gpt-4o-mini", // Change to 'gpt-4' for better quality
-  temperature: 0.3,
-  max_tokens: 500,
-})
-```
-
-### Browser Configuration (lib/scanner.ts)
-
-**Local Development:**
-Uses your local Chrome installation automatically.
-
-**Production (Vercel):**
-Connects to Browserless.io managed browser infrastructure.
-
-```typescript
-// Automatically detects environment
-const browserlessToken = process.env.BROWSERLESS_TOKEN
-
-if (browserlessToken) {
-  // Production: Connect to Browserless
-  browser = await puppeteer.connect({
-    browserWSEndpoint: `wss://production-sfo.browserless.io?token=${browserlessToken}`,
-  })
-} else {
-  // Local: Use system Chrome
-  browser = await puppeteer.launch({ executablePath: chromiumPath })
-}
-```
-
-**Why Browserless.io?**
-
-- ✅ No need to bundle 300MB Chromium binary
-- ✅ Stays within Vercel's 50MB deployment limit
-- ✅ Faster cold starts (~15ms connection)
-- ✅ More reliable than serverless Chrome
-- ✅ Free tier sufficient for portfolio projects
-
-## 🧪 Testing
-
-### Test URLs
-
-**Fast-loading sites (recommended for free tier):**
-
-- ✅ `https://example.com` - Simple static page
-- ✅ `https://www.w3.org/` - W3C official site
-- ✅ `https://developer.mozilla.org/` - MDN Web Docs
-- ✅ `https://html5test.com/` - HTML5 testing site
-
-**Intentionally inaccessible demo:**
-
-- ⚠️ `https://www.w3.org/WAI/demos/bad/`
-
-**Medium complexity sites:**
-
-- 🔄 `https://github.com/` - Modern web application
-- 🔄 `https://stackoverflow.com/` - Community site
-- 🔄 `https://reddit.com/` - Social platform
-
-**Complex sites (may timeout on free tier):**
-
-- ⚠️ Heavy React/Next.js applications
-- ⚠️ Sites with lots of JavaScript
-
-### Run Locally
-
-```bash
-# Development
-npm run dev
-
-# Build
-npm run build
-
-# Production
-npm run start
-
-# Lint
-npm run lint
-```
-
-## 💰 Cost Estimates
-
-### Free Tier Usage
-
-**Vercel (Free Tier):**
-
-- 100GB bandwidth/month
-- 100 hours serverless execution/month
-- Deployment: Free
-
-**OpenAI API Costs (GPT-4o-mini):**
-
-- Scan only: $0 (just uses axe-core)
-- AI fix suggestion: ~$0.001-0.003 per fix
-- 100 fixes ≈ $0.10-0.30
-
-**Total Monthly Cost (Typical Usage):**
-
-- Vercel: $0 (within free tier)
-- Browserless: $0 (within free tier for ~500 scans)
-- OpenAI: $5-10 (moderate usage)
-- **Total: ~$5-10/month for moderate use**
-
-**If exceeding free tier:**
-
-- Browserless Pro: $50/month (unlimited sessions)
-- Or: ~$10-20/month for additional sessions on free tier
-
-## 🤝 Contributing
-
-Contributions are welcome! Please follow these steps:
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-### Development Guidelines
-
-- Use TypeScript for type safety
-- Follow the existing code style
-- Add comments for complex logic
-- Test with multiple websites before submitting
-
-## 🐛 Known Issues & Limitations
-
-1. **30-second timeout** on Vercel free tier - Some complex sites may fail
-2. **JavaScript-heavy sites** may not fully render before scanning
-3. **Authentication-protected pages** cannot be scanned
-4. **Local network URLs** blocked for security in production
-5. **Lighthouse scores** not included (only axe-core tests)
-6. **Browserless free tier limit** - 1000 sessions/month, then pay-per-use
-
-## 🔮 Possible Future Enhancements
-
-- [ ] PDF report export
-- [ ] Scan history with database storage
-- [ ] Batch scanning for multiple URLs
-- [ ] Browser extension version
-- [ ] Lighthouse integration
-- [ ] Color contrast analyzer
-- [ ] Keyboard navigation testing
-- [ ] Screen reader simulation
-- [ ] Multi-language support
-- [ ] API for programmatic access
-
-## 📚 Resources
-
-- [WCAG Guidelines](https://www.w3.org/WAI/WCAG21/quickref/)
-- [axe-core Documentation](https://github.com/dequelabs/axe-core)
-- [Next.js Documentation](https://nextjs.org/docs)
-- [Puppeteer Documentation](https://pptr.dev/)
-- [OpenAI API Reference](https://platform.openai.com/docs)
-- [Browserless Documentation](https://docs.browserless.io/)
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 👨‍💻 Author
-
-**Your Name**
-
-- GitHub: [@pariweshh](https://github.com/pariweshh)
-- LinkedIn: [LinkedIn](https://www.linkedin.com/in/pariweshhtamrakar/)
-- Portfolio: [Portfolio](https://ptamrakar.dev)
-
-## 🙏 Acknowledgments
-
-- [Deque Systems](https://www.deque.com/) for axe-core
-- [Puppeteer Team](https://pptr.dev/) for browser automation
-- [OpenAI](https://openai.com/) for GPT-4 API
-- [Vercel](https://vercel.com/) for hosting
-- [Web Accessibility Initiative (WAI)](https://www.w3.org/WAI/) for WCAG guidelines
-
-## ⭐ Star History
-
-If you find this project helpful, please consider giving it a star!
-
-[![Star History Chart](https://api.star-history.com/svg?repos=pariweshh/accessibility-auditor&type=date&legend=top-left)](https://www.star-history.com/#pariweshh/accessibility-auditor&type=date&legend=top-left)
 
 ---
 
-<p align="center">Made with ❤️ and ☕ for a more accessible web</p>
+## Core Features
+
+- **Real Headless Browser Testing** — Executes `axe-core 4.12` inside managed Chromium instances (Browserless.io) with full DOM hydration, JavaScript evaluation, and dynamic settle pauses.
+- **Asynchronous Real-Time Pipeline** — Bypasses serverless timeout limits using Next.js `after()` triggers, Deno Edge Functions, and Supabase Realtime WebSocket progress broadcasting.
+- **Automated Scheduled Monitoring & Degradation Alerts** — Hourly Vercel Cron worker evaluates active monitor schedules (daily/weekly), verifies quotas, dispatches headless audits, detects compliance regressions ($\ge 5\%$ drop or below threshold), and sends responsive Resend HTML alerts with score diffs and violation breakdowns.
+- **Embeddable Public Compliance Widget** — Zero-dependency, lightweight, Shadow-DOM encapsulated compliance trigger and popover (`/widget.js`, `GET /api/widget/[scanId]`) displaying live WCAG score, POUR conformance matrix, barrier reporting, and Agency white-labeling.
+- **Zero-Violation Self-Accessibility (Dogfooding)** — Automated CI/CD headless Chrome audit (`npm run test:a11y`) executing axe-core 4.12 across all public and authenticated application routes, guaranteeing 0 violations across 45 WCAG rules, accessible skip navigation, keyboard focus trapping (`hooks/use-focus-trap.ts`), and WAI-ARIA arrow-key tablists.
+- **SSRF Defense-in-Depth & DNS-Rebinding Protection** — Strict protocol restriction (`http:`/`https:`), DNS resolution verification (`lib/ssrf.ts`), integer/octal/IPv6-mapped IPv4 normalization, and Puppeteer request interception blocking redirects to internal IPs or cloud metadata (`169.254.169.254`, `metadata.google.internal`).
+- **Framework-Aware AI Code Remediation** — OpenAI `gpt-4o` analyzes failing DOM nodes and generates drop-in code patches tailored to **HTML**, **React / JSX + Tailwind**, **Vue 3**, or **Angular** with WCAG 2.2 citations and SHA-256 caching.
+- **EAA 2025 & ADA Compliance Kit + Live SVG Badges** — One-click generator for ready-to-publish HTML & Markdown Accessibility Statements (EAA June 2025, ADA Title III, Section 508) paired with dynamic `image/svg+xml` compliance shields (`/api/badge/[scanId]`) and public read-only verification views (`/report/[scanId]?verify=1`).
+- **Executive PDF Reports with WCAG 2.2 POUR Matrix** — Vector PDF reports featuring a VPAT/ACR-style 4-Principle (Perceivable, Operable, Understandable, Robust) Conformance Summary Matrix.
+- **Developer API & Turnkey CI/CD Quality Gate Builder** — Provision `aud_live_...` API keys, poll scan jobs via `GET /api/scan`, and generate ready-to-commit **GitHub Actions**, **GitLab CI**, and **Bash / cURL** pipeline scripts with custom severity thresholds.
+- **Team Workspaces (Agency Tier)** — Pool 600 monthly audits across 3 collaborative team seats with active owner subscription verification (`resolveEffectiveTier`), role-based member management, and shared audit logs.
+- **White-Label Custom Branding (Agency Tier)** — Fully customize client web reports, vector PDF exports, compliance statements, and live SVG badges with agency logos, custom primary hex palettes, brand taglines, footer disclaimers, and watermark removal.
+- **WCAG 2.2 Manual Review Checklists & Scope Disclaimers** — Prominent in-app transparency notices explaining automated testing boundaries (~40%–57% of WCAG criteria) and comprehensive human review tracking.
+- **GDPR/CCPA Privacy & Security Headers** — Self-serve account deletion (`DELETE /api/auth/account`), accessible cookie consent banner, HSTS, `X-Content-Type-Options: nosniff`, `X-Frame-Options: SAMEORIGIN`, and safe redirect validation.
+- **Historical Analytics & Trend Graphs** — Track compliance score progress over time with interactive Recharts visualizations.
+
+---
+
+## Commercial Tiers & Plans
+
+| Tier | Price | Monthly Audits | History | Team Seats | Scheduled Monitors | Developer API & CI/CD | Compliance, Reports & Branding | AI Engine |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **Free** | $0/mo | 5 audits | Latest scan only | Solo (1 seat) | Locked | Restricted | Standard Web View | GPT-4o-mini (`HTML` only) |
+| **Pro** | $19/mo | 150 audits | Unlimited | Solo (1 seat) | **3 active monitors** | Full API + CI/CD Builder | Vector PDF (POUR Matrix) + EAA/ADA Kit + Live SVG Badge + Embeddable Widget | GPT-4o (`HTML`, `React/Tailwind`, `Vue 3`, `Angular`) |
+| **Agency** | $59/mo | 600 audits (pooled) | Unlimited | **3 seats included** | **10 pooled monitors** | Full API + CI/CD Builder | **Full White-Label** PDF, Web, Kit, SVG Badge & Embeddable Widget | GPT-4o (`HTML`, `React/Tailwind`, `Vue 3`, `Angular`) |
+
+---
+
+## Architecture & Tech Stack
+
+- **Framework:** Next.js 16.2.9 (App Router, Turbopack)
+- **UI & Styling:** React 19.2.7, Tailwind CSS v4, Motion / React (Framer Motion v12)
+- **Database & Auth:** Supabase Cloud (PostgreSQL 15+, Row Level Security, Realtime channels, Storage)
+- **Headless Chrome:** Puppeteer Core + Browserless.io cloud cluster
+- **Audit Engine:** axe-core 4.12.0 (WCAG 2.0 / 2.1 / 2.2 Level A/AA)
+- **Scheduled Cron:** Vercel Cron (hourly evaluation with `CRON_SECRET` protection)
+- **AI Engine:** OpenAI API (GPT-4o & GPT-4o-mini)
+- **Billing:** Stripe (Checkout, Customer Portal, Webhooks)
+- **Email:** Resend (Magic link authentication, team invitations & degradation alerts)
+
+---
+
+## Repository Structure
+
+```
+accessibility-auditor/
+├── app/                                 # Next.js App Router root
+│   ├── api/                             # Serverless API routes
+│   │   ├── auth/
+│   │   │   ├── account/route.ts         # Self-serve GDPR/CCPA account deletion
+│   │   │   └── magic-link/route.ts      # Passwordless authentication endpoint
+│   │   ├── badge/[scanId]/route.ts      # Dynamic SVG compliance shield endpoint
+│   │   ├── billing/                     # Stripe checkout, portal, and webhooks
+│   │   ├── cron/
+│   │   │   └── monitors/route.ts        # Hourly Vercel Cron monitor execution & degradation worker
+│   │   ├── fix-suggestions/route.ts     # Framework-aware OpenAI remediation endpoint
+│   │   ├── keys/route.ts                # Developer API key management
+│   │   ├── monitors/                    # Scheduled Accessibility Monitors API
+│   │   │   ├── route.ts                 # Monitor listing & creation with SSRF check
+│   │   │   └── [id]/
+│   │   │       ├── route.ts             # Monitor update (status/freq/threshold) & deletion
+│   │   │       └── run/route.ts         # On-demand manual monitor audit trigger
+│   │   ├── reports/pdf/route.ts         # Vector PDF generator with POUR matrix & branding
+│   │   ├── scan/route.ts                # Asynchronous audit dispatcher (POST) & poller (GET)
+│   │   ├── team/                        # Team Access & White-Label APIs
+│   │   │   ├── route.ts                 # Workspace status & auto-provisioning
+│   │   │   ├── invite/route.ts          # Seat quota check & Resend email dispatch
+│   │   │   ├── member/route.ts          # Member removal & invite revocation
+│   │   │   ├── accept/route.ts          # Token-based team onboarding
+│   │   │   └── branding/route.ts        # White-label custom branding API
+│   │   ├── widget/[scanId]/route.ts     # Public compliance widget metadata endpoint (CORS)
+│   │   └── widget.js/route.ts           # Standalone public compliance widget script server
+│   ├── auth/
+│   ├── dashboard/                       # Authenticated user analytics dashboard, monitors & CI/CD
+│   ├── docs/                            # In-app interactive developer API documentation
+│   ├── legal/                           # In-app Terms of Service, Privacy & Disclaimers
+│   ├── login/                           # Authentication portal with safe redirect
+│   ├── report/[scanId]/page.tsx         # Standalone & public (?verify=1) web audit report
+│   ├── error.tsx                        # Global client runtime error boundary (500)
+│   ├── not-found.tsx                    # Accessible custom branded 404 page
+│   ├── icon.tsx                         # Dynamic SVG/PNG app icon generator
+│   ├── opengraph-image.tsx              # Dynamic OpenGraph social card generator
+│   ├── manifest.ts                      # Progressive Web App manifest
+│   ├── home_client.tsx                  # Landing page interactive client island
+│   └── page.tsx                         # Landing page Server Component wrapper
+├── components/                          # UI Component Library
+│   ├── dashboard/                       # Dashboard widgets (TrendChart, ScanTable, etc.)
+│   ├── motion/                          # Micro-interaction primitives
+│   ├── brand_logo.tsx                   # Universal Beacon identity vector component
+│   ├── compliance_kit_modal.tsx         # EAA 2025 / ADA Compliance Kit & SVG badge modal
+│   ├── cookie_consent.tsx               # Floating essential privacy consent notice
+│   ├── fix_suggestion.tsx               # AI code diff card with explanation
+│   ├── incomplete_card.tsx              # axe-core needs review triage cards
+│   ├── issue_card.tsx                   # Individual WCAG issue renderer with framework selector
+│   ├── manual_checklist.tsx             # WCAG 2.2 manual audit criteria
+│   ├── pricing_section.tsx              # Pricing tier matrix with checkout hooks
+│   ├── results_display.tsx              # Scan overview, severity bar, and filter tabs
+│   ├── scan_form.tsx                    # URL submission form with SSRF & scope notice
+│   ├── scan_progress.tsx                # Realtime animated audit progress stepper
+│   └── settings_modal.tsx               # Account settings, AI framework default & GDPR deletion
+├── docs/                                # Authoritative Engineering Documentation
+│   ├── PRD.md                           # Product Requirements Document
+│   ├── ARCHITECTURE.md                  # System architecture, topology & data flows
+│   ├── DATABASE.md                      # Schema, RLS policies, indexes & migrations
+│   ├── API.md                           # Developer API reference
+│   ├── SECURITY.md                      # Security, threat modeling & defense-in-depth
+│   ├── CODE_STYLE.md                    # Engineering standards & linting conventions
+│   ├── TESTING.md                       # Test suites & quality assurance strategy
+│   ├── DESIGN_SYSTEM.md                 # Design system tokens & aesthetic principles
+│   ├── SETUP.md                         # Setup & deployment walkthrough
+│   ├── AGENTS.md                        # AI agent orchestration guide
+│   ├── LAUNCH_CHECKLIST.md              # Master Pre-Launch & Revenue Readiness Checklist
+│   └── LEGAL.md                         # Terms, Privacy Policy & Disclaimers
+├── hooks/                               # Custom React Hooks
+│   └── use-focus-trap.ts                # WAI-ARIA modal dialog focus containment & keyboard trapping
+├── lib/                                 # Shared business logic and singletons
+│   ├── quota.ts                         # Atomic quota deduction & resolveEffectiveTier pooling
+│   ├── safe-redirect.ts                 # Protocol-relative & open redirect defense
+│   ├── ssrf.ts                          # DNS-rebinding & private/reserved IPv4/IPv6 SSRF guard
+│   ├── ai-fixer.ts                      # Framework-aware OpenAI client & SHA-256 fix cache
+│   ├── monitor-alert-email.ts           # Resend degradation alert email template synthesizer
+│   ├── report-template.ts               # White-label HTML report & POUR matrix synthesizer
+│   ├── scanner.ts                       # Local development Puppeteer launcher
+│   ├── site.ts                          # Canonical domain and metadata configuration
+│   ├── constants.ts                     # Tier limits, WCAG rules, and checklists
+│   └── types.ts                         # Strict TypeScript domain interfaces
+├── scripts/                             # Automation, Audit & Verification Scripts
+│   └── self-a11y-audit.mjs              # Headless Chrome + axe-core dogfooding audit
+├── supabase/                            # Supabase cloud config & migrations
+│   ├── functions/scan-site/index.ts     # Deno Edge Function executing Browserless scans
+│   └── migrations/                      # Version-controlled SQL migration scripts
+└── vercel.json                          # Deployment memory, duration & cron definitions
+```
+
+---
+
+## Quick Start
+
+### 1. Installation
+```bash
+git clone https://github.com/pariweshh/accessibility-auditor.git
+cd accessibility-auditor
+npm install
+```
+
+### 2. Configure Environment
+Copy `.env.local` and add your Supabase, OpenAI, Browserless, Resend, and Stripe keys (see [docs/SETUP.md](docs/SETUP.md)).
+
+### 3. Run Development Server
+```bash
+npm run dev
+```
+Open [http://localhost:3000](http://localhost:3000) to view the application.
+
+### 4. Quality Verification
+```bash
+npx tsc --noEmit       # Type check strict mode (0 errors)
+npm run lint           # ESLint verification (0 warnings)
+npm test               # Unit & integration test suites
+npm run test:a11y       # Headless Chrome self-accessibility audit (0 violations)
+npm run build          # Next.js production build verification
+```
+
+---
+
+## Documentation Directory
+
+For complete architectural specifications, please review the authoritative documents in `docs/`:
+- [Product Requirements (PRD.md)](docs/PRD.md)
+- [System Architecture (ARCHITECTURE.md)](docs/ARCHITECTURE.md)
+- [Database & Migrations (DATABASE.md)](docs/DATABASE.md)
+- [Developer API Reference (API.md)](docs/API.md)
+- [Security & Threat Model (SECURITY.md)](docs/SECURITY.md)
+- [Testing & Quality Assurance (TESTING.md)](docs/TESTING.md)
+- [Design System & UI Tokens (DESIGN_SYSTEM.md)](docs/DESIGN_SYSTEM.md)
+- [Setup & Deployment Guide (SETUP.md)](docs/SETUP.md)
+- [Pre-Launch & Revenue Readiness Checklist (LAUNCH_CHECKLIST.md)](docs/LAUNCH_CHECKLIST.md)
+- [Legal, Terms & Privacy (LEGAL.md)](docs/LEGAL.md)
+
+---
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
