@@ -59,7 +59,7 @@ async function main() {
   console.log(" Standard: WCAG 2.1 & 2.2 Levels A & AA, Best Practices")
   console.log("=======================================================\n")
 
-  const PORT = process.env.PORT || 3000
+  const PORT = process.env.PORT || 3099
   let serverProcess = null
 
   const serverAlreadyRunning = await isPortOpen(PORT)

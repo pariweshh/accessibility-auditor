@@ -30,18 +30,18 @@ export function BrandLogo({
     >
       <defs>
         <linearGradient id="a11y_beacon_bg" x1="0" y1="0" x2="120" y2="120" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stop-color="#0f172a" />
-          <stop offset="100%" stop-color="#020617" />
+          <stop offset="0%" stopColor="#0f172a" />
+          <stop offset="100%" stopColor="#020617" />
         </linearGradient>
         <linearGradient id="a11y_beacon_legs" x1="30" y1="30" x2="90" y2="100" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stop-color="#38bdf8" />
-          <stop offset="45%" stop-color="#6366f1" />
-          <stop offset="100%" stop-color="#8b5cf6" />
+          <stop offset="0%" stopColor="#38bdf8" />
+          <stop offset="45%" stopColor="#6366f1" />
+          <stop offset="100%" stopColor="#8b5cf6" />
         </linearGradient>
         <linearGradient id="a11y_beacon_arms" x1="35" y1="65" x2="85" y2="65" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stop-color="#0ea5e9" />
-          <stop offset="50%" stop-color="#6366f1" />
-          <stop offset="100%" stop-color="#a855f7" />
+          <stop offset="0%" stopColor="#0ea5e9" />
+          <stop offset="50%" stopColor="#6366f1" />
+          <stop offset="100%" stopColor="#a855f7" />
         </linearGradient>
         <filter id="a11y_beacon_glow" x="40" y="7" width="40" height="40" filterUnits="userSpaceOnUse">
           <feGaussianBlur stdDeviation="3" result="blur" />
