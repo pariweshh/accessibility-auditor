@@ -45,3 +45,5 @@ next-env.d.ts
 scratch/
 nexusflow-full.jpeg
 /test-results/
+supabase/.temp/
+

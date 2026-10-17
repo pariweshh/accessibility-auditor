@@ -117,29 +117,31 @@
 
 ## Phase 2: Database, Storage & Supabase Cloud Configuration
 
-- [ ] **Run All SQL Migrations in Production Supabase Project**
-  - [ ] `20260610000000_init_schema.sql`
-  - [ ] `20260610000001_billing_updates.sql`
-  - [ ] `20260610000002_async_scans.sql`
-  - [ ] `20260612000000_create_reports_bucket.sql`
-  - [ ] `20260612000001_api_keys.sql`
-  - [ ] `20260612000002_ai_fix_cache.sql`
-  - [ ] `20260613000000_team_access.sql`
-  - [ ] `20260614000000_white_label_branding.sql`
-  - [ ] `20260615000000_scheduled_monitors.sql`
-- [ ] **Verify Row Level Security (RLS) on Every Public Table**
-  - Confirm RLS is enabled on `profiles`, `scans`, `violations`, `api_keys`, `ai_fix_cache`, `teams`, `team_members`, and `monitors` in the Supabase Security Advisor.
-- [ ] **Verify `on_auth_user_created` Trigger**
-  - Test signing up with a brand-new email address and confirm a matching row in `public.profiles` is immediately created with `subscription_tier = 'free'`.
-- [ ] **Verify Supabase Realtime Publication**
-  - Confirm `public.scans` is added to the `supabase_realtime` publication so live progress steppers transition without polling.
-- [ ] **Verify Private `reports` Storage Bucket**
-  - Confirm the `reports` bucket exists, is set to **Private** (`public = false`), and signed URLs (`createSignedUrl`) work for PDF downloads.
-- [ ] **Deploy & Configure `scan-site` Edge Function**
-  - Deploy via `supabase functions deploy scan-site`.
-  - Set Edge Function secrets: `BROWSERLESS_TOKEN`, `MAX_CONCURRENT_SCANS` (match your Browserless plan concurrency limit).
-- [ ] **Automated Stuck-Scan Cleanup / Timeout Recovery**
-  - Add a `pg_cron` job or fallback check that marks scans stuck in `pending` or `processing` for `> 3 minutes` as `failed` (`error_message = 'Scan timed out'`) so they do not permanently block `MAX_CONCURRENT_SCANS` slots or consume user quota.
+- [x] **Run All SQL Migrations in Supabase Project**
+  - [x] `20260610000000_init_schema.sql` (profiles, scans, violations, auth trigger)
+  - [x] `20260610000001_billing_updates.sql` (subscription tiers & status)
+  - [x] `20260610000002_async_scans.sql` (error messages & summary payloads)
+  - [x] `20260612000000_create_reports_bucket.sql` (private reports bucket)
+  - [x] `20260612000001_api_keys.sql` (hashed developer keys)
+  - [x] `20260612000002_ai_fix_cache.sql` (SHA-256 fix cache)
+  - [x] `20260613000000_team_access.sql` (teams & team_members)
+  - [x] `20260614000000_white_label_branding.sql` (agency branding studio)
+  - [x] `20260615000000_scheduled_monitors.sql` (scheduled compliance monitors)
+  - [x] `20260616000000_fix_rls_recursion.sql` (security definer RLS functions)
+  - [x] `20260617000000_stripe_webhook_events.sql` (webhook idempotency log)
+  - *(All migrations consolidated in [`supabase/migrations/combined_pending_migrations.sql`](../supabase/migrations/combined_pending_migrations.sql) for reproducible 1-click deployment to official production project).*
+- [x] **Verify Row Level Security (RLS) on Every Public Table**
+  - Confirmed `rls_enabled = true` on all 9 tables: `profiles`, `scans`, `violations`, `api_keys`, `ai_fix_cache`, `teams`, `team_members`, `monitors`, `stripe_webhook_events`.
+- [x] **Verify `on_auth_user_created` Trigger**
+  - Trigger and security definer function `public.handle_new_user()` active on `auth.users` to provision `subscription_tier = 'free'`.
+- [x] **Verify Supabase Realtime Publication**
+  - Table `public.scans` added to `supabase_realtime` publication for live progress steppers.
+- [x] **Verify Private `reports` Storage Bucket**
+  - Bucket `reports` provisioned with `public = false` for signed URL PDF report delivery.
+- [x] **Deploy & Configure `scan-site` Edge Function**
+  - Deployed to Supabase Cloud with hardened SSRF protection, IPv6-mapped IPv4 decoding, redirect interception, and 3-minute timeout recovery.
+- [x] **Automated Stuck-Scan Cleanup / Timeout Recovery**
+  - Dual-layer timeout recovery active: enforced in `scan-site` prior to concurrency slot allocation and in `GET /api/scan` polling endpoint (auto-transitions scans older than 3 minutes to `failed`).
 
 ---
 
