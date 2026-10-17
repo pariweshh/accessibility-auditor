@@ -25,19 +25,19 @@
   - [x] Executive PDF report with WCAG 2.2 POUR Matrix successfully generated and downloaded (`application/pdf`).
   - [x] Live SVG compliance badge (`GET /api/badge/[scanId]`) active, returning `WCAG 2.2 AA · Equivance`.
   - [x] Embeddable public widget (`GET /api/widget/[scanId]`) active with public verification link.
-  - [ ] Scheduled monitors active with allowance up to 3 active production monitors (pending Supabase migration).
+  - [x] Scheduled monitors active with allowance up to 3 active production monitors.
   - [x] Developer API keys (`POST /api/keys`) provisioned; CI/CD scan dispatch & polling (`GET /api/scan`) operational.
   - [x] Agency perks locked: team member invites and white-label custom branding return HTTP 403.
-- [ ] **Agency Tier Live Functional & White-Label Verification ($59/mo)** *(Pending execution of `supabase/migrations/combined_pending_migrations.sql` in Supabase Cloud)*
-  - [ ] Monthly scan quota expanded to 600 pooled scans.
-  - [ ] Scheduled monitors expanded to 10 pooled active monitors.
-  - [ ] Team workspace auto-provisioning and 3-seat invitation flow operational (`POST /api/team/invite`).
-  - [ ] Teammate onboarding via secure token (`POST /api/team/accept`); tier privileges inherited (`resolveEffectiveTier`).
-  - [ ] Teammate audits tag `scans.team_id` and render with team attribution badge.
-  - [ ] White-Label Custom Branding Studio (`POST /api/team/branding`): custom logo, hex palette, tagline, footer text.
-  - [ ] White-label watermark removal: "Powered by Equivance" watermark completely removed across web reports, PDFs, SVG badges, and embed widgets.
+- [x] **Agency Tier Live Functional & White-Label Verification ($59/mo)**
+  - [x] Monthly scan quota expanded to 600 pooled scans.
+  - [x] Scheduled monitors expanded to 10 pooled active monitors.
+  - [x] Team workspace auto-provisioning and 3-seat invitation flow operational (`POST /api/team/invite`).
+  - [x] Teammate onboarding via secure token (`POST /api/team/accept`); tier privileges inherited (`resolveEffectiveTier`).
+  - [x] Teammate audits tag `scans.team_id` and render with team attribution badge.
+  - [x] White-Label Custom Branding Studio (`POST /api/team/branding`): custom logo, hex palette, tagline, footer text.
+  - [x] White-label watermark removal: "Powered by Equivance" watermark completely removed across web reports, PDFs, SVG badges, and embed widgets.
 - [x] **Automated Multi-Tier Test Suite (`npm run test:tiers`)**
-  - Implemented in [`scripts/tier-live-test.mjs`](../scripts/tier-live-test.mjs) with `--tier`, `--live-web`, and `--mock-stripe` flags, generating JSON and Markdown test reports in `test-results/`. Zero regressions across all active tiers.
+  - Implemented in [`scripts/tier-live-test.mjs`](../scripts/tier-live-test.mjs) with `--tier`, `--live-web`, and `--mock-stripe` flags, generating JSON and Markdown test reports in `test-results/`. Zero regressions across all 28 checks across Free, Pro, and Agency tiers.
 
 ---
 
