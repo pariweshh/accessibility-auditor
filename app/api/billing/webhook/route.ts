@@ -158,6 +158,27 @@ export async function POST(request: NextRequest) {
         break
       }
 
+      case "invoice.payment_failed": {
+        const invoice = event.data.object as Stripe.Invoice
+        const customerId = invoice.customer as string
+
+        if (customerId) {
+          const { error } = await supabaseAdmin
+            .from("profiles")
+            .update({
+              subscription_status: "past_due",
+            })
+            .eq("stripe_customer_id", customerId)
+
+          if (error) {
+            console.error("Error updating profile status for failed payment:", error)
+            throw error
+          }
+          console.warn(`Payment failed for invoice ${invoice.id}. Customer ${customerId} marked as past_due.`)
+        }
+        break
+      }
+
       default:
         console.log(`Unhandled event type: ${event.type}`)
     }

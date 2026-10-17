@@ -35,8 +35,8 @@ Browser client sessions use HTTP-only, secure cookies managed by `@supabase/ssr`
 | Tier | Monthly Scans | Quota Pooling | Developer API & CI/CD | Compliance & Branding | AI Fix Engine |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **Free** | 5 scans / mo | Solo (1 seat) | Restricted (No access) | Standard Web View | GPT-4o-mini (`HTML` only) |
-| **Pro** ($19/mo) | 150 scans / mo | Solo (1 seat) | Full API + CI/CD Builder | Vector PDF (POUR Matrix) + EAA/ADA Kit + SVG Badge | GPT-4o (`HTML`, `React/Tailwind`, `Vue 3`, `Angular`) |
-| **Agency** ($59/mo) | 600 scans / mo | **Pooled (3 seats)** | Full API + CI/CD Builder | **Full White-Label** PDF, Web, Kit & SVG Badge | GPT-4o (`HTML`, `React/Tailwind`, `Vue 3`, `Angular`) |
+| **Pro** ($29 AUD/mo) | 150 scans / mo | Solo (1 seat) | Full API + CI/CD Builder | Vector PDF (POUR Matrix) + EAA/ADA Kit + SVG Badge | GPT-4o (`HTML`, `React/Tailwind`, `Vue 3`, `Angular`) |
+| **Agency** ($99 AUD/mo) | 600 scans / mo | **Pooled (3 seats)** | Full API + CI/CD Builder | **Full White-Label** PDF, Web, Kit & SVG Badge | GPT-4o (`HTML`, `React/Tailwind`, `Vue 3`, `Angular`) |
 
 Rate limiting is enforced atomically via `lib/quota.ts` against PostgreSQL records. Requests exceeding monthly quotas return `429 Too Many Requests`.
 

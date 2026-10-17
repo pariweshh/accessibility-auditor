@@ -99,6 +99,7 @@ export async function POST(request: NextRequest) {
         },
       ],
       mode: "subscription",
+      allow_promotion_codes: true,
       success_url: `${origin}/dashboard?checkout_success=true&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/#pricing`,
       metadata: {

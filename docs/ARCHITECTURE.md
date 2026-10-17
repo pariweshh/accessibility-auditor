@@ -91,9 +91,9 @@ Equivance is built as an asynchronous, distributed accessibility auditing engine
 
 | Tier | Price | Monthly Scans | Scan History | Team Seats | Scheduled Monitors | Developer API & CI/CD | Compliance, Reports & Branding | AI Engine |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Free** | $0/mo | 5 scans | 1 scan (latest only) | 1 (solo) | Locked | Restricted | Standard Web View | GPT-4o-mini (`HTML` only) |
-| **Pro** | $19/mo | 150 scans | Unlimited | 1 (solo) | **3 active monitors** | Full API Keys + CI/CD Builder | Branded Web + Vector PDF (POUR Matrix) + EAA 2025/ADA Kit + Live SVG Badge + Embeddable Widget | GPT-4o (`HTML`, `React/Tailwind`, `Vue 3`, `Angular`) |
-| **Agency** | $59/mo | 600 scans (pooled) | Unlimited | 3 seats included | **10 pooled monitors** | Full API Keys + CI/CD Builder | Full White-Label (Custom Logo, Colors, Header/Footer, No Watermark, White-Label Kit, SVG Badge & Widget) | GPT-4o (`HTML`, `React/Tailwind`, `Vue 3`, `Angular`) |
+| **Free** | $0 AUD/mo | 5 scans | 1 scan (latest only) | 1 (solo) | Locked | Restricted | Standard Web View | GPT-4o-mini (`HTML` only) |
+| **Pro** | $29 AUD/mo | 150 scans | Unlimited | 1 (solo) | **3 active monitors** | Full API Keys + CI/CD Builder | Branded Web + Vector PDF (POUR Matrix) + EAA 2025/ADA Kit + Live SVG Badge + Embeddable Widget | GPT-4o (`HTML`, `React/Tailwind`, `Vue 3`, `Angular`) |
+| **Agency** | $99 AUD/mo | 600 scans (pooled) | Unlimited | 3 seats included | **10 pooled monitors** | Full API Keys + CI/CD Builder | Full White-Label (Custom Logo, Colors, Header/Footer, No Watermark, White-Label Kit, SVG Badge & Widget) | GPT-4o (`HTML`, `React/Tailwind`, `Vue 3`, `Angular`) |
 
 ---
 
@@ -283,7 +283,7 @@ accessibility-auditor/
 
 ## 06 Team Access & Quota Pooling Architecture
 
-For Agency tier accounts ($59/mo), Equivance supports up to 3 collaborative team seats pooling a shared monthly allowance of 600 audits.
+For Agency tier accounts ($99 AUD/mo), Equivance supports up to 3 collaborative team seats pooling a shared monthly allowance of 600 audits.
 
 ### 1. Data Model & Hierarchy
 * **`teams` Table:** Owned by an Agency subscriber (`owner_id`), tracks custom branding assets and max seat allocation (`max_seats = 3`).

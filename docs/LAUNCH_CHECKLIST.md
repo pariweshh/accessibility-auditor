@@ -19,7 +19,7 @@
   - [x] Public embed widget (`GET /api/widget/[scanId]`) returns HTTP 403 Forbidden with upgrade prompt.
   - [x] Scheduled monitors (`/api/monitors`) and API key provisioning (`/api/keys`) return HTTP 403.
   - [x] Team collaboration (`/api/team`) and white-labeling features locked.
-- [x] **Pro Tier Live Functional & Gate Verification ($19/mo)**
+- [x] **Pro Tier Live Functional & Gate Verification ($29 AUD/mo)**
   - [x] Monthly scan quota expanded to 150 scans.
   - [x] Premium AI remediation model (`gpt-4o`) unlocked for `HTML`, `React / Tailwind`, `Vue 3`, and `Angular`.
   - [x] Executive PDF report with WCAG 2.2 POUR Matrix successfully generated and downloaded (`application/pdf`).
@@ -28,7 +28,7 @@
   - [x] Scheduled monitors active with allowance up to 3 active production monitors.
   - [x] Developer API keys (`POST /api/keys`) provisioned; CI/CD scan dispatch & polling (`GET /api/scan`) operational.
   - [x] Agency perks locked: team member invites and white-label custom branding return HTTP 403.
-- [x] **Agency Tier Live Functional & White-Label Verification ($59/mo)**
+- [x] **Agency Tier Live Functional & White-Label Verification ($99 AUD/mo)**
   - [x] Monthly scan quota expanded to 600 pooled scans.
   - [x] Scheduled monitors expanded to 10 pooled active monitors.
   - [x] Team workspace auto-provisioning and 3-seat invitation flow operational (`POST /api/team/invite`).
@@ -149,12 +149,16 @@
 
 - [ ] **Switch Stripe from Test Mode to Live Mode**
   - Complete Stripe account activation, business details, bank payout routing, and tax configuration (Stripe Tax).
-- [ ] **Create Live Products & Recurring Price IDs**
-  - Create **Pro Plan ($19/month)** → copy live `STRIPE_PRO_PRICE_ID`.
-  - Create **Agency Plan ($59/month)** → copy live `STRIPE_AGENCY_PRICE_ID`.
-- [ ] **Configure Stripe Customer Portal (Live Mode)**
+- [ ] **Create Live Products & Recurring Price IDs (AUD)**
+  - Create **Pro Plan ($29 AUD/month)** → copy live `STRIPE_PRO_PRICE_ID`.
+  - Create **Agency Plan ($99 AUD/month)** → copy live `STRIPE_AGENCY_PRICE_ID`.
+- [x] **Configure Code-Level Stripe Enhancements**
+  - [x] Enabled `allow_promotion_codes: true` in [`app/api/billing/checkout/route.ts`](../app/api/billing/checkout/route.ts).
+  - [x] Configured Customer Portal `return_url` to `${origin}/dashboard` in [`app/api/billing/portal/route.ts`](../app/api/billing/portal/route.ts).
+  - [x] Added `invoice.payment_failed` webhook handler in [`app/api/billing/webhook/route.ts`](../app/api/billing/webhook/route.ts) to mark subscription `past_due`.
+- [ ] **Configure Stripe Customer Portal (Live Dashboard)**
   - Enable plan switching (Pro ↔ Agency with proration), payment method updates, invoice history downloads, and subscription cancellation.
-  - Configure the portal return URL to `https://<your-domain>/dashboard`.
+  - Set default return URL to `https://<your-domain>/dashboard`.
 - [ ] **Configure Production Stripe Webhook Endpoint**
   - Endpoint URL: `https://<your-domain>/api/billing/webhook`
   - Subscribed events:
@@ -162,7 +166,7 @@
     - `customer.subscription.created`
     - `customer.subscription.updated`
     - `customer.subscription.deleted`
-    - `invoice.payment_failed` *(Recommended: handle failed renewals gracefully)*
+    - `invoice.payment_failed`
   - Store live signing secret in `STRIPE_WEBHOOK_SECRET`.
 - [ ] **End-to-End Live Payment Smoke Test**
   - Run a real card transaction (with a 100% off coupon or refund test) for both Pro and Agency tiers, verify database tier elevation, test Customer Portal redirect, and verify cancellation downgrade.

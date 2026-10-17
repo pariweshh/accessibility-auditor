@@ -1627,7 +1627,7 @@ ${bashScript
 
               <div className="flex flex-col items-center gap-3">
                 <BillingButton user={user} profile={profile} />
-                <span className="text-2xs text-slate-500">Upgrade to Agency for $59/month to activate Team Access.</span>
+                <span className="text-2xs text-slate-500">Upgrade to Agency for $99 AUD/month to activate Team Access.</span>
               </div>
             </div>
           ) : (
@@ -1926,7 +1926,7 @@ ${bashScript
 
               <div className="flex flex-col items-center gap-3">
                 <BillingButton user={user} profile={profile} />
-                <span className="text-2xs text-slate-500">Upgrade to Agency for $59/month to unlock Custom Branding.</span>
+                <span className="text-2xs text-slate-500">Upgrade to Agency for $99 AUD/month to unlock Custom Branding.</span>
               </div>
             </div>
           ) : (

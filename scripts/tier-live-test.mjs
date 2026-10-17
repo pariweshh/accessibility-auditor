@@ -585,14 +585,14 @@ async function run() {
     }
 
     // ──────────────────────────────────────────────────────────────────────────
-    // TIER 2: PRO TIER TESTS ($19/mo)
+    // TIER 2: PRO TIER TESTS ($29 AUD/mo)
     // ──────────────────────────────────────────────────────────────────────────
     let proApiKey = null
     let proScanId = null
 
     if (tierArg === "all" || tierArg === "pro") {
       console.log("------------------------------------------------------------------")
-      console.log(" RUNNING TIER 2: PRO TIER VALIDATION ($19/mo)")
+      console.log(" RUNNING TIER 2: PRO TIER VALIDATION ($29 AUD/mo)")
       console.log("------------------------------------------------------------------")
 
       // 1. Upgrade user profile to Pro
@@ -837,11 +837,11 @@ async function run() {
     }
 
     // ──────────────────────────────────────────────────────────────────────────
-    // TIER 3: AGENCY TIER TESTS ($59/mo)
+    // TIER 3: AGENCY TIER TESTS ($99 AUD/mo)
     // ──────────────────────────────────────────────────────────────────────────
     if (tierArg === "all" || tierArg === "agency") {
       console.log("------------------------------------------------------------------")
-      console.log(" RUNNING TIER 3: AGENCY TIER VALIDATION ($59/mo)")
+      console.log(" RUNNING TIER 3: AGENCY TIER VALIDATION ($99 AUD/mo)")
       console.log("------------------------------------------------------------------")
 
       // 1. Upgrade user profile to Agency

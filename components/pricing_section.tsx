@@ -81,7 +81,7 @@ export default function PricingSection({ user, profile, tier }: PricingSectionPr
             Simple, Transparent Pricing
           </h2>
           <p className="text-xs text-slate-400 max-w-md mx-auto mt-2 leading-relaxed">
-            Upgrade your account to unlock higher scan limits, executive compliance exports, developer APIs, and premium AI engines.
+            Upgrade your account to unlock higher scan limits, executive compliance exports, developer APIs, and premium AI engines. All prices in AUD.
           </p>
         </div>
 
@@ -95,7 +95,7 @@ export default function PricingSection({ user, profile, tier }: PricingSectionPr
               </div>
               <div className="flex items-baseline gap-1 mb-5">
                 <span className="text-3xl font-black text-slate-50">$0</span>
-                <span className="text-xs text-slate-500 font-semibold">/ month</span>
+                <span className="text-xs text-slate-500 font-semibold">AUD / month</span>
               </div>
               <ul className="space-y-3 text-xs text-slate-400 mb-8">
                 <li className="flex items-start gap-2">
@@ -157,8 +157,8 @@ export default function PricingSection({ user, profile, tier }: PricingSectionPr
                 <h3 className="text-sm font-bold text-slate-50">Pro Plan</h3>
               </div>
               <div className="flex items-baseline gap-1 mb-5">
-                <span className="text-3xl font-black text-slate-50">$19</span>
-                <span className="text-xs text-slate-500 font-semibold">/ month</span>
+                <span className="text-3xl font-black text-slate-50">$29</span>
+                <span className="text-xs text-slate-500 font-semibold">AUD / month</span>
               </div>
               <ul className="space-y-3 text-xs text-slate-300 mb-8">
                 <li className="flex items-start gap-2">
@@ -244,8 +244,8 @@ export default function PricingSection({ user, profile, tier }: PricingSectionPr
                 <h3 className="text-sm font-bold text-slate-200">Agency Plan</h3>
               </div>
               <div className="flex items-baseline gap-1 mb-5">
-                <span className="text-3xl font-black text-slate-50">$59</span>
-                <span className="text-xs text-slate-500 font-semibold">/ month</span>
+                <span className="text-3xl font-black text-slate-50">$99</span>
+                <span className="text-xs text-slate-500 font-semibold">AUD / month</span>
               </div>
               <ul className="space-y-3 text-xs text-slate-400 mb-8">
                 <li className="flex items-start gap-2">

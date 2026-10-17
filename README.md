@@ -38,9 +38,9 @@
 
 | Tier | Price | Monthly Audits | History | Team Seats | Scheduled Monitors | Developer API & CI/CD | Compliance, Reports & Branding | AI Engine |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Free** | $0/mo | 5 audits | Latest scan only | Solo (1 seat) | Locked | Restricted | Standard Web View | GPT-4o-mini (`HTML` only) |
-| **Pro** | $19/mo | 150 audits | Unlimited | Solo (1 seat) | **3 active monitors** | Full API + CI/CD Builder | Vector PDF (POUR Matrix) + EAA/ADA Kit + Live SVG Badge + Embeddable Widget | GPT-4o (`HTML`, `React/Tailwind`, `Vue 3`, `Angular`) |
-| **Agency** | $59/mo | 600 audits (pooled) | Unlimited | **3 seats included** | **10 pooled monitors** | Full API + CI/CD Builder | **Full White-Label** PDF, Web, Kit, SVG Badge & Embeddable Widget | GPT-4o (`HTML`, `React/Tailwind`, `Vue 3`, `Angular`) |
+| **Free** | $0 AUD/mo | 5 audits | Latest scan only | Solo (1 seat) | Locked | Restricted | Standard Web View | GPT-4o-mini (`HTML` only) |
+| **Pro** | $29 AUD/mo | 150 audits | Unlimited | Solo (1 seat) | **3 active monitors** | Full API + CI/CD Builder | Vector PDF (POUR Matrix) + EAA/ADA Kit + Live SVG Badge + Embeddable Widget | GPT-4o (`HTML`, `React/Tailwind`, `Vue 3`, `Angular`) |
+| **Agency** | $99 AUD/mo | 600 audits (pooled) | Unlimited | **3 seats included** | **10 pooled monitors** | Full API + CI/CD Builder | **Full White-Label** PDF, Web, Kit, SVG Badge & Embeddable Widget | GPT-4o (`HTML`, `React/Tailwind`, `Vue 3`, `Angular`) |
 
 ---
 

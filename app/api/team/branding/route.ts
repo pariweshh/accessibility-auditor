@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
 
     if (profile?.subscription_tier !== "agency") {
       return NextResponse.json(
-        { error: "White-Label custom branding is exclusively available on the Agency plan ($59/mo)." },
+        { error: "White-Label custom branding is exclusively available on the Agency plan ($99 AUD/mo)." },
         { status: 403 }
       )
     }

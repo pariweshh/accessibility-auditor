@@ -177,10 +177,10 @@ const BillingButton = forwardRef<BillingButtonHandle, BillingButtonProps>(
                     </div>
                     <div className="flex items-baseline gap-1 mb-4">
                       <span className="text-3xl font-black text-slate-50">
-                        $19
+                        $29
                       </span>
                       <span className="text-xs text-slate-500 font-medium">
-                        / month
+                        AUD / month
                       </span>
                     </div>
                     <ul className="space-y-2.5 text-xs text-slate-300 mb-6">
@@ -225,10 +225,10 @@ const BillingButton = forwardRef<BillingButtonHandle, BillingButtonProps>(
                     </div>
                     <div className="flex items-baseline gap-1 mb-4">
                       <span className="text-3xl font-black text-slate-50">
-                        $59
+                        $99
                       </span>
                       <span className="text-xs text-slate-500 font-medium">
-                        / month
+                        AUD / month
                       </span>
                     </div>
                     <ul className="space-y-2.5 text-xs text-slate-300 mb-6">
