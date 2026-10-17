@@ -735,6 +735,7 @@ async function run() {
             url: "https://example.com",
             frequency: "weekly",
             thresholdScore: 90,
+            alertEmail: TEST_OWNER_EMAIL,
           }),
         })
         const data = await res.json()
@@ -857,8 +858,12 @@ async function run() {
         {
           const { res, latencyMs } = await authedFetch("/api/team")
           const data = await res.json()
-          const passed = res.status === 200 && data.hasTeam === true && data.isOwner === true && data.maxSeats === 3
-          if (passed) teamId = data.teamId
+          const passed =
+            res.status === 200 &&
+            data.hasTeam === true &&
+            data.isOwner === true &&
+            data.team?.maxSeats === 3
+          if (passed) teamId = data.team.id
           reporter.record({
             tier: "agency",
             category: "Team Workspace",
@@ -907,7 +912,10 @@ async function run() {
 
           const { res: teammateTeamRes } = await authedFetch("/api/team", {}, teammateCookies)
           const teammateData = await teammateTeamRes.json()
-          const inherited = teammateData.tier === "agency" && teammateData.isOwner === false
+          const inherited =
+            teammateData.hasTeam === true &&
+            teammateData.isOwner === false &&
+            Boolean(teammateData.team?.id)
 
           reporter.record({
             tier: "agency",

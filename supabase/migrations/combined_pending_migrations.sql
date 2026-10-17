@@ -62,18 +62,44 @@ alter table public.teams enable row level security;
 alter table public.team_members enable row level security;
 alter table public.monitors enable row level security;
 
--- ── 3. Teams RLS Policies ─────────────────────────────────────────────────────
+-- ── 3. Security Definer Helper Functions (Prevents Infinite RLS Recursion) ────
+
+create or replace function public.is_team_member(_team_id uuid, _user_id uuid)
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select exists (
+    select 1 from public.team_members
+    where team_id = _team_id
+      and user_id = _user_id
+      and status = 'active'
+  );
+$$;
+
+create or replace function public.is_team_owner(_team_id uuid, _user_id uuid)
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select exists (
+    select 1 from public.teams
+    where id = _team_id
+      and owner_id = _user_id
+  );
+$$;
+
+-- ── 4. Teams RLS Policies ─────────────────────────────────────────────────────
 
 drop policy if exists "Owners and members can view their team" on public.teams;
 create policy "Owners and members can view their team" on public.teams
   for select using (
     owner_id = auth.uid() or
-    exists (
-      select 1 from public.team_members
-      where team_members.team_id = teams.id
-        and team_members.user_id = auth.uid()
-        and team_members.status = 'active'
-    )
+    public.is_team_member(id, auth.uid())
   );
 
 drop policy if exists "Agency owners can insert team" on public.teams;
@@ -95,91 +121,55 @@ drop policy if exists "Owners can delete own team" on public.teams;
 create policy "Owners can delete own team" on public.teams
   for delete using (owner_id = auth.uid());
 
--- ── 4. Team Members RLS Policies ──────────────────────────────────────────────
+-- ── 5. Team Members RLS Policies ──────────────────────────────────────────────
 
 drop policy if exists "Team owners and members can view member list" on public.team_members;
 create policy "Team owners and members can view member list" on public.team_members
   for select using (
-    exists (
-      select 1 from public.teams
-      where teams.id = team_members.team_id
-        and (
-          teams.owner_id = auth.uid() or
-          exists (
-            select 1 from public.team_members tm
-            where tm.team_id = teams.id
-              and tm.user_id = auth.uid()
-              and tm.status = 'active'
-          )
-        )
-    )
+    user_id = auth.uid() or
+    public.is_team_owner(team_id, auth.uid()) or
+    public.is_team_member(team_id, auth.uid())
   );
 
 drop policy if exists "Team owners can insert members" on public.team_members;
 create policy "Team owners can insert members" on public.team_members
   for insert with check (
-    exists (
-      select 1 from public.teams
-      where teams.id = team_members.team_id
-        and teams.owner_id = auth.uid()
-    )
+    public.is_team_owner(team_id, auth.uid())
   );
 
 drop policy if exists "Team owners can update members" on public.team_members;
 create policy "Team owners can update members" on public.team_members
   for update using (
-    exists (
-      select 1 from public.teams
-      where teams.id = team_members.team_id
-        and teams.owner_id = auth.uid()
-    )
+    public.is_team_owner(team_id, auth.uid())
   );
 
 drop policy if exists "Team owners or members themselves can delete membership" on public.team_members;
 create policy "Team owners or members themselves can delete membership" on public.team_members
   for delete using (
     user_id = auth.uid() or
-    exists (
-      select 1 from public.teams
-      where teams.id = team_members.team_id
-        and teams.owner_id = auth.uid()
-    )
+    public.is_team_owner(team_id, auth.uid())
   );
 
--- ── 5. Scans RLS Policies & Indexes ───────────────────────────────────────────
+-- ── 6. Scans RLS Policies & Indexes ───────────────────────────────────────────
 
 drop policy if exists "Users can view own scans" on public.scans;
 drop policy if exists "Users can view own or team scans" on public.scans;
 create policy "Users can view own or team scans" on public.scans
   for select using (
     user_id = auth.uid() or
-    (
-      team_id is not null and
-      exists (
-        select 1 from public.team_members
-        where team_members.team_id = scans.team_id
-          and team_members.user_id = auth.uid()
-          and team_members.status = 'active'
-      )
-    )
+    (team_id is not null and public.is_team_member(team_id, auth.uid()))
   );
 
 create index if not exists idx_scans_team_id on public.scans (team_id);
 create index if not exists idx_team_members_user_id on public.team_members (user_id);
 create index if not exists idx_team_members_invite_token on public.team_members (invite_token);
 
--- ── 6. Monitors RLS Policies & Indexes ────────────────────────────────────────
+-- ── 7. Monitors RLS Policies & Indexes ────────────────────────────────────────
 
 drop policy if exists "Users can view own or team monitors" on public.monitors;
 create policy "Users can view own or team monitors" on public.monitors for select using (
-  auth.uid() = user_id or (
-    team_id is not null and exists (
-      select 1 from public.team_members
-      where team_members.team_id = monitors.team_id
-        and team_members.user_id = auth.uid()
-        and team_members.status = 'active'
-    )
-  )
+  auth.uid() = user_id or
+  (team_id is not null and public.is_team_member(team_id, auth.uid()))
 );
 
 drop policy if exists "Users can insert own monitors" on public.monitors;
