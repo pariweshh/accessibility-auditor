@@ -187,3 +187,16 @@ create policy "Service role has full access to monitors" on public.monitors for 
 create index if not exists idx_monitors_due on public.monitors (status, next_run_at) where status = 'active';
 create index if not exists idx_monitors_user on public.monitors (user_id, created_at desc);
 create index if not exists idx_monitors_team on public.monitors (team_id) where team_id is not null;
+
+-- ── 8. Stripe Webhook Idempotency ─────────────────────────────────────────────
+
+create table if not exists public.stripe_webhook_events (
+  id text primary key,
+  event_type text not null,
+  processed_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+alter table public.stripe_webhook_events enable row level security;
+
+create index if not exists idx_stripe_webhook_events_processed_at on public.stripe_webhook_events (processed_at desc);
+

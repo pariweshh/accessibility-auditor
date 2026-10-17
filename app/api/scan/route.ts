@@ -132,6 +132,25 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Scan not found" }, { status: 404 })
     }
 
+    // ── Auto-fail stale scans (> 3 minutes old) to prevent slot deadlocks ──────
+    const isStale =
+      (scan.status === "pending" || scan.status === "processing") &&
+      Date.now() - new Date(scan.created_at).getTime() > 3 * 60 * 1000
+
+    if (isStale) {
+      const timeoutMsg = "Scan timed out while processing."
+      await adminSupabase
+        .from("scans")
+        .update({
+          status: "failed",
+          error_message: timeoutMsg,
+        })
+        .eq("id", scan.id)
+
+      scan.status = "failed"
+      scan.error_message = timeoutMsg
+    }
+
     const passesCount = scan.passes ?? scan.result?.passes ?? 0
     const violationsCount = scan.violations ?? scan.result?.violations?.length ?? 0
     const totalChecks = passesCount + violationsCount

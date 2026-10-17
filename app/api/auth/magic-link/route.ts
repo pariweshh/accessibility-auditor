@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { createClient as createAdminClient } from "@supabase/supabase-js"
 import { Resend } from "resend"
 import { getSafeRedirectUrl } from "@/lib/safe-redirect"
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -12,6 +13,52 @@ export async function POST(request: NextRequest) {
 
     if (!email || typeof email !== "string" || !email.includes("@")) {
       return NextResponse.json({ error: "A valid email is required" }, { status: 400 })
+    }
+
+    const clientIp = getClientIp(request)
+    const normalizedEmail = email.trim().toLowerCase()
+
+    // ── Rate Limiting (Defense against email spam and resource exhaustion) ───
+    const ipLimit = checkRateLimit({
+      key: `magic_link:ip:${clientIp}`,
+      limit: 5,
+      windowMs: 10 * 60 * 1000, // 10 minutes
+    })
+
+    if (!ipLimit.success) {
+      return NextResponse.json(
+        { error: "Too many login requests from this IP. Please wait a few minutes before trying again." },
+        {
+          status: 429,
+          headers: {
+            "Retry-After": String(ipLimit.resetSeconds),
+            "X-RateLimit-Limit": String(ipLimit.limit),
+            "X-RateLimit-Remaining": String(ipLimit.remaining),
+            "X-RateLimit-Reset": String(ipLimit.resetSeconds),
+          },
+        }
+      )
+    }
+
+    const emailLimit = checkRateLimit({
+      key: `magic_link:email:${normalizedEmail}`,
+      limit: 5,
+      windowMs: 10 * 60 * 1000, // 10 minutes
+    })
+
+    if (!emailLimit.success) {
+      return NextResponse.json(
+        { error: "Too many login requests for this email address. Please wait a few minutes before trying again." },
+        {
+          status: 429,
+          headers: {
+            "Retry-After": String(emailLimit.resetSeconds),
+            "X-RateLimit-Limit": String(emailLimit.limit),
+            "X-RateLimit-Remaining": String(emailLimit.remaining),
+            "X-RateLimit-Reset": String(emailLimit.resetSeconds),
+          },
+        }
+      )
     }
 
     // 1. Initialize admin supabase client

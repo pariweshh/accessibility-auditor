@@ -39,6 +39,23 @@ export async function POST(request: NextRequest) {
 
   const supabaseAdmin = getAdminClient()
 
+  // ── Idempotency Check: Prevent duplicate processing of retried Stripe events ─
+  try {
+    const { data: existingEvent } = await supabaseAdmin
+      .from("stripe_webhook_events")
+      .select("id")
+      .eq("id", event.id)
+      .maybeSingle()
+
+    if (existingEvent) {
+      console.log(`Stripe event ${event.id} already processed. Returning idempotent 200.`)
+      return NextResponse.json({ received: true, deduplicated: true })
+    }
+  } catch (idempotencyCheckErr) {
+    // Fail-open: if table is not yet provisioned, do not block billing updates
+    console.warn("Idempotency lookup warning:", idempotencyCheckErr)
+  }
+
   try {
     switch (event.type) {
       case "checkout.session.completed": {
@@ -143,6 +160,16 @@ export async function POST(request: NextRequest) {
 
       default:
         console.log(`Unhandled event type: ${event.type}`)
+    }
+
+    // ── Idempotency Record: Mark event as processed ───────────────────────────
+    try {
+      await supabaseAdmin.from("stripe_webhook_events").insert({
+        id: event.id,
+        event_type: event.type,
+      })
+    } catch (recordErr) {
+      console.warn("Failed to record webhook event in idempotency table:", recordErr)
     }
 
     return NextResponse.json({ received: true })

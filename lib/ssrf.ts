@@ -32,17 +32,86 @@ const BLOCKED_HOST_SUFFIXES = [
 ]
 
 /**
+ * Parses numeric IPv4 representations in standard dotted decimal, octal, hex,
+ * or 32-bit DWORD integer format (RFC 791 / inet_aton style).
+ * Returns canonical dotted decimal "a.b.c.d" or null if not a numeric IPv4.
+ */
+export function parseCanonicalIpv4(host: string): string | null {
+  const clean = host.trim().toLowerCase().replace(/^\[|\]$/g, "")
+  if (!clean || clean.includes(":") || clean.includes("/") || clean.includes(" ")) {
+    return null
+  }
+
+  const parts = clean.split(".")
+  if (parts.length < 1 || parts.length > 4) {
+    return null
+  }
+
+  // Parse each part according to hex (0x...), octal (0...), or decimal
+  const parsedParts: number[] = []
+  for (const p of parts) {
+    if (!p) return null
+    let val: number
+    if (/^0x[0-9a-f]+$/i.test(p)) {
+      val = parseInt(p, 16)
+    } else if (/^0[0-7]+$/.test(p)) {
+      val = parseInt(p, 8)
+    } else if (/^\d+$/.test(p)) {
+      val = parseInt(p, 10)
+    } else {
+      return null
+    }
+
+    if (!Number.isSafeInteger(val) || val < 0) {
+      return null
+    }
+    parsedParts.push(val)
+  }
+
+  let num = 0
+  if (parsedParts.length === 1) {
+    // Single DWORD (32-bit integer: 0 to 4294967295)
+    if (parsedParts[0] > 0xffffffff) return null
+    num = parsedParts[0]
+  } else if (parsedParts.length === 2) {
+    // A.B (A: 8 bits, B: 24 bits)
+    if (parsedParts[0] > 0xff || parsedParts[1] > 0xffffff) return null
+    num = parsedParts[0] * 0x1000000 + parsedParts[1]
+  } else if (parsedParts.length === 3) {
+    // A.B.C (A: 8 bits, B: 8 bits, C: 16 bits)
+    if (parsedParts[0] > 0xff || parsedParts[1] > 0xff || parsedParts[2] > 0xffff) return null
+    num = parsedParts[0] * 0x1000000 + parsedParts[1] * 0x10000 + parsedParts[2]
+  } else if (parsedParts.length === 4) {
+    // A.B.C.D (each 8 bits: 0 to 255)
+    if (parsedParts.some((p) => p > 0xff)) return null
+    num =
+      parsedParts[0] * 0x1000000 +
+      parsedParts[1] * 0x10000 +
+      parsedParts[2] * 0x100 +
+      parsedParts[3]
+  }
+
+  const b1 = Math.floor(num / 0x1000000) & 0xff
+  const b2 = Math.floor(num / 0x10000) & 0xff
+  const b3 = Math.floor(num / 0x100) & 0xff
+  const b4 = num & 0xff
+
+  return `${b1}.${b2}.${b3}.${b4}`
+}
+
+/**
  * Checks whether a numeric IPv4 or IPv6 address string belongs to a loopback,
  * link-local, cloud metadata, unspecified, or private network range.
  */
 export function isRestrictedIpAddress(ip: string, allowPrivateLanInDev: boolean = false): boolean {
   const cleanIp = ip.replace(/^\[|\]$/g, "").toLowerCase()
 
-  // Handle IPv4-mapped IPv6 addresses (e.g. ::ffff:127.0.0.1 or ::ffff:169.254.169.254)
+  // Handle IPv4-mapped IPv6 addresses (e.g. ::ffff:127.0.0.1, ::ffff:2130706433, or ::ffff:a9fe:a9fe)
   if (cleanIp.startsWith("::ffff:")) {
     const mappedPart = cleanIp.slice(7)
-    if (net.isIPv4(mappedPart)) {
-      return isRestrictedIpAddress(mappedPart, allowPrivateLanInDev)
+    const canonical = parseCanonicalIpv4(mappedPart)
+    if (canonical) {
+      return isRestrictedIpAddress(canonical, allowPrivateLanInDev)
     }
     // Hex-encoded IPv4-mapped IPv6 (e.g. ::ffff:a9fe:a9fe)
     const hexMatch = mappedPart.match(/^([0-9a-f]{1,4}):([0-9a-f]{1,4})$/)
@@ -54,8 +123,10 @@ export function isRestrictedIpAddress(ip: string, allowPrivateLanInDev: boolean 
     }
   }
 
-  if (net.isIPv4(cleanIp)) {
-    const parts = cleanIp.split(".").map((n) => parseInt(n, 10))
+  // Canonicalize any numeric IPv4 format (decimal dotted quad, integer, octal, hex)
+  const canonicalIpv4 = parseCanonicalIpv4(cleanIp)
+  if (canonicalIpv4) {
+    const parts = canonicalIpv4.split(".").map((n) => parseInt(n, 10))
     const [a, b] = parts
 
     // Always block loopback (127.0.0.0/8), unspecified (0.0.0.0/8), and link-local/IMDS (169.254.0.0/16)
@@ -63,7 +134,7 @@ export function isRestrictedIpAddress(ip: string, allowPrivateLanInDev: boolean 
       return true
     }
 
-    // Block multicast/reserved (224.0.0.0/4 and 240.0.0.0/4)
+    // Block multicast/reserved (224.0.0.0/4 and 240.0.0.0/4) and broadcast (255.255.255.255)
     if (a >= 224) {
       return true
     }
@@ -153,16 +224,20 @@ export async function validateScanTargetUrl(rawUrl: string): Promise<SsrfValidat
     }
   }
 
-  // 4. Reject integer/decimal/hex/octal encoded IP hostnames (e.g. http://2130706433 or http://0x7f000001)
-  if (/^(0x[0-9a-f]+|\d+)$/i.test(cleanHost)) {
-    return {
-      valid: false,
-      error: "Cannot scan internal, local, or cloud infrastructure URLs.",
+  // 4. Check canonical IPv4 representations (decimal, octal, hex, DWORD, shorthand)
+  const canonicalIpv4 = parseCanonicalIpv4(cleanHost)
+  if (canonicalIpv4) {
+    if (isRestrictedIpAddress(canonicalIpv4, allowPrivateLanInDev)) {
+      return {
+        valid: false,
+        error: "Cannot scan internal, local, or cloud infrastructure URLs.",
+      }
     }
+    return { valid: true, normalizedUrl: urlObj.toString() }
   }
 
-  // 5. Check direct IPv4 / IPv6 literals
-  if (net.isIP(cleanHost)) {
+  // 5. Check IPv6 or IPv4-mapped IPv6 literals
+  if (net.isIPv6(cleanHost) || cleanHost.startsWith("::ffff:")) {
     if (isRestrictedIpAddress(cleanHost, allowPrivateLanInDev)) {
       return {
         valid: false,

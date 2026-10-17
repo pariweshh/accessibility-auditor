@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { createClient as createAdminClient } from "@supabase/supabase-js"
 import { Resend } from "resend"
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -36,6 +37,50 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: "You cannot invite yourself to your own team workspace" },
         { status: 400 }
+      )
+    }
+
+    // ── Rate Limiting (Prevent invitation flooding / spam) ───────────────────
+    const clientIp = getClientIp(request)
+    const ipLimit = checkRateLimit({
+      key: `team_invite:ip:${clientIp}`,
+      limit: 20,
+      windowMs: 60 * 60 * 1000, // 1 hour
+    })
+
+    if (!ipLimit.success) {
+      return NextResponse.json(
+        { error: "Too many invitation requests from this IP. Please wait before inviting more members." },
+        {
+          status: 429,
+          headers: {
+            "Retry-After": String(ipLimit.resetSeconds),
+            "X-RateLimit-Limit": String(ipLimit.limit),
+            "X-RateLimit-Remaining": String(ipLimit.remaining),
+            "X-RateLimit-Reset": String(ipLimit.resetSeconds),
+          },
+        }
+      )
+    }
+
+    const userLimit = checkRateLimit({
+      key: `team_invite:user:${user.id}`,
+      limit: 10,
+      windowMs: 60 * 60 * 1000, // 1 hour
+    })
+
+    if (!userLimit.success) {
+      return NextResponse.json(
+        { error: "Invitation limit reached. You can send up to 10 invitations per hour." },
+        {
+          status: 429,
+          headers: {
+            "Retry-After": String(userLimit.resetSeconds),
+            "X-RateLimit-Limit": String(userLimit.limit),
+            "X-RateLimit-Remaining": String(userLimit.remaining),
+            "X-RateLimit-Reset": String(userLimit.resetSeconds),
+          },
+        }
       )
     }
 
