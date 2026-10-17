@@ -11,6 +11,10 @@
     "app/api/cron/monitors/route.ts": {
       "memory": 1024,
       "maxDuration": 60
+    },
+    "app/api/reports/pdf/route.ts": {
+      "memory": 1024,
+      "maxDuration": 60
     }
   },
   "crons": [

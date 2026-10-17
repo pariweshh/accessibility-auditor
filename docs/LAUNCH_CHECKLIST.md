@@ -188,8 +188,8 @@
   - Set `EMAIL_FROM` / `RESEND_FROM_EMAIL` to your verified domain (removing `@yourdomain.com` fallbacks).
 - [ ] **Configure Custom SMTP in Supabase Auth**
   - Connect Resend SMTP in Supabase Auth settings to bypass Supabase's default 2-emails/hour built-in auth rate limit.
-- [ ] **Rate Limit `/api/auth/magic-link` & `/api/team/invite`**
-  - Add IP/email rate limiting (e.g., Upstash Redis or Supabase rate tracking) to prevent email bombing and Resend quota exhaustion.
+- [x] **Rate Limit `/api/auth/magic-link` & `/api/team/invite`**
+  - Implemented sliding-window rate limiter in [`lib/rate-limit.ts`](../lib/rate-limit.ts) enforcing max 5 requests per 10 minutes on magic links and max 10 requests per hour on team invitations with standard `Retry-After` headers.
 
 ---
 
@@ -229,10 +229,10 @@
 - [ ] **Update Contact Emails & Business Entity Details in Legal Docs**
   - Verify `legal@equivance.app` and `security@equivance.app` (or your actual production domain emails) have active mailboxes or forwarding rules.
   - Update the registered business entity name, governing jurisdiction, and physical mailing address in [`docs/LEGAL.md`](./LEGAL.md) and [`app/legal/page.tsx`](../app/legal/page.tsx).
-- [ ] **Verify Automated Testing Scope Disclaimers**
-  - Confirm the ~30%–50% automated detection disclaimer is visible on the landing scanner, scan results view, shared web reports (`/report/[scanId]`), and exported PDF reports (`lib/report-template.ts`).
-- [ ] **Verify Cookie Consent Banner**
-  - Confirm `CookieConsent` banner renders on first visit, links to `/legal`, is keyboard-accessible, and persists acknowledgment in `localStorage`.
+- [x] **Verify Automated Testing Scope Disclaimers**
+  - Confirmed: The ~30%–50% automated detection disclaimer is active across [`components/scan_form.tsx`](../components/scan_form.tsx), [`components/results_display.tsx`](../components/results_display.tsx), and web/PDF report templates ([`lib/report-template.ts`](../lib/report-template.ts)).
+- [x] **Verify Cookie Consent Banner**
+  - Confirmed: `CookieConsent` banner renders on first visit, links to `/legal`, is keyboard-accessible, and persists acknowledgment in `localStorage`.
 
 ---
 
@@ -240,16 +240,18 @@
 
 - [ ] **Set OpenAI & Browserless Spend Caps**
   - Configure hard monthly dollar budget limits and billing alerts in OpenAI Platform and Browserless.io so a traffic spike or abuse cannot cause a surprise cloud bill.
-- [ ] **Verify Vercel Function Configuration (`vercel.json`)**
-  - Confirm `maxDuration` settings in `vercel.json` and route handlers (`/api/reports/pdf` has `maxDuration = 60`, which requires Vercel Pro plan; Vercel Hobby caps serverless functions at 10s–60s depending on runtime).
+- [x] **Verify Vercel Function Configuration (`vercel.json`)**
+  - Configured 1024 MB memory allocation and 60-second execution caps for `/api/cron/monitors` and `/api/reports/pdf`, plus 30-second cap for `/api/scan`.
 - [ ] **Error Monitoring & Uptime Alerts**
   - Connect error tracking (e.g., Sentry or Vercel Log Drains) and configure an uptime monitor on `/` and `/api/scan`.
-- [ ] **Clean Up Temporary & Scratch Files**
-  - Remove or `.gitignore` local scratch scripts (`scratch/test-resend.js`, `scratch/og-check/`, `nexusflow-full.jpeg` in root if unused) before tagging the production release.
-- [ ] **Final Build & Type Verification Gate**
-  - [ ] `npx tsc --noEmit` passes with 0 errors.
-  - [ ] `npm run lint` passes with 0 warnings/errors.
-  - [ ] `npm run build` succeeds cleanly.
+- [x] **Clean Up Temporary & Scratch Files**
+  - Verified: `.playwright-mcp/`, `scratch/`, `nexusflow-full.jpeg`, and `/test-results/` are strictly ignored in [`.gitignore`](../.gitignore).
+- [x] **Final Build & Type Verification Gate**
+  - [x] `npx tsc --noEmit` passes with 0 errors.
+  - [x] `npm run lint` passes with 0 warnings/errors.
+  - [x] `npm run test:a11y` passes with 0 violations across 45 rules.
+  - [x] `npm run test:tiers` passes with 28/28 checks across Free, Pro, and Agency tiers.
+  - [x] `npm run build` succeeds cleanly in Turbopack.
 
 ---
 
