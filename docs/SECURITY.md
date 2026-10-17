@@ -61,8 +61,9 @@ A compromised client session or insecure direct object reference (IDOR) allows a
 
 ### Implemented Defenses
 1. **Universal Row Level Security (RLS):**
-   * Every public database table (`profiles`, `scans`, `violations`, `api_keys`) has RLS enabled by default.
-   * Supabase policies strictly enforce that `auth.uid() = user_id`.
+   * Every public database table (`ai_fix_cache`, `api_keys`, `monitors`, `profiles`, `scans`, `stripe_webhook_events`, `team_members`, `teams`, `violations`) has RLS strictly enabled and verified.
+   * Supabase policies enforce that `auth.uid() = user_id`.
+   * Security Definer helper functions (`is_team_member` and `is_team_owner`) bypass RLS recursion cleanly when evaluating cross-table team workspace permissions.
    * Cross-table queries (such as accessing violations belonging to a scan) use sub-queries validating scan ownership:
      ```sql
      create policy "Users can view violations of own scans" on public.violations
@@ -112,28 +113,36 @@ An attacker attempts to send forged HTTP requests to `/api/billing/webhook` to g
        process.env.STRIPE_WEBHOOK_SECRET!
      )
      ```
-2. **Idempotent Webhook Processing:**
-   * Webhook event IDs are validated to prevent replay attacks.
+2. **Idempotent Webhook Processing (`public.stripe_webhook_events`):**
+   * Before modifying customer tier or status, the webhook handler atomically records `event.id` into `public.stripe_webhook_events`.
+   * Replayed or duplicate webhooks trigger a unique primary key violation (`code: 23505`), which the handler catches cleanly to return `200 OK { received: true, deduplicated: true }` without repeating side effects.
 3. **Database State Authority:**
    * Tier elevation occurs strictly upon receiving verified `checkout.session.completed` or `customer.subscription.updated` events.
+   * Subscription cancellation reverts profile to `subscription_tier = 'free'` and `subscription_status = 'canceled'`.
+   * Payment failures (`invoice.payment_failed`) automatically flag profile as `subscription_status = 'past_due'`.
 
 ---
 
 ## 07 Threat 6: Denial-of-Service & Resource Exhaustion
 
 ### Attack Vector
-Automated bots repeatedly call `/api/scan` with large target websites to exhaust the Browserless concurrency pool and spike cloud infrastructure costs.
+Automated bots repeatedly call `/api/scan` with large target websites to exhaust the Browserless concurrency pool, abuse login endpoints, or spike cloud infrastructure costs.
 
 ### Implemented Defenses
 1. **Atomic Quota Enforcement:**
    * Every scan request evaluates monthly usage via `lib/quota.ts` against the user's subscription tier (`free`: 5, `pro`: 150, `agency`: 600).
    * Unauthenticated or out-of-quota requests are rejected with `401 Unauthorized` or `429 Too Many Requests` prior to spawning any browser workers.
-2. **Edge Function Concurrency Limiter:**
+2. **Sliding-Window In-Memory Rate Limiting (`lib/rate-limit.ts`):**
+   * `/api/auth/magic-link`: Capped at 5 login attempts per 15-minute sliding window per client IP.
+   * `/api/team/invite`: Capped at 10 invitation dispatches per 60-minute window per user.
+   * Exceeded limits reject immediately with `429 Too Many Requests` and a standard `Retry-After` header.
+3. **Edge Function Concurrency Limiter:**
    * `MAX_CONCURRENT_SCANS` (default 3) caps parallel browser instances, queuing subsequent requests to prevent memory crashes.
-3. **Timeouts:**
+4. **Timeouts & Automated Stuck-Scan Cleanup:**
    * Browser navigation hard timeout: 30 seconds.
    * Dynamic content settle pause: 1.5 seconds.
    * Edge Function execution timeout: 60 seconds.
+   * Automated stuck-scan recovery: Scans remaining in `pending` or `processing` for longer than 3 minutes (`STUCK_SCAN_THRESHOLD_MS = 180,000`) are automatically detected and transitioned to `failed` by both the Edge Function and the `GET /api/scan` polling route.
 
 ---
 

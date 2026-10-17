@@ -38,7 +38,11 @@ Browser client sessions use HTTP-only, secure cookies managed by `@supabase/ssr`
 | **Pro** ($29 AUD/mo) | 150 scans / mo | Solo (1 seat) | Full API + CI/CD Builder | Vector PDF (POUR Matrix) + EAA/ADA Kit + SVG Badge | GPT-4o (`HTML`, `React/Tailwind`, `Vue 3`, `Angular`) |
 | **Agency** ($99 AUD/mo) | 600 scans / mo | **Pooled (3 seats)** | Full API + CI/CD Builder | **Full White-Label** PDF, Web, Kit & SVG Badge | GPT-4o (`HTML`, `React/Tailwind`, `Vue 3`, `Angular`) |
 
-Rate limiting is enforced atomically via `lib/quota.ts` against PostgreSQL records. Requests exceeding monthly quotas return `429 Too Many Requests`.
+Monthly audit allowances are enforced atomically via `lib/quota.ts` against PostgreSQL records. Requests exceeding monthly quotas return `429 Too Many Requests`.
+
+Additionally, abuse-prevention sliding-window rate limiters (`lib/rate-limit.ts`) protect sensitive endpoints:
+* **Magic Link Authentication (`POST /api/auth/magic-link`):** Max 5 requests per 15-minute sliding window per client IP.
+* **Team Invitations (`POST /api/team/invite`):** Max 10 invitations per 60-minute sliding window per authenticated user.
 
 ---
 
@@ -450,6 +454,10 @@ Cache-Control: public, max-age=300, s-maxage=300, stale-while-revalidate=600
 #### `POST /api/billing/checkout`
 Creates a Stripe Checkout Session for subscription upgrades.
 
+* **Promotional Codes:** Enabled (`allow_promotion_codes: true`), supporting coupon redemption at checkout.
+* **Pricing (AUD):** Pro ($29 AUD/month) or Agency ($99 AUD/month).
+* **Return URLs:** Success returns to `/dashboard?checkout_success=true&session_id={CHECKOUT_SESSION_ID}`; cancellation returns to `/#pricing`.
+
 **Request Body:**
 ```json
 {
@@ -465,12 +473,40 @@ Creates a Stripe Checkout Session for subscription upgrades.
 ```
 
 #### `POST /api/billing/portal`
-Generates a Stripe Customer Portal redirect URL for managing billing details, credit cards, or subscription cancellations.
+Generates a Stripe Customer Portal redirect URL for managing payment methods, invoices, upgrades/downgrades, or subscription cancellation.
+
+* **Return URL:** Configured to `${origin}/dashboard` for seamless post-management navigation.
 
 **Response (200 OK):**
 ```json
 {
   "url": "https://billing.stripe.com/p/session/..."
+}
+```
+
+#### `POST /api/billing/webhook`
+Receives and processes asynchronous webhook event notifications dispatched by Stripe.
+
+**Headers:**
+```http
+stripe-signature: t=1492774577,v1=5257a869e7ecebeda32affa62cd4908f483a625b4c764ff510df9b3ae5490f4b
+```
+
+**Security & Deduplication:**
+* **Cryptographic Verification:** Verifies the HMAC-SHA256 signature against `STRIPE_WEBHOOK_SECRET` using `stripe.webhooks.constructEvent`.
+* **Idempotency Guarantee:** Stores every processed `event.id` in PostgreSQL table `public.stripe_webhook_events`. Duplicate events return `200 OK { received: true, deduplicated: true }` immediately, preventing race conditions.
+
+**Supported Events:**
+* `checkout.session.completed`: Associates `stripe_customer_id` and `stripe_subscription_id` with the user profile, elevating `subscription_tier` to `'pro'` or `'agency'` with `subscription_status = 'active'`.
+* `customer.subscription.created`: Logs active subscription initialization.
+* `customer.subscription.updated`: Syncs tier adjustments (e.g. upgrades/downgrades between Pro and Agency) and records current subscription status (`active`, `past_due`, `canceled`).
+* `customer.subscription.deleted`: Reverts the customer's profile to `subscription_tier = 'free'` and `subscription_status = 'canceled'`.
+* `invoice.payment_failed`: Marks the customer profile with `subscription_status = 'past_due'` to flag failed recurring renewals gracefully.
+
+**Response (200 OK):**
+```json
+{
+  "received": true
 }
 ```
 

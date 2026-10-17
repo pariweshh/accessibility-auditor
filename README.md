@@ -135,6 +135,7 @@ accessibility-auditor/
 │   ├── quota.ts                         # Atomic quota deduction & resolveEffectiveTier pooling
 │   ├── safe-redirect.ts                 # Protocol-relative & open redirect defense
 │   ├── ssrf.ts                          # DNS-rebinding & private/reserved IPv4/IPv6 SSRF guard
+│   ├── rate-limit.ts                    # In-memory sliding-window rate limiter (magic link & team invites)
 │   ├── ai-fixer.ts                      # Framework-aware OpenAI client & SHA-256 fix cache
 │   ├── monitor-alert-email.ts           # Resend degradation alert email template synthesizer
 │   ├── report-template.ts               # White-label HTML report & POUR matrix synthesizer
@@ -143,10 +144,13 @@ accessibility-auditor/
 │   ├── constants.ts                     # Tier limits, WCAG rules, and checklists
 │   └── types.ts                         # Strict TypeScript domain interfaces
 ├── scripts/                             # Automation, Audit & Verification Scripts
-│   └── self-a11y-audit.mjs              # Headless Chrome + axe-core dogfooding audit
+│   ├── self-a11y-audit.mjs              # Headless Chrome + axe-core dogfooding audit (WCAG 2.2 AA)
+│   ├── tier-live-test.mjs               # Multi-Tier Live Feature & E2E Verification Suite (28/28 checks)
+│   ├── test-phase1-security.mjs         # 41/41 SSRF security test suite (canonical IPv4, encodings, redirects)
+│   └── test-webhook-idempotency.mjs     # Stripe webhook idempotency verification script
 ├── supabase/                            # Supabase cloud config & migrations
 │   ├── functions/scan-site/index.ts     # Deno Edge Function executing Browserless scans
-│   └── migrations/                      # Version-controlled SQL migration scripts
+│   └── migrations/                      # Version-controlled SQL migration scripts & combined runner
 └── vercel.json                          # Deployment memory, duration & cron definitions
 ```
 
@@ -172,11 +176,12 @@ Open [http://localhost:3000](http://localhost:3000) to view the application.
 
 ### 4. Quality Verification
 ```bash
-npx tsc --noEmit       # Type check strict mode (0 errors)
-npm run lint           # ESLint verification (0 warnings)
-npm test               # Unit & integration test suites
-npm run test:a11y       # Headless Chrome self-accessibility audit (0 violations)
-npm run build          # Next.js production build verification
+npx tsc --noEmit                    # Type check strict mode (0 errors)
+npm run lint                        # ESLint verification (0 warnings)
+npm run test:a11y                   # Headless Chrome self-accessibility audit (0 violations)
+npm run test:tiers                  # Tier-by-tier functional & E2E verification (28/28 checks)
+node scripts/test-phase1-security.mjs # SSRF & canonical IP security assertions (41/41 passed)
+npm run build                       # Next.js production build verification
 ```
 
 ---

@@ -187,6 +187,7 @@ accessibility-auditor/
 │   │   └── proxy.ts                     # Auth session refresher proxy
 │   ├── safe-redirect.ts                 # Protocol-relative & open redirect defense
 │   ├── ssrf.ts                          # DNS-rebinding & private/reserved IPv4/IPv6 SSRF guard
+│   ├── rate-limit.ts                    # In-memory sliding-window rate limiter (magic link & team invites)
 │   ├── ai-fixer.ts                      # Framework-aware OpenAI client & SHA-256 fix cache
 │   ├── monitor-alert-email.ts           # Resend degradation alert email template synthesizer
 │   ├── constants.ts                     # WCAG standard constants, tier limits, checklists
@@ -196,13 +197,20 @@ accessibility-auditor/
 │   ├── site.ts                          # Canonical domain and metadata configuration
 │   └── types.ts                         # Core TypeScript interfaces (including ScheduledMonitor)
 ├── scripts/                             # Automation, Audit & Verification Scripts
-│   └── self-a11y-audit.mjs              # Headless Chrome + axe-core dogfooding audit
+│   ├── self-a11y-audit.mjs              # Headless Chrome + axe-core dogfooding audit (WCAG 2.2 AA)
+│   ├── tier-live-test.mjs               # Tier-by-Tier Live Feature & E2E Verification Suite (28/28 checks)
+│   ├── test-phase1-security.mjs         # 41/41 SSRF security test suite (canonical IPv4, encodings, redirects)
+│   └── test-webhook-idempotency.mjs     # Stripe webhook idempotency verification script
 ├── supabase/                            # Supabase cloud config
 │   ├── functions/scan-site/index.ts     # Deno Edge Function executing Browserless scans
 │   └── migrations/                      # Version-controlled SQL migration scripts
+│       ├── 20260610000000_init_schema.sql
 │       ├── 20260613000000_team_access.sql
 │       ├── 20260614000000_white_label_branding.sql
-│       └── 20260615000000_scheduled_monitors.sql
+│       ├── 20260615000000_scheduled_monitors.sql
+│       ├── 20260616000000_fix_rls_recursion.sql
+│       ├── 20260617000000_stripe_webhook_events.sql
+│       └── combined_pending_migrations.sql
 └── vercel.json                          # Deployment memory, duration & cron definitions
 ```
 
@@ -278,6 +286,20 @@ accessibility-auditor/
 ### 3. AI Token Optimization & Cost Control
 * Accessibility issues are highly repetitive across the web (e.g., standard React button missing text, `<img src="...">` missing `alt`).
 * The `ai_fix_cache` database table prevents duplicate OpenAI calls across all users. Once a specific violation node is solved for a given framework (`html`, `react-tailwind`, `vue`, `angular`), future scans referencing the identical HTML node and framework return the cached remediation in `< 80ms` with zero OpenAI API cost.
+
+### 4. Automated Stuck-Scan Cleanup & State Recovery
+* If an unexpected network partition, remote Chromium crash, or edge worker timeout halts a scan mid-execution, scans stuck in `pending` or `processing` for longer than 3 minutes (`STUCK_SCAN_THRESHOLD_MS = 180,000`) are automatically detected and transitioned to `failed` (`Scan timed out after 3 minutes`) by both the `scan-site` Edge Function and the `GET /api/scan` polling route.
+* This automated self-healing mechanism guarantees user dashboards and CI/CD pipelines never hang indefinitely on orphaned jobs.
+
+### 5. Sliding-Window In-Memory Rate Limiting (`lib/rate-limit.ts`)
+* High-abuse public endpoints employ a timestamped sliding-window rate limiter:
+  * `/api/auth/magic-link`: Capped at 5 login requests per 15-minute window per IP.
+  * `/api/team/invite`: Capped at 10 invitation dispatches per 60-minute window per user.
+* Exceeded limits reject immediately with `429 Too Many Requests` and standard `Retry-After` headers, preventing spam and email quota exhaustion.
+
+### 6. Stripe Webhook Idempotency & Replay Defense (`public.stripe_webhook_events`)
+* Every incoming Stripe webhook event is validated against `public.stripe_webhook_events` via `supabaseAdmin`.
+* If the `event.id` already exists, the endpoint safely logs the duplicate and returns `200 OK { received: true, deduplicated: true }` immediately, protecting against network replays and out-of-order webhook delivery.
 
 ---
 

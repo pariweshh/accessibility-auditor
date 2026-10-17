@@ -38,12 +38,21 @@ npm install
 ### 3. Database & Supabase Migrations
 
 1. Create a new Supabase project in your chosen region.
-2. In the Supabase Dashboard SQL Editor, execute migrations in chronological order from `supabase/migrations/`:
-   - `20260610000000_baseline_schema.sql` (Profiles, scans, violations, ai_fix_cache, api_keys, RLS)
-   - `20260613000000_team_access.sql` (Teams, team_members, pooled scans, RLS)
-   - `20260614000000_white_label_branding.sql` (Brand logo, hex color, tagline, footer text)
-   - `20260615000000_scheduled_monitors.sql` (Continuous scheduled monitors, cadence, alerts, failure threshold, RLS)
-3. Ensure a private Storage Bucket named `reports` is created for vector PDF document storage.
+2. In the Supabase Dashboard SQL Editor, you can execute the single consolidated script [`supabase/migrations/combined_pending_migrations.sql`](../supabase/migrations/combined_pending_migrations.sql), which applies all tables, RLS policies, indexes, and security helper functions.
+   Alternatively, apply migrations in chronological sequence from `supabase/migrations/`:
+   - `20260610000000_init_schema.sql` (Profiles, scans, violations, RLS, user trigger)
+   - `20260610000001_billing_updates.sql` (Stripe customer & subscription columns)
+   - `20260610000002_async_scans.sql` (Scan status, error messaging, service role policy)
+   - `20260612000000_create_reports_bucket.sql` (Private `reports` storage bucket)
+   - `20260612000001_api_keys.sql` (API key hashing and indexes)
+   - `20260612000002_ai_fix_cache.sql` (Framework-aware AI fix deduplication cache)
+   - `20260613000000_team_access.sql` (Teams, team members, pooled scans, seat quota)
+   - `20260614000000_white_label_branding.sql` (Agency branding customization fields)
+   - `20260615000000_scheduled_monitors.sql` (Scheduled accessibility monitors, alerts, RLS)
+   - `20260616000000_fix_rls_recursion.sql` (Security definer functions preventing cyclic RLS)
+   - `20260617000000_stripe_webhook_events.sql` (Stripe webhook idempotency log)
+3. Ensure the private Storage Bucket named `reports` is created for vector PDF document storage.
+4. Execute `supabase/migrations/phase2_cloud_verification.sql` to confirm all 9 public tables have active Row Level Security (RLS).
 
 ---
 
@@ -77,12 +86,12 @@ EMAIL_FROM=Equivance <notifications@yourdomain.com>
 RESEND_FROM_EMAIL=Equivance <notifications@yourdomain.com>
 
 # ----------------------------------------------------
-# 5. Billing & Subscriptions (Stripe)
+# 5. Billing & Subscriptions (Stripe - AUD Currency)
 # ----------------------------------------------------
 STRIPE_SECRET_KEY=your_stripe_secret_key_here
 STRIPE_WEBHOOK_SECRET=your_stripe_webhook_secret_here
-STRIPE_PRO_PRICE_ID=your_stripe_pro_price_id_here
-STRIPE_AGENCY_PRICE_ID=your_stripe_agency_price_id_here
+STRIPE_PRO_PRICE_ID=price_... # $29 AUD/month recurring price ID
+STRIPE_AGENCY_PRICE_ID=price_... # $99 AUD/month recurring price ID
 
 # ----------------------------------------------------
 # 6. Scheduled Monitors Worker Secret (Vercel Cron)
@@ -129,6 +138,12 @@ npm test
 # Self-accessibility dogfooding audit (must report 0 violations across all routes)
 npm run test:a11y
 
+# Tier-by-tier live functional & E2E verification (28/28 checks across Free, Pro, Agency)
+npm run test:tiers
+
+# SSRF and canonical IP security test suite (41/41 passing checks)
+node scripts/test-phase1-security.mjs
+
 # Production build verification
 npm run build
 ```
@@ -155,8 +170,10 @@ git push origin main
 2. Add endpoint: `https://your-domain.vercel.app/api/billing/webhook`.
 3. Select events:
    - `checkout.session.completed`
+   - `customer.subscription.created`
    - `customer.subscription.updated`
    - `customer.subscription.deleted`
+   - `invoice.payment_failed`
 4. Copy Signing Secret into Vercel `STRIPE_WEBHOOK_SECRET`.
 
 ---

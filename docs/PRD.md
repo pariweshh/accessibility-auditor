@@ -133,7 +133,10 @@
 * [x] Implement SHA-256 caching for AI remediation to minimize OpenAI token consumption.
 * [x] Implement database-backed API key management with key hashing and polling (`GET /api/scan`).
 * [x] Implement WCAG 2.2 Manual Review checklist and axe-core `incomplete` item rendering.
-* [x] Harden SSRF protection with DNS-rebinding checks (`lib/ssrf.ts`) and Puppeteer request interception.
+* [x] Harden SSRF protection with DNS-rebinding checks, canonical 32-bit IPv4 normalization, and Puppeteer redirect interception (`lib/ssrf.ts`, 41/41 security tests).
+* [x] Implement Stripe webhook idempotency table (`public.stripe_webhook_events`) and replay attack deduplication.
+* [x] Implement sliding-window rate limiting on magic link authentication and team invitations (`lib/rate-limit.ts`).
+* [x] Implement automated 3-minute stuck-scan timeout recovery in Edge Function and `GET /api/scan` poller.
 * [x] Implement GDPR/CCPA self-serve account deletion (`DELETE /api/auth/account`).
 * [ ] Add automated retry mechanism with exponential backoff for transient Browserless connection drops.
 * [ ] Support HTTP Basic Authentication and custom request headers for scanning staging environments behind firewalls.

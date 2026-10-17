@@ -211,15 +211,22 @@ npm run test:a11y
 npm run test:tiers
 npm run test:tiers -- --tier=pro
 npm run test:tiers -- --live-web
+
+# 7. SSRF & Security Defense-in-Depth Suite (41 assertions)
+node scripts/test-phase1-security.mjs
+
+# 8. Stripe Webhook Idempotency Verification
+node scripts/test-webhook-idempotency.mjs
 ```
 
 ---
 
-## 06 Tier-by-Tier Live Feature & E2E Verification (`npm run test:tiers`)
+## 06 Dedicated Verification Test Suites
 
-The platform includes a dedicated multi-tier test harness ([`scripts/tier-live-test.mjs`](../scripts/tier-live-test.mjs)) that validates feature gates, quotas, AI remediation models, PDF generation, dynamic badges, embed widgets, monitors, multi-user seats, and white-labeling across Free, Pro, and Agency tiers.
+### 1. Tier-by-Tier Live Feature & E2E Verification (`npm run test:tiers`)
+The platform includes a dedicated multi-tier test harness ([`scripts/tier-live-test.mjs`](../scripts/tier-live-test.mjs)) that validates feature gates, quotas, AI remediation models, PDF generation, dynamic badges, embed widgets, monitors, multi-user seats, and white-labeling across Free, Pro, and Agency tiers (28/28 checks passed).
 
-### CLI Options
+#### CLI Options
 * `npm run test:tiers` — Executes the complete multi-tier test suite across all three tiers.
 * `npm run test:tiers -- --tier=free` — Executes assertions specific to the Free tier.
 * `npm run test:tiers -- --tier=pro` — Executes assertions specific to the Pro tier.
@@ -227,9 +234,20 @@ The platform includes a dedicated multi-tier test harness ([`scripts/tier-live-t
 * `npm run test:tiers -- --live-web` — Runs live scans against external targets rather than internal fixtures.
 * `npm run test:tiers -- --mock-stripe` — Executes tier transitions directly via database profiles rather than Stripe test mode.
 
-### Generated Test Artifacts
+#### Generated Test Artifacts
 * `test-results/tier-live-test-report.json`: Machine-readable execution logs and assertion statuses.
 * `test-results/tier-live-test-report.md`: Human-readable summary table of tier-by-tier conformance.
+
+### 2. SSRF Security & Canonical Normalization Suite (`node scripts/test-phase1-security.mjs`)
+Validates 41 automated security test assertions across:
+* Canonical 32-bit integer IPv4 decoding (`2130706433` -> `127.0.0.1`).
+* Dotted hex (`0x7f.0.0.1`), hex DWORD (`0x7f000001`), and octal notation (`0177.0.0.1`).
+* IPv6-mapped IPv4 representations (`[::ffff:169.254.169.254]`, `[::ffff:a9fe:a9fe]`).
+* Cloud provider metadata services (AWS/GCP/Azure/DigitalOcean/Oracle/Alibaba).
+* HTTP 301/302 redirect interception blocking redirection to internal hosts.
+
+### 3. Stripe Webhook Idempotency Suite (`node scripts/test-webhook-idempotency.mjs`)
+Validates that repeat webhook deliveries with the same `event.id` trigger deduplication in `public.stripe_webhook_events` and return `200 OK` without duplicating side effects.
 
 ---
 

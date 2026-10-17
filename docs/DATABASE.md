@@ -24,6 +24,12 @@ erDiagram
     scans ||--o| storage_reports : "persists PDF (1:1)"
     ai_fix_cache ||--o{ violations : "remediates"
 
+    stripe_webhook_events {
+        text id PK "Stripe event id (e.g. evt_...)"
+        text event_type "e.g. checkout.session.completed"
+        timestamptz processed_at "default now()"
+    }
+
     monitors {
         uuid id PK "default gen_random_uuid()"
         uuid user_id FK "references profiles.id"
@@ -271,6 +277,17 @@ create table public.monitors (
 );
 ```
 
+### 9. `public.stripe_webhook_events`
+Stores processed Stripe webhook event IDs to guarantee idempotent webhook processing and eliminate race conditions or replay attacks.
+
+```sql
+create table public.stripe_webhook_events (
+  id text primary key,
+  event_type text not null,
+  processed_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+```
+
 ---
 
 ## 03 Row Level Security (RLS) Policies
@@ -380,6 +397,41 @@ create policy "Users can insert own monitors" on public.monitors for insert with
 create policy "Users can update own monitors" on public.monitors for update using (auth.uid() = user_id);
 create policy "Users can delete own monitors" on public.monitors for delete using (auth.uid() = user_id);
 create policy "Service role has full access to monitors" on public.monitors for all using (true) with check (true);
+
+-- Stripe Webhook Events
+alter table public.stripe_webhook_events enable row level security;
+-- Service role client bypasses RLS; anon/authenticated roles have zero read/write access.
+
+-- Recursion-Free Helper Functions (Security Definer)
+-- Used by Teams, Team Members, Scans, and Monitors policies to prevent cyclic infinite recursion
+create or replace function public.is_team_member(_team_id uuid, _user_id uuid)
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select exists (
+    select 1 from public.team_members
+    where team_id = _team_id
+      and user_id = _user_id
+      and status = 'active'
+  );
+$$;
+
+create or replace function public.is_team_owner(_team_id uuid, _user_id uuid)
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select exists (
+    select 1 from public.teams
+    where id = _team_id
+      and owner_id = _user_id
+  );
+$$;
 ```
 
 ---
@@ -421,6 +473,9 @@ alter publication supabase_realtime add table public.scans;
 -- High-performance cron lookup for due monitors
 create index idx_monitors_due on public.monitors (status, next_run_at) where status = 'active';
 create index idx_monitors_user on public.monitors (user_id, created_at desc);
+
+-- Fast lookup and retention pruning for Stripe webhook idempotency
+create index if not exists idx_stripe_webhook_events_processed_at on public.stripe_webhook_events (processed_at desc);
 ```
 
 ---
@@ -436,4 +491,9 @@ create index idx_monitors_user on public.monitors (user_id, created_at desc);
 * `20260613000000_team_access.sql`: Created `teams` and `team_members` tables, added `team_id` to `scans`, and configured multi-user seat RLS policies.
 * `20260614000000_white_label_branding.sql`: Added `brand_name`, `brand_logo_url`, `brand_primary_color`, `brand_tagline`, `brand_footer_text`, and `brand_hide_watermark` columns to `public.teams`.
 * `20260615000000_scheduled_monitors.sql`: Created `monitors` table with RLS, performance indexes, and foreign keys for automated recurring audits.
+* `20260616000000_fix_rls_recursion.sql`: Security definer functions (`is_team_member`, `is_team_owner`) eliminating cyclic RLS recursion between `teams`, `team_members`, `scans`, and `monitors`.
+* `20260617000000_stripe_webhook_events.sql`: Idempotency table for Stripe webhook events preventing duplicate processing and race conditions.
+* `combined_pending_migrations.sql`: Master consolidated migration script combining all pending schema, RLS, and security updates for single-step database deployment.
+* `phase2_cloud_verification.sql`: Verification script ensuring RLS is enabled and operational across all 9 public tables (`ai_fix_cache`, `api_keys`, `monitors`, `profiles`, `scans`, `stripe_webhook_events`, `team_members`, `teams`, `violations`).
+
 
