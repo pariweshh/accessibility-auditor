@@ -9,7 +9,8 @@
     "start": "next start",
     "lint": "eslint",
     "test": "npm run test:a11y",
-    "test:a11y": "node scripts/self-a11y-audit.mjs"
+    "test:a11y": "node scripts/self-a11y-audit.mjs",
+    "test:tiers": "node scripts/tier-live-test.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.0",

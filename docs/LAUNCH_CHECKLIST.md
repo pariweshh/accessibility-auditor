@@ -6,6 +6,41 @@
 
 ---
 
+## Phase 0: Tier-by-Tier Live Feature & E2E Verification (Free -> Pro -> Agency)
+*Rigorous end-to-end verification ensuring all features, gates, models, and quotas operate strictly as intended across Free, Pro, and Agency tiers before cloud deployment.*
+
+- [x] **Pricing Card Parity Alignment ([`components/pricing_section.tsx`](../components/pricing_section.tsx))**
+  - Added *"Everything in Free Plan"* bullet to the Pro card, creating uniform parity with the Agency card's *"Everything in Pro Plan"*.
+- [x] **Free Tier Live Functional & Lock Verification**
+  - [x] Monthly scan quota strictly capped at 5 scans.
+  - [x] AI code remediations restricted to `gpt-4o-mini` with `framework="html"` only; advanced frameworks gated.
+  - [x] Executive PDF export (`POST /api/reports/pdf`) returns HTTP 403 Forbidden (`tier: "free"`).
+  - [x] Dynamic SVG compliance badge (`GET /api/badge/[scanId]`) returns HTTP 403 / "Pro Badge Required".
+  - [x] Public embed widget (`GET /api/widget/[scanId]`) returns HTTP 403 Forbidden with upgrade prompt.
+  - [x] Scheduled monitors (`/api/monitors`) and API key provisioning (`/api/keys`) return HTTP 403.
+  - [x] Team collaboration (`/api/team`) and white-labeling features locked.
+- [x] **Pro Tier Live Functional & Gate Verification ($19/mo)**
+  - [x] Monthly scan quota expanded to 150 scans.
+  - [x] Premium AI remediation model (`gpt-4o`) unlocked for `HTML`, `React / Tailwind`, `Vue 3`, and `Angular`.
+  - [x] Executive PDF report with WCAG 2.2 POUR Matrix successfully generated and downloaded (`application/pdf`).
+  - [x] Live SVG compliance badge (`GET /api/badge/[scanId]`) active, returning `WCAG 2.2 AA · Equivance`.
+  - [x] Embeddable public widget (`GET /api/widget/[scanId]`) active with public verification link.
+  - [ ] Scheduled monitors active with allowance up to 3 active production monitors (pending Supabase migration).
+  - [x] Developer API keys (`POST /api/keys`) provisioned; CI/CD scan dispatch & polling (`GET /api/scan`) operational.
+  - [x] Agency perks locked: team member invites and white-label custom branding return HTTP 403.
+- [ ] **Agency Tier Live Functional & White-Label Verification ($59/mo)** *(Pending execution of `supabase/migrations/combined_pending_migrations.sql` in Supabase Cloud)*
+  - [ ] Monthly scan quota expanded to 600 pooled scans.
+  - [ ] Scheduled monitors expanded to 10 pooled active monitors.
+  - [ ] Team workspace auto-provisioning and 3-seat invitation flow operational (`POST /api/team/invite`).
+  - [ ] Teammate onboarding via secure token (`POST /api/team/accept`); tier privileges inherited (`resolveEffectiveTier`).
+  - [ ] Teammate audits tag `scans.team_id` and render with team attribution badge.
+  - [ ] White-Label Custom Branding Studio (`POST /api/team/branding`): custom logo, hex palette, tagline, footer text.
+  - [ ] White-label watermark removal: "Powered by Equivance" watermark completely removed across web reports, PDFs, SVG badges, and embed widgets.
+- [x] **Automated Multi-Tier Test Suite (`npm run test:tiers`)**
+  - Implemented in [`scripts/tier-live-test.mjs`](../scripts/tier-live-test.mjs) with `--tier`, `--live-web`, and `--mock-stripe` flags, generating JSON and Markdown test reports in `test-results/`. Zero regressions across all active tiers.
+
+---
+
 ## Phase 1: Critical Codebase & Security Fixes (Discovered in Audit)
 *These are concrete gaps between the authoritative documentation (`docs/*.md`) and the live implementation that must be resolved before taking public traffic or payments.*
 

@@ -40,7 +40,7 @@ export default async function DashboardPage() {
   const scanLimit = isPaid ? 200 : 1
   let scansQuery = supabase
     .from("scans")
-    .select("id, user_id, team_id, url, status, violations, passes, summary, result, error_message, created_at, pdf_url")
+    .select("*")
 
   if (activeTeamId) {
     scansQuery = scansQuery.or(`user_id.eq.${user.id},team_id.eq.${activeTeamId}`)

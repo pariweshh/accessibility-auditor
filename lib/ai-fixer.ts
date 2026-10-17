@@ -89,7 +89,7 @@ ${originalCode || "No HTML available"}
 
 Failure Summary: ${issue.nodes[0]?.failureSummary || "No summary available"}
 
-WCAG Tags: ${issue.tags.join(", ")}
+WCAG Tags: ${Array.isArray(issue.tags) ? issue.tags.join(", ") : "general"}
 
 Provide:
 1. The corrected code snippet in ${fwConfig.label}

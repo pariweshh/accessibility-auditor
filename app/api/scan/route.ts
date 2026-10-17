@@ -203,14 +203,18 @@ export async function POST(request: NextRequest) {
 
     // ── Insert pending scan record ──────────────────────────────────────────
     // Use activeDbClient so that if auth is via API Key, we use adminSupabase to bypass RLS
+    const scanInsertPayload: Record<string, any> = {
+      user_id: userId,
+      url,
+      status: "pending",
+    }
+    if (quota.teamId) {
+      scanInsertPayload.team_id = quota.teamId
+    }
+
     const { data: scan, error: insertError } = await activeDbClient
       .from("scans")
-      .insert({
-        user_id: userId,
-        team_id: quota.teamId ?? null,
-        url,
-        status: "pending",
-      })
+      .insert(scanInsertPayload)
       .select("id")
       .single()
 

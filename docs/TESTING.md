@@ -206,7 +206,34 @@ npm run build
 
 # 5. Automated Dogfooding Accessibility Audit (axe-core on Chrome)
 npm run test:a11y
+
+# 6. Tier-by-Tier Live Feature & E2E Verification (Free -> Pro -> Agency)
+npm run test:tiers
+npm run test:tiers -- --tier=pro
+npm run test:tiers -- --live-web
 ```
+
+---
+
+## 06 Tier-by-Tier Live Feature & E2E Verification (`npm run test:tiers`)
+
+The platform includes a dedicated multi-tier test harness ([`scripts/tier-live-test.mjs`](../scripts/tier-live-test.mjs)) that validates feature gates, quotas, AI remediation models, PDF generation, dynamic badges, embed widgets, monitors, multi-user seats, and white-labeling across Free, Pro, and Agency tiers.
+
+### CLI Options
+* `npm run test:tiers` — Executes the complete multi-tier test suite across all three tiers.
+* `npm run test:tiers -- --tier=free` — Executes assertions specific to the Free tier.
+* `npm run test:tiers -- --tier=pro` — Executes assertions specific to the Pro tier.
+* `npm run test:tiers -- --tier=agency` — Executes assertions specific to the Agency tier.
+* `npm run test:tiers -- --live-web` — Runs live scans against external targets rather than internal fixtures.
+* `npm run test:tiers -- --mock-stripe` — Executes tier transitions directly via database profiles rather than Stripe test mode.
+
+### Generated Test Artifacts
+* `test-results/tier-live-test-report.json`: Machine-readable execution logs and assertion statuses.
+* `test-results/tier-live-test-report.md`: Human-readable summary table of tier-by-tier conformance.
+
+---
+
+## 07 CI/CD Automation & Quality Gates
 
 ### GitHub Actions CI Workflow (`.github/workflows/ci.yml`)
 
@@ -259,11 +286,13 @@ jobs:
 
 ---
 
-## 07 Pre-Deployment QA Checklist
+## 08 Pre-Deployment QA Checklist
 
 Before merging a release branch to `main`:
 
 - [x] `npx tsc --noEmit` passes with 0 errors.
+- [x] `npm run test:a11y` passes with 0 violations across all 5 audited routes.
+- [x] Tier-by-tier verification `npm run test:tiers` passes for Free, Pro, and Agency tiers.
 - [x] `npm run build` generates all static and dynamic routes cleanly.
 - [x] SSRF guardrails block cloud metadata (`169.254.169.254`, `metadata.google.internal`), link-local IPs, and invalid protocols (`file:`, `ftp:`).
 - [x] Safe redirect utility prevents protocol-relative open redirects (`//evil.com`) across `/auth/callback`, `/login`, and `/auth/join`.

@@ -101,7 +101,7 @@ export async function GET(
 
     const { data: scan, error } = await db
       .from("scans")
-      .select("id, user_id, team_id, url, status, score, result, created_at")
+      .select("*")
       .eq("id", scanId)
       .maybeSingle()
 
