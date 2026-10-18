@@ -13,7 +13,7 @@ function getAdminSupabase() {
 
 export async function GET() {
   const startTime = Date.now()
-  const checks: Record<string, any> = {}
+  const checks: Record<string, { status: string; latencyMs?: number }> = {}
   let isHealthy = true
 
   // 1. Supabase PostgreSQL Connectivity Check
@@ -21,7 +21,6 @@ export async function GET() {
   if (!adminSupabase) {
     checks.database = {
       status: "degraded",
-      message: "Supabase credentials not configured in environment",
     }
     isHealthy = false
   } else {
@@ -35,9 +34,9 @@ export async function GET() {
       const latencyMs = Date.now() - dbStart
 
       if (error) {
+        console.error("Health check database error:", error)
         checks.database = {
           status: "degraded",
-          error: error.message,
           latencyMs,
         }
         isHealthy = false
@@ -47,21 +46,19 @@ export async function GET() {
           latencyMs,
         }
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
+      console.error("Health check database exception:", err)
       checks.database = {
         status: "disconnected",
-        error: err?.message || "Unknown database exception",
       }
       isHealthy = false
     }
   }
 
-  // 2. Service Runtime Metrics
+  // 2. Service Health Status
   const responsePayload = {
     status: isHealthy ? "healthy" : "degraded",
     timestamp: new Date().toISOString(),
-    uptimeSeconds: Math.floor(process.uptime()),
-    environment: process.env.NODE_ENV || "development",
     latencyMs: Date.now() - startTime,
     checks,
   }

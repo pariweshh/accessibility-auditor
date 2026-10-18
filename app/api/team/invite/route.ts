@@ -3,9 +3,37 @@ import { createClient } from "@/lib/supabase/server"
 import { createClient as createAdminClient } from "@supabase/supabase-js"
 import { Resend } from "resend"
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit"
+import { escapeHtml } from "@/lib/report-template"
+import { SITE } from "@/lib/site"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+function isSubscriptionActive(status: string | null | undefined): boolean {
+  if (!status) return true
+  return status === "active" || status === "trialing"
+}
+
+function getTrustedOrigin(request: NextRequest): string {
+  const configured = SITE.url?.replace(/\/$/, "")
+  if (process.env.NODE_ENV === "production" && configured) {
+    return configured
+  }
+  try {
+    const reqOrigin = new URL(request.url).origin
+    if (
+      reqOrigin.startsWith("http://localhost:") ||
+      reqOrigin.startsWith("http://127.0.0.1:")
+    ) {
+      return reqOrigin
+    }
+  } catch {
+    // ignore
+  }
+  return configured || "http://localhost:3000"
+}
 
 function getAdminClient() {
   return createAdminClient(
@@ -27,11 +55,19 @@ export async function POST(request: NextRequest) {
 
     const { email } = await request.json()
 
-    if (!email || typeof email !== "string" || !email.includes("@")) {
+    if (!email || typeof email !== "string") {
       return NextResponse.json({ error: "A valid email address is required" }, { status: 400 })
     }
 
     const targetEmail = email.trim().toLowerCase()
+    if (
+      targetEmail.length === 0 ||
+      targetEmail.length > 254 ||
+      !EMAIL_REGEX.test(targetEmail) ||
+      /[\r\n]/.test(targetEmail)
+    ) {
+      return NextResponse.json({ error: "A valid email address is required" }, { status: 400 })
+    }
 
     if (targetEmail === user.email?.toLowerCase()) {
       return NextResponse.json(
@@ -89,11 +125,14 @@ export async function POST(request: NextRequest) {
     // 1. Always verify the inviter currently holds an active Agency subscription
     const { data: profile } = await supabase
       .from("profiles")
-      .select("subscription_tier")
+      .select("subscription_tier, subscription_status")
       .eq("id", user.id)
       .single()
 
-    if (profile?.subscription_tier !== "agency") {
+    if (
+      profile?.subscription_tier !== "agency" ||
+      !isSubscriptionActive(profile?.subscription_status)
+    ) {
       return NextResponse.json(
         { error: "Team Access is exclusively available on an active Agency plan" },
         { status: 403 }
@@ -190,16 +229,22 @@ export async function POST(request: NextRequest) {
     }
 
     // 5. Build invite URL and dispatch email
-    const origin = new URL(request.url).origin
-    const inviteUrl = `${origin}/auth/join?token=${inviteToken}`
+    const origin = getTrustedOrigin(request)
+    const inviteUrl = `${origin}/auth/join?token=${encodeURIComponent(inviteToken)}`
+    const safeInviteUrl = escapeHtml(inviteUrl)
+    const safeTeamName = escapeHtml(team.name || "Agency Team")
+    const safeInviterEmail = escapeHtml(user.email || "A team administrator")
+    const safeSubjectTeamName = (team.name || "Agency Team").replace(/[\r\n]+/g, " ").slice(0, 80)
 
     const resendKey = process.env.RESEND_API_KEY
     if (!resendKey || resendKey.startsWith("re_xxxx")) {
-      console.log("----------------------------------------")
-      console.log("RESEND TEAM INVITATION FALLBACK (DEV MODE)")
-      console.log(`Team invite sent to ${targetEmail} for ${team.name}:`)
-      console.log(inviteUrl)
-      console.log("----------------------------------------")
+      if (process.env.NODE_ENV !== "production") {
+        console.log("----------------------------------------")
+        console.log("RESEND TEAM INVITATION FALLBACK (DEV MODE)")
+        console.log(`Team invite sent to ${targetEmail} for ${team.name}:`)
+        console.log(inviteUrl)
+        console.log("----------------------------------------")
+      }
 
       return NextResponse.json({
         success: true,
@@ -219,7 +264,7 @@ export async function POST(request: NextRequest) {
       await resend.emails.send({
         from: emailFrom,
         to: targetEmail,
-        subject: `You've been invited to join ${team.name} on Equivance`,
+        subject: `You've been invited to join ${safeSubjectTeamName} on Equivance`,
         html: `
           <!DOCTYPE html>
           <html>
@@ -243,26 +288,26 @@ export async function POST(request: NextRequest) {
           <body>
             <div class="container">
               <div class="logo">
-                <img src="${origin}/logo.png" width="32" height="32" style="vertical-align: middle; border-radius: 8px; margin-right: 8px;" alt="Equivance" />
+                <img src="${escapeHtml(origin)}/logo.png" width="32" height="32" style="vertical-align: middle; border-radius: 8px; margin-right: 8px;" alt="Equivance" />
                 <span>Equivance</span>
               </div>
               <h1>You're invited to collaborate</h1>
               <p>
-                <strong>${user.email}</strong> has invited you to join <strong>${team.name}</strong> on Equivance with full agency member privileges.
+                <strong>${safeInviterEmail}</strong> has invited you to join <strong>${safeTeamName}</strong> on Equivance with full agency member privileges.
               </p>
               <div class="perks">
                 <ul>
                   <li>Shared team quota pool (600 scans/month)</li>
                   <li>Automated WCAG 2.1 AA/AAA compliance audits</li>
-                  <li>Executive PDF reporting & AI code remediation</li>
+                  <li>Executive PDF reporting &amp; AI code remediation</li>
                 </ul>
               </div>
               <div class="btn-container">
-                <a href="${inviteUrl}" class="btn">Accept Invitation & Join Team</a>
+                <a href="${safeInviteUrl}" class="btn">Accept Invitation &amp; Join Team</a>
               </div>
               <p style="font-size: 12px; color: #64748b;">
                 Or copy and paste this link in your browser:<br/>
-                <a href="${inviteUrl}" style="color: #6366f1; word-break: break-all;">${inviteUrl}</a>
+                <a href="${safeInviteUrl}" style="color: #6366f1; word-break: break-all;">${safeInviteUrl}</a>
               </p>
               <div class="footer">
                 If you weren't expecting this invitation, you can safely ignore this email.
@@ -285,7 +330,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("POST /api/team/invite error:", error)
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to process invitation" },
+      { error: "Failed to process invitation" },
       { status: 500 }
     )
   }

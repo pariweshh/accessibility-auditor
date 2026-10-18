@@ -6,6 +6,43 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 }
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const VALID_IMPACTS = new Set(["minor", "moderate", "serious", "critical"])
+
+// ─── Constant-time string comparison ──────────────────────────────────────────
+function timingSafeEqualStr(a: string, b: string): boolean {
+  const enc = new TextEncoder()
+  const aBytes = enc.encode(a)
+  const bBytes = enc.encode(b)
+  if (aBytes.length !== bBytes.length) return false
+  let diff = 0
+  for (let i = 0; i < aBytes.length; i++) {
+    diff |= aBytes[i] ^ bBytes[i]
+  }
+  return diff === 0
+}
+
+// ─── Verify caller is authenticated with service_role ─────────────────────────
+function isAuthorizedServiceCall(req: Request): boolean {
+  const authHeader = req.headers.get("authorization") || ""
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")
+  if (serviceKey && timingSafeEqualStr(authHeader, `Bearer ${serviceKey}`)) {
+    return true
+  }
+  // Fallback: inspect JWT payload role claim if Supabase Edge runtime swapped key
+  const token = authHeader.replace(/^Bearer\s+/i, "").trim()
+  if (token.split(".").length === 3) {
+    try {
+      const payloadJson = atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/"))
+      const payload = JSON.parse(payloadJson)
+      if (payload?.role === "service_role") return true
+    } catch {
+      // ignore malformed JWT
+    }
+  }
+  return false
+}
+
 // ─── Supabase admin client (uses service role key injected by Supabase) ───────
 function getSupabaseAdmin() {
   const url = Deno.env.get("SUPABASE_URL")!
@@ -21,7 +58,7 @@ async function updateScan(supabase: any, scanId: string, data: Record<string, an
 
 // ─── SSRF Guard & Canonical IP Normalizer ────────────────────────────────────
 function parseCanonicalIpv4(host: string): string | null {
-  const clean = host.trim().toLowerCase().replace(/^\[|\]$/g, "")
+  const clean = host.trim().toLowerCase().replace(/^\[|\]$/g, "").replace(/\.+$/, "")
   if (!clean || clean.includes(":") || clean.includes("/") || clean.includes(" ")) {
     return null
   }
@@ -79,11 +116,22 @@ function parseCanonicalIpv4(host: string): string | null {
 }
 
 function isRestrictedIpAddress(ip: string): boolean {
-  const cleanIp = ip.replace(/^\[|\]$/g, "").toLowerCase()
+  let cleanIp = ip.trim().replace(/^\[|\]$/g, "").replace(/\.+$/, "").toLowerCase()
 
-  // Handle IPv4-mapped IPv6 addresses (e.g. ::ffff:127.0.0.1, ::ffff:2130706433, ::ffff:a9fe:a9fe)
-  if (cleanIp.startsWith("::ffff:")) {
-    const mappedPart = cleanIp.slice(7)
+  // Normalize IPv6 via WHATWG URL parser if it contains colons
+  if (cleanIp.includes(":")) {
+    try {
+      const normalized = new URL(`http://[${cleanIp}]/`).hostname
+      cleanIp = normalized.replace(/^\[|\]$/g, "").toLowerCase()
+    } catch {
+      // keep cleanIp as-is
+    }
+  }
+
+  // Handle IPv4-mapped IPv6 addresses (e.g. ::ffff:127.0.0.1, ::ffff:a9fe:a9fe, 0:0:0:0:0:ffff:...)
+  const mappedPrefixMatch = cleanIp.match(/^(?:::ffff:|(?:0+:){5}ffff:)(.+)$/)
+  if (mappedPrefixMatch) {
+    const mappedPart = mappedPrefixMatch[1]
     const canonical = parseCanonicalIpv4(mappedPart)
     if (canonical) {
       return isRestrictedIpAddress(canonical)
@@ -100,7 +148,7 @@ function isRestrictedIpAddress(ip: string): boolean {
   const canonicalIpv4 = parseCanonicalIpv4(cleanIp)
   if (canonicalIpv4) {
     const parts = canonicalIpv4.split(".").map((n) => parseInt(n, 10))
-    const [a, b] = parts
+    const [a, b, c] = parts
 
     // Loopback (127.0.0.0/8), unspecified (0.0.0.0/8), link-local/IMDS (169.254.0.0/16)
     if (a === 127 || a === 0 || (a === 169 && b === 254)) {
@@ -112,7 +160,17 @@ function isRestrictedIpAddress(ip: string): boolean {
       return true
     }
 
-    // RFC 1918 private IPs & CGNAT (100.64.0.0/10)
+    // IETF Protocol Assignments (192.0.0.0/24 - Oracle IMDS), TEST-NETs, Benchmarking (198.18.0.0/15)
+    if (
+      (a === 192 && b === 0 && (c === 0 || c === 2)) ||
+      (a === 198 && (b === 18 || b === 19)) ||
+      (a === 198 && b === 51 && c === 100) ||
+      (a === 203 && b === 0 && c === 113)
+    ) {
+      return true
+    }
+
+    // RFC 1918 private IPs & CGNAT / Alibaba IMDS (100.64.0.0/10)
     if (
       a === 10 ||
       (a === 172 && b >= 16 && b <= 31) ||
@@ -125,7 +183,8 @@ function isRestrictedIpAddress(ip: string): boolean {
     return false
   }
 
-  // IPv6 checks
+  // IPv6 checks (loopback, unspecified, link-local fe80::/10, ULA fc00::/7, multicast ff00::/8,
+  // NAT64 64:ff9b::/96, 6to4 2002::/16, Teredo 2001:0::/32, Doc 2001:db8::/32, Discard 100::/64)
   if (
     cleanIp === "::1" ||
     cleanIp === "::" ||
@@ -137,13 +196,38 @@ function isRestrictedIpAddress(ip: string): boolean {
     cleanIp.startsWith("feb") ||
     cleanIp.startsWith("fc") ||
     cleanIp.startsWith("fd") ||
-    cleanIp.startsWith("ff")
+    cleanIp.startsWith("ff") ||
+    cleanIp.startsWith("64:ff9b:") ||
+    cleanIp.startsWith("2002:") ||
+    cleanIp.startsWith("2001:0:") ||
+    cleanIp.startsWith("2001:0000:") ||
+    cleanIp.startsWith("2001:db8:") ||
+    cleanIp.startsWith("2001:2:") ||
+    cleanIp.startsWith("100::") ||
+    cleanIp.startsWith("100:0:")
   ) {
     return true
   }
 
   return false
 }
+
+const BLOCKED_SUFFIXES = [
+  ".local",
+  ".internal",
+  ".localhost",
+  ".lan",
+  ".home",
+  ".corp",
+  ".intranet",
+  ".nip.io",
+  ".sslip.io",
+  ".xip.io",
+  ".traefik.me",
+  ".localtest.me",
+  ".lvh.me",
+  ".vcap.me",
+]
 
 function isBlockedTargetUrl(rawUrl: string): boolean {
   try {
@@ -160,7 +244,8 @@ function isBlockedTargetUrl(rawUrl: string): boolean {
       return true
     }
 
-    const host = parsed.hostname.toLowerCase().replace(/^\[|\]$/g, "")
+    const host = parsed.hostname.toLowerCase().replace(/^\[|\]$/g, "").replace(/\.+$/, "")
+    if (!host) return true
 
     // Exact names & cloud metadata
     if (
@@ -169,15 +254,15 @@ function isBlockedTargetUrl(rawUrl: string): boolean {
       host === "::1" ||
       host === "::" ||
       host === "169.254.169.254" ||
+      host === "100.100.100.200" ||
+      host === "192.0.0.192" ||
       host === "metadata.google.internal" ||
       host === "metadata.google" ||
+      host === "metadata" ||
       host === "instance-data" ||
-      host.endsWith(".local") ||
-      host.endsWith(".internal") ||
-      host.endsWith(".localhost") ||
-      host.endsWith(".nip.io") ||
-      host.endsWith(".sslip.io") ||
-      host.endsWith(".xip.io")
+      host === "kubernetes.default" ||
+      host === "kubernetes.default.svc" ||
+      BLOCKED_SUFFIXES.some((s) => host.endsWith(s))
     ) {
       return true
     }
@@ -199,10 +284,56 @@ function isBlockedTargetUrl(rawUrl: string): boolean {
   }
 }
 
+async function resolveAndVerifyHostDns(rawUrl: string): Promise<boolean> {
+  if (isBlockedTargetUrl(rawUrl)) return true
+  try {
+    const parsed = new URL(rawUrl)
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return false
+    const host = parsed.hostname.toLowerCase().replace(/^\[|\]$/g, "").replace(/\.+$/, "")
+    // If already an IP literal, isBlockedTargetUrl already verified it
+    if (parseCanonicalIpv4(host) || host.includes(":")) return false
+
+    const resolvedIps: string[] = []
+    try {
+      const aRecords = await Deno.resolveDns(host, "A")
+      resolvedIps.push(...aRecords)
+    } catch {
+      // ignore if no A record
+    }
+    try {
+      const aaaaRecords = await Deno.resolveDns(host, "AAAA")
+      resolvedIps.push(...aaaaRecords)
+    } catch {
+      // ignore if no AAAA record
+    }
+
+    if (resolvedIps.length === 0) {
+      return true // Fail closed if domain does not resolve to any A/AAAA record
+    }
+
+    for (const ip of resolvedIps) {
+      if (isRestrictedIpAddress(ip)) {
+        return true
+      }
+    }
+    return false
+  } catch {
+    return true
+  }
+}
+
 // ─── Main handler ──────────────────────────────────────────────────────────────
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders })
+  }
+
+  // Enforce service_role authentication on Edge Function invocations
+  if (!isAuthorizedServiceCall(req)) {
+    return new Response(JSON.stringify({ error: "Unauthorized edge function invocation" }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    })
   }
 
   const supabase = getSupabaseAdmin()
@@ -210,17 +341,42 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json()
-    scanId = body.scanId
-    const { url } = body
+    scanId = typeof body?.scanId === "string" ? body.scanId.trim() : undefined
 
-    if (!scanId || !url) {
-      return new Response(JSON.stringify({ error: "scanId and url are required" }), {
+    if (!scanId || !UUID_REGEX.test(scanId)) {
+      return new Response(JSON.stringify({ error: "A valid UUID scanId is required" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       })
     }
 
-    if (isBlockedTargetUrl(url)) {
+    // Fetch authoritative scan record from database and verify it is pending
+    const { data: scanRow, error: scanFetchError } = await supabase
+      .from("scans")
+      .select("id, url, status")
+      .eq("id", scanId)
+      .single()
+
+    if (scanFetchError || !scanRow) {
+      return new Response(JSON.stringify({ error: "Scan record not found" }), {
+        status: 404,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      })
+    }
+
+    if (scanRow.status !== "pending") {
+      return new Response(
+        JSON.stringify({ error: `Scan ${scanId} is already ${scanRow.status}` }),
+        {
+          status: 409,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      )
+    }
+
+    const url: string = scanRow.url
+
+    if (await resolveAndVerifyHostDns(url)) {
       await updateScan(supabase, scanId, {
         status: "failed",
         error_message: "Blocked internal, local, or cloud infrastructure URL.",
@@ -231,8 +387,8 @@ Deno.serve(async (req) => {
       )
     }
 
-    // ─── Cleanup stale scans (> 3 minutes old) to prevent slot deadlocks ───
-    const staleCutoff = new Date(Date.now() - 3 * 60 * 1000).toISOString()
+    // ─── Cleanup stale scans (> 5 minutes old) to prevent slot deadlocks ───
+    const staleCutoff = new Date(Date.now() - 5 * 60 * 1000).toISOString()
     await supabase
       .from("scans")
       .update({
@@ -241,6 +397,7 @@ Deno.serve(async (req) => {
       })
       .in("status", ["pending", "processing"])
       .lt("created_at", staleCutoff)
+      .neq("id", scanId)
 
     // ─── Concurrency Control: Wait for slot if concurrency limit is reached ───
     const maxConcurrent = parseInt(Deno.env.get("MAX_CONCURRENT_SCANS") || "3", 10)
@@ -256,7 +413,7 @@ Deno.serve(async (req) => {
 
       if (countError) {
         console.error("Error checking active scans:", countError)
-        break // Fail open to not block scans if database is transiently failing
+        break
       }
 
       if (count === null || count < maxConcurrent) {
@@ -266,10 +423,6 @@ Deno.serve(async (req) => {
       console.log(`Scan ${scanId} waiting: ${count} scans currently processing (max: ${maxConcurrent})`)
       await new Promise((r) => setTimeout(r, checkInterval))
       waited += checkInterval
-    }
-
-    if (waited >= maxWaitTime) {
-      console.warn(`Scan ${scanId} waited too long (${maxWaitTime}ms) for a slot. Proceeding to prevent timeout.`)
     }
 
     // Mark as processing
@@ -286,13 +439,14 @@ Deno.serve(async (req) => {
     let page: any
     try {
       page = await browser.newPage()
+      await page.setBypassCSP(true)
       await page.setViewport({ width: 1920, height: 1080 })
 
-      // Intercept requests to block HTTP 302 redirects or sub-resources targeting private/metadata IPs
+      // Intercept requests (including redirects and sub-resources) to block SSRF
       await page.setRequestInterception(true)
-      page.on("request", (interceptedReq: any) => {
+      page.on("request", async (interceptedReq: any) => {
         const reqUrl = interceptedReq.url()
-        if (isBlockedTargetUrl(reqUrl)) {
+        if (await resolveAndVerifyHostDns(reqUrl)) {
           console.warn(`Blocked restricted sub-resource or redirect target: ${reqUrl}`)
           interceptedReq.abort("accessdenied").catch(() => {})
         } else {
@@ -300,13 +454,20 @@ Deno.serve(async (req) => {
         }
       })
 
-      // Inspect response redirect headers to defend against redirect-based SSRF
+      // Inspect response redirect headers (resolving relative URLs properly)
       page.on("response", (res: any) => {
         const status = res.status()
         if (status >= 300 && status < 400) {
           const location = res.headers()["location"]
-          if (location && isBlockedTargetUrl(location)) {
-            console.warn(`Redirect target blocked by SSRF policy: ${location}`)
+          if (location) {
+            try {
+              const resolvedRedirect = new URL(location, res.url()).toString()
+              if (isBlockedTargetUrl(resolvedRedirect)) {
+                console.warn(`Redirect target blocked by SSRF policy: ${resolvedRedirect}`)
+              }
+            } catch {
+              console.warn(`Malformed redirect location blocked: ${location}`)
+            }
           }
         }
       })
@@ -338,40 +499,71 @@ Deno.serve(async (req) => {
         return await axe.run()
       })
 
-      // ─── Process violations & incomplete results ──────────────────────────
-      // Both axe result sets share the same node shape, so map them the same way.
-      const mapIssue = (v: any) => ({
-        id: v.id,
-        impact: v.impact ?? "minor",
-        description: v.description,
-        help: v.help,
-        helpUrl: v.helpUrl,
-        tags: v.tags,
-        nodes: v.nodes.map((n: any) => ({
-          html: n.html,
-          target: n.target,
-          failureSummary: n.failureSummary ?? "",
-        })),
-      })
+      // ─── Sanitize & map violations + incomplete results ───────────────────
+      const sanitizeHelpUrl = (rawHelpUrl: unknown): string => {
+        if (typeof rawHelpUrl !== "string") return "https://dequeuniversity.com/rules/axe/"
+        try {
+          const parsed = new URL(rawHelpUrl)
+          if (parsed.protocol === "https:" || parsed.protocol === "http:") {
+            return parsed.toString()
+          }
+        } catch {
+          // ignore
+        }
+        return "https://dequeuniversity.com/rules/axe/"
+      }
 
-      const violations = axeResults.violations.map(mapIssue)
-      // "incomplete" = checks axe could not decide automatically; surfaced to
-      // the user as items needing manual review rather than discarded.
-      const incompleteItems = axeResults.incomplete.map(mapIssue)
+      const mapIssue = (v: any) => {
+        const rawImpact = typeof v?.impact === "string" ? v.impact.toLowerCase() : "minor"
+        const impact = VALID_IMPACTS.has(rawImpact) ? rawImpact : "minor"
+        const nodes = Array.isArray(v?.nodes) ? v.nodes.slice(0, 50) : []
+        return {
+          id: String(v?.id || "unknown-rule").slice(0, 120),
+          impact,
+          description: String(v?.description || "").slice(0, 1000),
+          help: String(v?.help || "").slice(0, 500),
+          helpUrl: sanitizeHelpUrl(v?.helpUrl),
+          tags: Array.isArray(v?.tags)
+            ? v.tags.slice(0, 30).map((t: unknown) => String(t).slice(0, 64))
+            : [],
+          nodes: nodes.map((n: any) => ({
+            html: String(n?.html || "").slice(0, 4000),
+            target: Array.isArray(n?.target)
+              ? n.target.slice(0, 10).map((t: unknown) => String(t).slice(0, 250))
+              : [],
+            failureSummary: String(n?.failureSummary || "").slice(0, 1500),
+          })),
+        }
+      }
+
+      const rawViolations = Array.isArray(axeResults?.violations)
+        ? axeResults.violations.slice(0, 200)
+        : []
+      const rawIncomplete = Array.isArray(axeResults?.incomplete)
+        ? axeResults.incomplete.slice(0, 200)
+        : []
+      const passesCount = Array.isArray(axeResults?.passes) ? axeResults.passes.length : 0
+
+      const violations = rawViolations.map(mapIssue)
+      const incompleteItems = rawIncomplete.map(mapIssue)
+
+      const totalChecks = passesCount + violations.length
+      const passRate = totalChecks > 0 ? Math.round((passesCount / totalChecks) * 100) : 100
 
       const summary = {
         critical: violations.filter((v: any) => v.impact === "critical").length,
-        serious:  violations.filter((v: any) => v.impact === "serious").length,
+        serious: violations.filter((v: any) => v.impact === "serious").length,
         moderate: violations.filter((v: any) => v.impact === "moderate").length,
-        minor:    violations.filter((v: any) => v.impact === "minor").length,
+        minor: violations.filter((v: any) => v.impact === "minor").length,
+        passRate,
       }
 
       const scanResult = {
         url,
         timestamp: new Date().toISOString(),
         violations,
-        passes: axeResults.passes.length,
-        incomplete: axeResults.incomplete.length,
+        passes: passesCount,
+        incomplete: incompleteItems.length,
         incompleteItems,
         summary,
       }
@@ -379,8 +571,9 @@ Deno.serve(async (req) => {
       // ─── Save results & mark completed ───────────────────────────────────
       await updateScan(supabase, scanId, {
         status: "completed",
+        score: passRate,
         violations: violations.length,
-        passes: axeResults.passes.length,
+        passes: passesCount,
         summary,
         result: scanResult,
       })
@@ -420,18 +613,16 @@ Deno.serve(async (req) => {
     const message = error instanceof Error ? error.message : "Unknown error"
     console.error(`Scan ${scanId} failed:`, message)
 
-    // Mark scan as failed in DB so the frontend can surface the error
     if (scanId) {
       await updateScan(supabase, scanId, {
         status: "failed",
-        error_message: message,
+        error_message: "Scan execution failed or timed out.",
       })
     }
 
-    return new Response(JSON.stringify({ error: message }), {
+    return new Response(JSON.stringify({ error: "Scan execution failed" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     })
   }
 })
-

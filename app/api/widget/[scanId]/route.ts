@@ -99,7 +99,7 @@ export async function GET(
 
     // Check for Agency white-label branding
     const branding = {
-      name: SITE.name,
+      name: SITE.name as string,
       logo: null as string | null,
       color: "#4f46e5",
       tagline: "WCAG 2.2 Level AA Verified",
@@ -108,15 +108,32 @@ export async function GET(
     }
 
     if (tier === "agency" && scan.user_id) {
-      const { data: team } = await db
-        .from("teams")
-        .select("brand_name, brand_logo_url, brand_primary_color, brand_tagline, brand_footer_text, brand_hide_watermark")
-        .or(
-          `owner_id.eq.${scan.user_id},id.eq.${
-            activeTeamId || scan.team_id || "00000000-0000-0000-0000-000000000000"
-          }`
-        )
-        .maybeSingle()
+      const targetTeamId = activeTeamId || scan.team_id
+      let team: {
+        brand_name?: string | null
+        brand_logo_url?: string | null
+        brand_primary_color?: string | null
+        brand_tagline?: string | null
+        brand_footer_text?: string | null
+        brand_hide_watermark?: boolean | null
+      } | null = null
+
+      if (targetTeamId && UUID_REGEX.test(targetTeamId)) {
+        const { data } = await db
+          .from("teams")
+          .select("brand_name, brand_logo_url, brand_primary_color, brand_tagline, brand_footer_text, brand_hide_watermark")
+          .eq("id", targetTeamId)
+          .maybeSingle()
+        team = data
+      }
+      if (!team && UUID_REGEX.test(scan.user_id)) {
+        const { data } = await db
+          .from("teams")
+          .select("brand_name, brand_logo_url, brand_primary_color, brand_tagline, brand_footer_text, brand_hide_watermark")
+          .eq("owner_id", scan.user_id)
+          .limit(1)
+        team = data?.[0] ?? null
+      }
 
       if (team?.brand_name?.trim()) {
         branding.name = team.brand_name.trim()
@@ -126,10 +143,20 @@ export async function GET(
         branding.whiteLabel = true
       }
       if (team?.brand_logo_url?.trim()) {
-        branding.logo = team.brand_logo_url.trim()
+        const rawLogo = team.brand_logo_url.trim()
+        if (
+          rawLogo.startsWith("https://") ||
+          rawLogo.startsWith("http://") ||
+          /^data:image\/(png|jpeg|jpg|webp|gif);base64,/i.test(rawLogo)
+        ) {
+          branding.logo = rawLogo
+        }
       }
-      if (team?.brand_primary_color && /^#[0-9a-fA-F]{3,6}$/.test(team.brand_primary_color)) {
-        branding.color = team.brand_primary_color
+      if (
+        team?.brand_primary_color &&
+        /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(team.brand_primary_color.trim())
+      ) {
+        branding.color = team.brand_primary_color.trim()
       }
       if (team?.brand_tagline?.trim()) {
         branding.tagline = team.brand_tagline.trim()
@@ -139,28 +166,42 @@ export async function GET(
       }
     }
 
-    const rawScore =
-      typeof scan.score === "number"
-        ? scan.score
-        : typeof scan.result?.summary?.passRate === "number"
-        ? scan.result.summary.passRate
-        : 0
-    const score = Math.max(0, Math.min(100, Math.round(rawScore)))
-
     const summary = scan.result?.summary || {
       critical: 0,
       serious: 0,
       moderate: 0,
       minor: 0,
     }
-    const passesCount = Array.isArray(scan.result?.passes) ? scan.result.passes.length : 0
+    const passesCount =
+      typeof scan.passes === "number"
+        ? scan.passes
+        : typeof scan.result?.passes === "number"
+        ? scan.result.passes
+        : Array.isArray(scan.result?.passes)
+        ? scan.result.passes.length
+        : 0
 
     // Categorize violations by WCAG 2.2 POUR principles
     const violations: Array<{ id: string; impact: string; tags?: string[] }> = Array.isArray(
       scan.result?.violations
     )
       ? scan.result.violations
+      : Array.isArray(scan.violations)
+      ? scan.violations
       : []
+
+    const computedScore =
+      passesCount + violations.length > 0
+        ? Math.round((passesCount / (passesCount + violations.length)) * 100)
+        : 100
+
+    const rawScore =
+      typeof scan.score === "number"
+        ? scan.score
+        : typeof scan.result?.summary?.passRate === "number"
+        ? scan.result.summary.passRate
+        : computedScore
+    const score = Math.max(0, Math.min(100, Math.round(rawScore)))
 
     const isPerceivable = (tags: string[] = []) =>
       tags.some(
@@ -226,10 +267,18 @@ export async function GET(
     const isSubstantiallyConformant = summary.critical === 0 && summary.serious === 0
     const conformance = isSubstantiallyConformant ? "Substantially Conformant" : "Partially Conformant"
 
+    let publicTargetUrl = scan.url
+    try {
+      const parsed = new URL(scan.url)
+      publicTargetUrl = `${parsed.origin}${parsed.pathname}`
+    } catch {
+      // keep fallback
+    }
+
     return NextResponse.json(
       {
         scanId: scan.id,
-        url: scan.url,
+        url: publicTargetUrl,
         score,
         auditDate: scan.created_at,
         conformance,

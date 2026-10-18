@@ -19,6 +19,44 @@ const IMPACT_BG: Record<string, string> = {
   minor:    "#eff6ff",
 }
 
+const HEX_COLOR_REGEX = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/
+const SAFE_DATA_IMAGE_REGEX = /^data:image\/(png|jpeg|jpg|webp|gif);base64,[A-Za-z0-9+/=]+$/
+
+function sanitizeHexColor(rawColor: string | null | undefined, fallback: string): string {
+  const trimmed = rawColor?.trim() || ""
+  return HEX_COLOR_REGEX.test(trimmed) ? trimmed : fallback
+}
+
+function sanitizeHttpUrl(rawUrl: string | null | undefined, fallback: string = "#"): string {
+  if (!rawUrl || typeof rawUrl !== "string") return fallback
+  try {
+    const parsed = new URL(rawUrl.trim())
+    if (parsed.protocol === "https:" || parsed.protocol === "http:") {
+      return parsed.toString()
+    }
+  } catch {
+    // ignore
+  }
+  return fallback
+}
+
+function sanitizeLogoUrl(rawLogo: string | null | undefined): string | null {
+  if (!rawLogo || typeof rawLogo !== "string") return null
+  const trimmed = rawLogo.trim()
+  if (SAFE_DATA_IMAGE_REGEX.test(trimmed)) {
+    return trimmed
+  }
+  try {
+    const parsed = new URL(trimmed)
+    if (parsed.protocol === "https:" || parsed.protocol === "http:") {
+      return parsed.toString()
+    }
+  } catch {
+    // ignore
+  }
+  return null
+}
+
 /**
  * Generates a self-contained HTML string for a scan report.
  * Supports White-Label custom branding for Agency tier.
@@ -35,8 +73,8 @@ export function generateReportHTML(
   if (!result) return "<html><body>No scan data available.</body></html>"
 
   const brandName = branding?.brandName?.trim() || "Equivance"
-  const brandLogoUrl = branding?.brandLogoUrl?.trim() || null
-  const primaryColor = branding?.brandPrimaryColor?.trim() || "#4f46e5"
+  const brandLogoUrl = sanitizeLogoUrl(branding?.brandLogoUrl)
+  const primaryColor = sanitizeHexColor(branding?.brandPrimaryColor, "#4f46e5")
   const tagline = branding?.brandTagline?.trim() || "Accessibility Audit Report"
   const footerText = branding?.brandFooterText?.trim() || null
   const hideWatermark = Boolean(branding?.brandHideWatermark)
@@ -48,18 +86,20 @@ export function generateReportHTML(
   const violationsHTML = result.violations.map((v, i) => `
     <div class="violation" style="margin-bottom:20px;padding:16px;border:1px solid #e2e8f0;border-left:4px solid ${IMPACT_COLORS[v.impact] ?? "#94a3b8"};border-radius:4px;background:${IMPACT_BG[v.impact] ?? "#f8fafc"}">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
-        <h3 style="margin:0;font-size:14px;font-weight:700;color:#1e293b">${i + 1}. ${escapeHtml(v.help)}</h3>
-        <span style="padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;text-transform:uppercase;background:${IMPACT_COLORS[v.impact] ?? "#94a3b8"};color:#fff;white-space:nowrap;margin-left:8px">${v.impact}</span>
+        <h3 style="margin:0;font-size:14px;font-weight:700;color:#1e293b">${i + 1}. ${escapeHtml(String(v.help || ""))}</h3>
+        <span style="padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;text-transform:uppercase;background:${IMPACT_COLORS[v.impact] ?? "#94a3b8"};color:#fff;white-space:nowrap;margin-left:8px">${escapeHtml(String(v.impact || "minor"))}</span>
       </div>
-      <p style="margin:0 0 8px;font-size:12px;color:#475569">${escapeHtml(v.description)}</p>
-      <p style="margin:0 0 8px;font-size:11px;color:#64748b">Rule: <code style="background:#f1f5f9;padding:1px 4px;border-radius:2px">${escapeHtml(v.id)}</code> · <a href="${escapeHtml(v.helpUrl)}" style="color:${primaryColor}">Learn more ↗</a></p>
-      ${v.nodes.slice(0, 3).map(node => `
+      <p style="margin:0 0 8px;font-size:12px;color:#475569">${escapeHtml(String(v.description || ""))}</p>
+      <p style="margin:0 0 8px;font-size:11px;color:#64748b">Rule: <code style="background:#f1f5f9;padding:1px 4px;border-radius:2px">${escapeHtml(String(v.id || ""))}</code> · <a href="${escapeHtml(sanitizeHttpUrl(v.helpUrl, "https://dequeuniversity.com/rules/axe/"))}" style="color:${primaryColor}">Learn more ↗</a></p>
+      ${(v.nodes || []).slice(0, 3).map(node => {
+        const nodeHtml = String(node?.html || "")
+        return `
         <div style="margin-top:8px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:4px;padding:8px;overflow:hidden">
           <p style="margin:0 0 4px;font-size:10px;font-weight:600;color:#64748b;text-transform:uppercase">Affected element</p>
-          <code style="font-size:11px;color:#0f172a;word-break:break-all;display:block;white-space:pre-wrap">${escapeHtml(node.html.slice(0, 300))}${node.html.length > 300 ? "…" : ""}</code>
+          <code style="font-size:11px;color:#0f172a;word-break:break-all;display:block;white-space:pre-wrap">${escapeHtml(nodeHtml.slice(0, 300))}${nodeHtml.length > 300 ? "…" : ""}</code>
         </div>
-      `).join("")}
-      ${v.nodes.length > 3 ? `<p style="font-size:11px;color:#94a3b8;margin:4px 0 0">+ ${v.nodes.length - 3} more element(s) affected</p>` : ""}
+      `}).join("")}
+      ${(v.nodes || []).length > 3 ? `<p style="font-size:11px;color:#94a3b8;margin:4px 0 0">+ ${(v.nodes || []).length - 3} more element(s) affected</p>` : ""}
     </div>
   `).join("")
 
@@ -163,11 +203,11 @@ export function generateReportHTML(
   const incompleteHTML = incompleteItems.map((v, i) => `
     <div style="margin-bottom:16px;padding:16px;border:1px solid #fde68a;border-left:4px solid #f59e0b;border-radius:4px;background:#fffbeb">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
-        <h3 style="margin:0;font-size:14px;font-weight:700;color:#1e293b">${i + 1}. ${escapeHtml(v.help)}</h3>
+        <h3 style="margin:0;font-size:14px;font-weight:700;color:#1e293b">${i + 1}. ${escapeHtml(String(v.help || ""))}</h3>
         <span style="padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;text-transform:uppercase;background:#f59e0b;color:#fff;white-space:nowrap;margin-left:8px">Review</span>
       </div>
-      <p style="margin:0 0 8px;font-size:12px;color:#475569">${escapeHtml(v.description)}</p>
-      <p style="margin:0;font-size:11px;color:#64748b">Rule: <code style="background:#f1f5f9;padding:1px 4px;border-radius:2px">${escapeHtml(v.id)}</code> · <a href="${escapeHtml(v.helpUrl)}" style="color:#4f46e5">Learn more ↗</a></p>
+      <p style="margin:0 0 8px;font-size:12px;color:#475569">${escapeHtml(String(v.description || ""))}</p>
+      <p style="margin:0;font-size:11px;color:#64748b">Rule: <code style="background:#f1f5f9;padding:1px 4px;border-radius:2px">${escapeHtml(String(v.id || ""))}</code> · <a href="${escapeHtml(sanitizeHttpUrl(v.helpUrl, "https://dequeuniversity.com/rules/axe/"))}" style="color:#4f46e5">Learn more ↗</a></p>
     </div>
   `).join("")
 
@@ -186,7 +226,7 @@ export function generateReportHTML(
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Accessibility Report — ${escapeHtml(result.url)}</title>
+  <title>Accessibility Report — ${escapeHtml(String(result.url || ""))}</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #fff; color: #1e293b; line-height: 1.5; }
@@ -217,7 +257,7 @@ export function generateReportHTML(
           }
         </div>
         <h1 style="font-size:22px;font-weight:800;color:#0f172a;margin-bottom:4px">${escapeHtml(tagline)}</h1>
-        <p style="font-size:13px;color:#64748b;word-break:break-all">${escapeHtml(result.url)}</p>
+        <p style="font-size:13px;color:#64748b;word-break:break-all">${escapeHtml(String(result.url || ""))}</p>
         <span style="display:inline-block;margin-top:8px;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;background:#f8fafc;color:${primaryColor};border:1px solid #cbd5e1">${WCAG_STANDARD.label} · Automated</span>
       </div>
       <div style="text-align:right;flex-shrink:0;margin-left:16px">
@@ -236,7 +276,7 @@ export function generateReportHTML(
         { label: "Minor",    value: minor,    color: IMPACT_COLORS.minor    },
       ].map(s => `
         <div style="padding:14px;border:1px solid #e2e8f0;border-radius:8px;text-align:center">
-          <p style="font-size:26px;font-weight:800;color:${s.color}">${s.value}</p>
+          <p style="font-size:26px;font-weight:800;color:${s.color}">${Number(s.value) || 0}</p>
           <p style="font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;margin-top:2px">${s.label}</p>
         </div>
       `).join("")}
@@ -246,10 +286,10 @@ export function generateReportHTML(
     <div style="margin-bottom:28px;padding:16px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px">
       <div style="display:flex;justify-content:space-between;margin-bottom:8px">
         <span style="font-size:13px;font-weight:600;color:#475569">Pass Rate</span>
-        <span style="font-size:13px;font-weight:700;color:#0f172a">${result.passes} / ${result.passes + result.violations.length} checks passed</span>
+        <span style="font-size:13px;font-weight:700;color:#0f172a">${Number(result.passes) || 0} / ${(Number(result.passes) || 0) + result.violations.length} checks passed</span>
       </div>
       <div style="height:8px;background:#e2e8f0;border-radius:999px;overflow:hidden">
-        <div style="height:100%;width:${Math.round((result.passes / Math.max(1, result.passes + result.violations.length)) * 100)}%;background:#22c55e;border-radius:999px"></div>
+        <div style="height:100%;width:${Math.round(((Number(result.passes) || 0) / Math.max(1, (Number(result.passes) || 0) + result.violations.length)) * 100)}%;background:#22c55e;border-radius:999px"></div>
       </div>
     </div>
 
@@ -279,7 +319,7 @@ export function generateReportHTML(
       ? `<div style="text-align:center;padding:40px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px">
           <div style="margin-bottom:8px;color:#16a34a;font-size:28px;font-weight:700">&#10003;</div>
           <p style="font-size:16px;font-weight:700;color:#16a34a">No accessibility violations found!</p>
-          <p style="font-size:13px;color:#4ade80;margin-top:4px">This page passed all ${result.passes} axe-core checks.</p>
+          <p style="font-size:13px;color:#4ade80;margin-top:4px">This page passed all ${Number(result.passes) || 0} axe-core checks.</p>
         </div>`
       : `<div>
           <h2 style="font-size:16px;font-weight:700;color:#0f172a;margin-bottom:16px">
@@ -320,7 +360,7 @@ export function generateReportHTML(
 </html>`
 }
 
-function escapeHtml(str: string): string {
+export function escapeHtml(str: string): string {
   return str
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")

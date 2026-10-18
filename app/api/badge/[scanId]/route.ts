@@ -7,6 +7,12 @@ export const runtime = "nodejs"
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
+const SVG_SECURITY_HEADERS = {
+  "Content-Type": "image/svg+xml; charset=utf-8",
+  "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'",
+  "X-Content-Type-Options": "nosniff",
+}
+
 function escapeXml(unsafe: string): string {
   return unsafe
     .replace(/&/g, "&amp;")
@@ -50,8 +56,8 @@ function renderBadgeSvg({
     </clipPath>
   </defs>
   <g clip-path="url(#badge-clip)">
-    <rect width="${leftWidth}" height="28" fill="${leftColor}"/>
-    <rect x="${leftWidth}" width="${rightWidth}" height="28" fill="${rightColor}"/>
+    <rect width="${leftWidth}" height="28" fill="${escapeXml(leftColor)}"/>
+    <rect x="${leftWidth}" width="${rightWidth}" height="28" fill="${escapeXml(rightColor)}"/>
     <rect width="${totalWidth}" height="28" fill="url(#badge-grad)"/>
   </g>
   <rect x="0.5" y="0.5" width="${totalWidth - 1}" height="27" rx="5.5" fill="none" stroke="#ffffff" stroke-opacity="0.14"/>
@@ -84,7 +90,7 @@ export async function GET(
     return new NextResponse(svg, {
       status: 400,
       headers: {
-        "Content-Type": "image/svg+xml; charset=utf-8",
+        ...SVG_SECURITY_HEADERS,
         "Cache-Control": "no-store",
       },
     })
@@ -114,7 +120,7 @@ export async function GET(
       return new NextResponse(svg, {
         status: 404,
         headers: {
-          "Content-Type": "image/svg+xml; charset=utf-8",
+          ...SVG_SECURITY_HEADERS,
           "Cache-Control": "public, max-age=60",
         },
       })
@@ -138,7 +144,7 @@ export async function GET(
       return new NextResponse(svg, {
         status: 200,
         headers: {
-          "Content-Type": "image/svg+xml; charset=utf-8",
+          ...SVG_SECURITY_HEADERS,
           "Cache-Control": "public, max-age=120",
         },
       })
@@ -148,30 +154,61 @@ export async function GET(
     let accentDotColor = "#6366f1"
 
     if (tier === "agency" && scan.user_id) {
-      const { data: team } = await db
-        .from("teams")
-        .select("brand_name, brand_primary_color")
-        .or(
-          `owner_id.eq.${scan.user_id},id.eq.${
-            activeTeamId || scan.team_id || "00000000-0000-0000-0000-000000000000"
-          }`
-        )
-        .maybeSingle()
+      const targetTeamId = activeTeamId || scan.team_id
+      let team: { brand_name?: string | null; brand_primary_color?: string | null } | null = null
+
+      if (targetTeamId && UUID_REGEX.test(targetTeamId)) {
+        const { data } = await db
+          .from("teams")
+          .select("brand_name, brand_primary_color")
+          .eq("id", targetTeamId)
+          .maybeSingle()
+        team = data
+      }
+      if (!team && UUID_REGEX.test(scan.user_id)) {
+        const { data } = await db
+          .from("teams")
+          .select("brand_name, brand_primary_color")
+          .eq("owner_id", scan.user_id)
+          .limit(1)
+        team = data?.[0] ?? null
+      }
 
       if (team?.brand_name?.trim()) {
         leftLabel = `${team.brand_name.trim().slice(0, 28)} Verified`
       }
-      if (team?.brand_primary_color && /^#[0-9a-fA-F]{6}$/.test(team.brand_primary_color)) {
-        accentDotColor = team.brand_primary_color
+      if (
+        team?.brand_primary_color &&
+        /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(team.brand_primary_color.trim())
+      ) {
+        accentDotColor = team.brand_primary_color.trim()
       }
     }
+
+    const passesCount =
+      typeof scan.passes === "number"
+        ? scan.passes
+        : typeof scan.result?.passes === "number"
+        ? scan.result.passes
+        : Array.isArray(scan.result?.passes)
+        ? scan.result.passes.length
+        : 0
+    const violationsCount = Array.isArray(scan.violations)
+      ? scan.violations.length
+      : Array.isArray(scan.result?.violations)
+      ? scan.result.violations.length
+      : 0
+    const computedScore =
+      passesCount + violationsCount > 0
+        ? Math.round((passesCount / (passesCount + violationsCount)) * 100)
+        : 100
 
     const rawScore =
       typeof scan.score === "number"
         ? scan.score
         : typeof scan.result?.summary?.passRate === "number"
         ? scan.result.summary.passRate
-        : 0
+        : computedScore
     const score = Math.max(0, Math.min(100, Math.round(rawScore)))
 
     const rightColor =
@@ -187,7 +224,7 @@ export async function GET(
     return new NextResponse(svg, {
       status: 200,
       headers: {
-        "Content-Type": "image/svg+xml; charset=utf-8",
+        ...SVG_SECURITY_HEADERS,
         "Cache-Control": "public, max-age=300, s-maxage=300, stale-while-revalidate=600",
       },
     })
@@ -201,7 +238,7 @@ export async function GET(
     return new NextResponse(svg, {
       status: 500,
       headers: {
-        "Content-Type": "image/svg+xml; charset=utf-8",
+        ...SVG_SECURITY_HEADERS,
         "Cache-Control": "no-store",
       },
     })

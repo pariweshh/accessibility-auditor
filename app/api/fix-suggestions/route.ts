@@ -4,6 +4,7 @@ import { resolveEffectiveTier } from "@/lib/quota"
 import { AccessibilityIssue, AIFramework } from "@/lib/types"
 import { createClient } from "@/lib/supabase/server"
 import { createClient as createAdminClient } from "@supabase/supabase-js"
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit"
 import crypto from "crypto"
 
 // Free tier: 10 seconds maximum
@@ -12,6 +13,7 @@ export const dynamic = "force-dynamic"
 
 const PAID_TIERS = ["pro", "agency"]
 const VALID_FRAMEWORKS: AIFramework[] = ["html", "react-tailwind", "vue", "angular"]
+const VALID_MODELS = ["gpt-4o-mini", "gpt-4o"] as const
 
 function getAdminSupabase() {
   return createAdminClient(
@@ -23,29 +25,36 @@ function getAdminSupabase() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { limit = 5, model = "gpt-4o-mini", framework: rawFramework = "html" } = body
+    const { limit = 5, model: rawModel = "gpt-4o-mini", framework: rawFramework = "html" } = body
     const requestedFramework: AIFramework = VALID_FRAMEWORKS.includes(rawFramework)
       ? rawFramework
       : "html"
 
+    // Validate model against strict allowlist to prevent tier bypass via model aliases (e.g. gpt-4o-2024-11-20, o1)
+    const model: "gpt-4o-mini" | "gpt-4o" = VALID_MODELS.includes(rawModel)
+      ? rawModel
+      : rawModel && String(rawModel).startsWith("gpt-4o") && rawModel !== "gpt-4o-mini"
+      ? "gpt-4o"
+      : "gpt-4o-mini"
+
     // Support both batch `{ issues: [...] }` and single-issue `{ issueId, html, ... }` (from docs/API.md)
     let normalizedIssues: AccessibilityIssue[] = []
     if (Array.isArray(body.issues) && body.issues.length > 0) {
-      normalizedIssues = body.issues as AccessibilityIssue[]
+      normalizedIssues = body.issues.slice(0, 10) as AccessibilityIssue[]
     } else if (body.issueId && typeof body.html === "string") {
       normalizedIssues = [
         {
-          id: String(body.issueId),
+          id: String(body.issueId).slice(0, 120),
           impact: body.impact || "serious",
-          description: body.issueDescription || body.description || String(body.issueId),
-          help: body.help || body.issueDescription || String(body.issueId),
-          helpUrl: body.helpUrl || "",
-          tags: Array.isArray(body.tags) ? body.tags : ["wcag2aa"],
+          description: String(body.issueDescription || body.description || body.issueId).slice(0, 1000),
+          help: String(body.help || body.issueDescription || body.issueId).slice(0, 500),
+          helpUrl: String(body.helpUrl || "").slice(0, 500),
+          tags: Array.isArray(body.tags) ? body.tags.slice(0, 20) : ["wcag2aa"],
           nodes: [
             {
-              html: body.html,
-              target: Array.isArray(body.target) ? body.target : ["element"],
-              failureSummary: body.failureSummary || "",
+              html: String(body.html).slice(0, 2000),
+              target: Array.isArray(body.target) ? body.target.slice(0, 10) : ["element"],
+              failureSummary: String(body.failureSummary || "").slice(0, 1000),
             },
           ],
         },
@@ -119,6 +128,26 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // ── Per-user and per-IP rate limiting to protect OpenAI token budget ────
+    const clientIp = getClientIp(request)
+    const userLimit = checkRateLimit({
+      key: `ai_fix:user:${userId}:${clientIp}`,
+      limit: 30,
+      windowMs: 60 * 1000, // 30 requests per minute
+    })
+
+    if (!userLimit.success) {
+      return NextResponse.json(
+        { error: "Rate limit exceeded for AI remediation requests. Please wait a moment." },
+        {
+          status: 429,
+          headers: {
+            "Retry-After": String(userLimit.resetSeconds),
+          },
+        }
+      )
+    }
+
     const { tier } = await resolveEffectiveTier(userId, adminSupabase)
 
     // API key access requires Pro or Agency tier
@@ -147,14 +176,14 @@ export async function POST(request: NextRequest) {
 
     // Limit to prevent excessive API calls
     const maxLimit = 10
-    const actualLimit = Math.min(Number(limit) || 5, maxLimit)
-    const activeDbClient = authMethod === "api_key" ? adminSupabase : supabase
+    const actualLimit = Math.max(1, Math.min(Number(limit) || 5, maxLimit))
 
+    // Use adminSupabase (service_role) so cache reads/writes succeed under locked-down RLS
     const fixes = await generateBatchFixes(
       normalizedIssues,
       actualLimit,
       model,
-      activeDbClient,
+      adminSupabase,
       effectiveFramework
     )
 
@@ -167,14 +196,9 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error("Fix suggestions API error:", error)
-
-    const errorMessage =
-      error instanceof Error
-        ? error.message
-        : "Failed to generate fix suggestions"
-
-    return NextResponse.json({ error: errorMessage }, { status: 500 })
+    return NextResponse.json(
+      { error: "Failed to generate fix suggestions" },
+      { status: 500 }
+    )
   }
 }
-
-

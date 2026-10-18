@@ -1,5 +1,6 @@
 import { checkQuota, resolveEffectiveTier } from "@/lib/quota"
 import { validateScanTargetUrl } from "@/lib/ssrf"
+import { checkRateLimit } from "@/lib/rate-limit"
 import { createClient } from "@/lib/supabase/server"
 import { createClient as createAdminClient } from "@supabase/supabase-js"
 import { NextRequest, NextResponse, after } from "next/server"
@@ -7,6 +8,8 @@ import crypto from "crypto"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 function getAdminSupabase() {
   return createAdminClient(
@@ -100,9 +103,9 @@ export async function GET(request: NextRequest) {
       request.nextUrl.searchParams.get("scanId") ||
       request.nextUrl.searchParams.get("id")
 
-    if (!scanId) {
+    if (!scanId || !UUID_REGEX.test(scanId)) {
       return NextResponse.json(
-        { error: "Query parameter 'scanId' is required" },
+        { error: "Valid query parameter 'scanId' is required" },
         { status: 400 }
       )
     }
@@ -151,12 +154,27 @@ export async function GET(request: NextRequest) {
       scan.error_message = timeoutMsg
     }
 
-    const passesCount = scan.passes ?? scan.result?.passes ?? 0
-    const violationsCount = scan.violations ?? scan.result?.violations?.length ?? 0
+    const passesCount =
+      typeof scan.passes === "number"
+        ? scan.passes
+        : typeof scan.result?.passes === "number"
+        ? scan.result.passes
+        : Array.isArray(scan.result?.passes)
+        ? scan.result.passes.length
+        : 0
+    const violationsList = Array.isArray(scan.result?.violations)
+      ? scan.result.violations
+      : Array.isArray(scan.violations)
+      ? scan.violations
+      : []
+    const violationsCount =
+      typeof scan.violations === "number" ? scan.violations : violationsList.length
     const totalChecks = passesCount + violationsCount
     const score =
       scan.status === "completed"
-        ? totalChecks > 0
+        ? typeof scan.score === "number"
+          ? scan.score
+          : totalChecks > 0
           ? Math.round((passesCount / totalChecks) * 100)
           : 100
         : null
@@ -167,7 +185,7 @@ export async function GET(request: NextRequest) {
       url: scan.url,
       status: scan.status,
       score,
-      violations: scan.result?.violations ?? [],
+      violations: violationsList,
       incomplete: scan.result?.incompleteItems ?? [],
       incompleteCount: scan.result?.incomplete ?? 0,
       passes: passesCount,
@@ -183,7 +201,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error("GET /api/scan error:", error)
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to fetch scan status" },
+      { error: "Failed to fetch scan status" },
       { status: 500 }
     )
   }
@@ -199,6 +217,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: validation.error }, { status: 400 })
     }
 
+    const normalizedTargetUrl = validation.normalizedUrl || url.trim()
+
     // ── Auth & Quota ────────────────────────────────────────────────────────
     const auth = await authenticateRequest(request)
     if ("error" in auth) {
@@ -206,6 +226,22 @@ export async function POST(request: NextRequest) {
     }
 
     const { userId, activeDbClient } = auth
+
+    // Burst rate limiting per user (max 30 scan dispatches per minute)
+    const burstLimit = checkRateLimit({
+      key: `scan_dispatch:user:${userId}`,
+      limit: 30,
+      windowMs: 60 * 1000,
+    })
+    if (!burstLimit.success) {
+      return NextResponse.json(
+        { error: "Too many scan requests in a short period. Please wait a moment." },
+        {
+          status: 429,
+          headers: { "Retry-After": String(burstLimit.resetSeconds) },
+        }
+      )
+    }
 
     // Check quota (pass activeDbClient to bypass RLS when authed via API key)
     const quota = await checkQuota(userId, activeDbClient)
@@ -222,9 +258,9 @@ export async function POST(request: NextRequest) {
 
     // ── Insert pending scan record ──────────────────────────────────────────
     // Use activeDbClient so that if auth is via API Key, we use adminSupabase to bypass RLS
-    const scanInsertPayload: Record<string, any> = {
+    const scanInsertPayload: Record<string, unknown> = {
       user_id: userId,
-      url,
+      url: normalizedTargetUrl,
       status: "pending",
     }
     if (quota.teamId) {
@@ -263,7 +299,7 @@ export async function POST(request: NextRequest) {
           },
           body: JSON.stringify({
             scanId,
-            url,
+            url: normalizedTargetUrl,
             userId,
             tier: quota.tier,
           }),
@@ -285,7 +321,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("Scan API error:", error)
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to start scan" },
+      { error: "Failed to start scan" },
       { status: 500 }
     )
   }

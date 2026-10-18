@@ -1,9 +1,27 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
+import { SITE } from "@/lib/site"
 import Stripe from "stripe"
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY || ""
 const stripe = new Stripe(stripeSecretKey)
+
+function getTrustedOrigin(request: NextRequest): string {
+  const configured = SITE.url?.replace(/\/$/, "")
+  if (process.env.NODE_ENV === "production" && configured) {
+    return configured
+  }
+  const reqOrigin = request.headers.get("origin")
+  if (
+    reqOrigin &&
+    (reqOrigin === configured ||
+      reqOrigin.startsWith("http://localhost:") ||
+      reqOrigin.startsWith("http://127.0.0.1:"))
+  ) {
+    return reqOrigin
+  }
+  return configured || "http://localhost:3000"
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -40,8 +58,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Determine origin for redirection back to app settings
-    const origin = request.headers.get("origin") || "http://localhost:3000"
+    // Determine trusted origin for redirection back to app settings
+    const origin = getTrustedOrigin(request)
 
     // Create Stripe Billing Portal Session
     const session = await stripe.billingPortal.sessions.create({
@@ -53,12 +71,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("Stripe Customer Portal API error:", error)
     return NextResponse.json(
-      {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to create billing portal session",
-      },
+      { error: "Failed to create billing portal session" },
       { status: 500 }
     )
   }

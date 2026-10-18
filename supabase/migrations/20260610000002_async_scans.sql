@@ -7,6 +7,7 @@ alter table public.scans
 -- Allow service role (Edge Function) to update any scan row
 create policy "Service role can update scans"
   on public.scans for update
+  to service_role
   using (true)
   with check (true);
 

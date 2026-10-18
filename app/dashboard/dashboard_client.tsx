@@ -357,12 +357,13 @@ export default function DashboardClient({
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-    if (!file.type.startsWith("image/")) {
-      setBrandingError("Please upload a valid image file (PNG, JPG, or SVG).")
+    const allowedMimeTypes = ["image/png", "image/jpeg", "image/webp", "image/gif"]
+    if (!allowedMimeTypes.includes(file.type)) {
+      setBrandingError("Please upload a valid PNG, JPG, WebP, or GIF image file.")
       return
     }
-    if (file.size > 1024 * 1024 * 2) {
-      setBrandingError("Image size must be less than 2MB.")
+    if (file.size > 350 * 1024) {
+      setBrandingError("Logo image size must be less than 350KB.")
       return
     }
 
@@ -645,7 +646,7 @@ export default function DashboardClient({
 
       {/* Tab Contents */}
       {activeTab === "overview" ? (
-        <div className="space-y-6">
+        <div id="panel-dash-overview" role="tabpanel" aria-labelledby="tab-dash-overview" className="space-y-6">
           {/* Free Tier History Limitation Banner */}
           {!isPaid && (
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-indigo-950/20 border border-indigo-500/20 rounded-2xl animate-fadeIn">
@@ -741,7 +742,7 @@ export default function DashboardClient({
         </div>
       ) : activeTab === "monitors" ? (
         /* Scheduled Monitors Tab */
-        <div className="space-y-6">
+        <div id="panel-dash-monitors" role="tabpanel" aria-labelledby="tab-dash-monitors" className="space-y-6">
           {!isPaid ? (
             /* Upgrade CTA Card for Free Users */
             <div className="relative bg-slate-900/40 backdrop-blur-md border border-slate-850/60 rounded-2xl p-8 max-w-2xl mx-auto overflow-hidden shadow-2xl text-center">
@@ -891,10 +892,11 @@ export default function DashboardClient({
 
                     <form onSubmit={handleCreateMonitor} className="space-y-4">
                       <div>
-                        <label className="block text-2xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
+                        <label htmlFor="monitor-target-url" className="block text-2xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
                           Target URL to Audit
                         </label>
                         <input
+                          id="monitor-target-url"
                           type="url"
                           required
                           value={newMonitorUrl}
@@ -1149,7 +1151,7 @@ export default function DashboardClient({
                             >
                               {isRunning ? (
                                 <>
-                                  <svg className="animate-spin h-3 w-3 text-indigo-300" viewBox="0 0 24 24" fill="none">
+                                  <svg className="animate-spin h-3 w-3 text-indigo-300" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
                                   </svg>
@@ -1157,7 +1159,10 @@ export default function DashboardClient({
                                 </>
                               ) : (
                                 <>
-                                  <span>⚡ Audit Now</span>
+                                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} aria-hidden="true">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                  </svg>
+                                  <span>Audit Now</span>
                                 </>
                               )}
                             </button>
@@ -1198,7 +1203,7 @@ export default function DashboardClient({
         </div>
       ) : activeTab === "api" ? (
         /* Developer API Tab */
-        <div className="space-y-6">
+        <div id="panel-dash-api" role="tabpanel" aria-labelledby="tab-dash-api" className="space-y-6">
           {!isPaid ? (
             /* Upgrade CTA Card for Free Users */
             <div className="relative bg-slate-900/40 backdrop-blur-md border border-slate-850/60 rounded-2xl p-8 max-w-2xl mx-auto overflow-hidden shadow-2xl text-center">
@@ -1444,13 +1449,13 @@ export default function DashboardClient({
                 {/* Generated Pipeline Code */}
                 {(() => {
                   const origin = typeof window !== "undefined" ? window.location.origin : "https://equivance.app"
-                  const target = ciTargetUrl.trim() || "https://staging.example.com"
+                  const target = (ciTargetUrl.trim() || "https://staging.example.com").replace(/["'$`\\\r\n;|&<>]/g, "")
                   const jqCondition =
                     ciThreshold === "critical"
                       ? "(.summary.critical // 0) > 0"
                       : ciThreshold === "serious"
                       ? "((.summary.critical // 0) + (.summary.serious // 0)) > 0"
-                      : "(.violations_count // 0) > 0"
+                      : "((.violations // []) | length) > 0"
                   const gateDescription =
                     ciThreshold === "critical"
                       ? "Critical violations > 0"
@@ -1467,7 +1472,7 @@ TARGET_URL="${target}"
 
 echo "Triggering WCAG 2.2 AA accessibility scan for \${TARGET_URL}..."
 INIT_RES=$(curl -sS -X POST "\${API_BASE}/api/scan" \\
-  -H "Authorization: Bearer \${EQUIVANCE_API_KEY}" \\
+  -H "x-api-key: \${EQUIVANCE_API_KEY}" \\
   -H "Content-Type: application/json" \\
   -d "{\\"url\\": \\"\${TARGET_URL}\\"}")
 
@@ -1481,14 +1486,14 @@ echo "Scan queued (ID: \${SCAN_ID}). Polling for completion..."
 for i in {1..30}; do
   sleep 4
   STATUS_RES=$(curl -sS "\${API_BASE}/api/scan?scanId=\${SCAN_ID}" \\
-    -H "Authorization: Bearer \${EQUIVANCE_API_KEY}")
+    -H "x-api-key: \${EQUIVANCE_API_KEY}")
   STATUS=$(echo "\${STATUS_RES}" | jq -r '.status')
 
   if [ "\${STATUS}" = "completed" ]; then
     SCORE=$(echo "\${STATUS_RES}" | jq -r '.score // 0')
     CRITICAL=$(echo "\${STATUS_RES}" | jq -r '.summary.critical // 0')
     SERIOUS=$(echo "\${STATUS_RES}" | jq -r '.summary.serious // 0')
-    TOTAL=$(echo "\${STATUS_RES}" | jq -r '.violations_count // 0')
+    TOTAL=$(echo "\${STATUS_RES}" | jq -r '(.violations // []) | length')
     echo "Audit Complete! Score: \${SCORE}/100 | Critical: \${CRITICAL} | Serious: \${SERIOUS} | Total: \${TOTAL}"
     echo "Verification Report: \${API_BASE}/report/\${SCAN_ID}?verify=1"
 
@@ -1591,7 +1596,7 @@ ${bashScript
         </div>
       ) : activeTab === "team" ? (
         /* Team Access Tab */
-        <div className="space-y-6">
+        <div id="panel-dash-team" role="tabpanel" aria-labelledby="tab-dash-team" className="space-y-6">
           {tier !== "agency" ? (
             /* Upgrade CTA Card for Non-Agency Users */
             <div className="relative bg-slate-900/40 backdrop-blur-md border border-slate-850/60 rounded-2xl p-8 max-w-2xl mx-auto overflow-hidden shadow-2xl text-center">
@@ -1890,7 +1895,7 @@ ${bashScript
         </div>
       ) : (
         /* White-Label Custom Branding Tab */
-        <div className="space-y-6">
+        <div id="panel-dash-branding" role="tabpanel" aria-labelledby="tab-dash-branding" className="space-y-6">
           {tier !== "agency" ? (
             /* Upgrade CTA Card for Non-Agency Users */
             <div className="relative bg-slate-900/40 backdrop-blur-md border border-slate-850/60 rounded-2xl p-8 max-w-2xl mx-auto overflow-hidden shadow-2xl text-center">
@@ -1908,7 +1913,7 @@ ${bashScript
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-left mb-8 max-w-lg mx-auto">
                 <div className="p-3 bg-slate-950/50 border border-slate-800/80 rounded-xl space-y-1">
                   <div className="text-xs font-semibold text-slate-200">Custom Agency Logo</div>
-                  <div className="text-2xs text-slate-400">Embed your high-res SVG or PNG logo right on the cover of all PDF and web reports.</div>
+                  <div className="text-2xs text-slate-400">Embed your high-res PNG or WebP logo right on the cover of all PDF and web reports.</div>
                 </div>
                 <div className="p-3 bg-slate-950/50 border border-slate-800/80 rounded-xl space-y-1">
                   <div className="text-xs font-semibold text-slate-200">Brand Color Alignment</div>
@@ -1992,10 +1997,15 @@ ${bashScript
                       <input
                         type="text"
                         id="brandLogoUrl"
-                        value={brandLogoUrl.startsWith("data:") ? "[Uploaded Image Encoded]" : brandLogoUrl}
-                        onChange={(e) => setBrandLogoUrl(e.target.value)}
+                        readOnly={brandLogoUrl.startsWith("data:")}
+                        value={brandLogoUrl.startsWith("data:") ? "Uploaded image file (click Clear Logo to enter a URL)" : brandLogoUrl}
+                        onChange={(e) => {
+                          if (!brandLogoUrl.startsWith("data:")) {
+                            setBrandLogoUrl(e.target.value)
+                          }
+                        }}
                         placeholder="https://youragency.com/logo.png"
-                        className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-50 placeholder-slate-600 focus:outline-hidden focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all font-mono"
+                        className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-50 placeholder-slate-600 focus:outline-hidden focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all font-mono read-only:opacity-75"
                       />
 
                       <div className="flex items-center gap-2 pt-1">
@@ -2003,7 +2013,7 @@ ${bashScript
                           Upload Image File
                           <input
                             type="file"
-                            accept="image/png, image/jpeg, image/svg+xml, image/webp"
+                            accept="image/png, image/jpeg, image/webp, image/gif"
                             onChange={handleLogoUpload}
                             className="hidden"
                           />
@@ -2022,7 +2032,7 @@ ${bashScript
 
                     {/* Brand Primary Color */}
                     <div className="space-y-1.5">
-                      <label className="block text-2xs font-semibold text-slate-400 uppercase tracking-wider">
+                      <label htmlFor="brandPrimaryColorPicker" className="block text-2xs font-semibold text-slate-400 uppercase tracking-wider">
                         Brand Accent Color
                       </label>
                       {/* Preset color swatches */}
@@ -2039,6 +2049,7 @@ ${bashScript
                             key={preset.hex}
                             type="button"
                             onClick={() => setBrandPrimaryColor(preset.hex)}
+                            aria-label={`Select ${preset.name} accent color`}
                             className={`w-7 h-7 rounded-lg border-2 transition-transform cursor-pointer ${
                               brandPrimaryColor.toLowerCase() === preset.hex.toLowerCase()
                                 ? "scale-110 border-white shadow-md ring-2 ring-indigo-500/40"
@@ -2050,7 +2061,9 @@ ${bashScript
                         ))}
                         <div className="flex items-center gap-1.5 ml-1 bg-slate-950/60 border border-slate-800 rounded-lg px-2 py-1">
                           <input
+                            id="brandPrimaryColorPicker"
                             type="color"
+                            aria-label="Custom brand accent hex color"
                             value={brandPrimaryColor}
                             onChange={(e) => setBrandPrimaryColor(e.target.value)}
                             className="w-5 h-5 rounded cursor-pointer border-0 bg-transparent"
@@ -2142,7 +2155,10 @@ ${bashScript
                   {/* Document Header */}
                   <div className="flex items-start justify-between pb-6 border-b-2 border-slate-200 gap-4 flex-wrap sm:flex-nowrap">
                     <div className="space-y-2 max-w-full sm:max-w-[70%]">
-                      {brandLogoUrl ? (
+                      {brandLogoUrl &&
+                      (brandLogoUrl.startsWith("https://") ||
+                        brandLogoUrl.startsWith("http://") ||
+                        /^data:image\/(png|jpeg|jpg|webp|gif);base64,/i.test(brandLogoUrl)) ? (
                         <img
                           src={brandLogoUrl}
                           alt="Brand Logo"

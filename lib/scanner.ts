@@ -1,24 +1,25 @@
 import { AccessibilityIssue, ScanResult } from "./types"
 import puppeteer, { Browser, Page } from "puppeteer-core"
+import { validateScanTargetUrl } from "./ssrf"
 
-let browser: Browser | null = null
+let sharedBrowser: Browser | null = null
+const VALID_IMPACTS = new Set(["minor", "moderate", "serious", "critical"])
 
-// Reuse browser instance for performance
-async function getBrowser(): Promise<Browser> {
+// Reuse browser instance for local performance
+async function getBrowser(): Promise<{ browser: Browser; isRemote: boolean }> {
   const browserlessToken = process.env.BROWSERLESS_TOKEN
 
   // Use Browserless.io for production/Vercel
   if (browserlessToken) {
-    // Connect to Browserless WebSocket endpoint (US West region)
-    const browser = await puppeteer.connect({
+    const remoteBrowser = await puppeteer.connect({
       browserWSEndpoint: `wss://production-sfo.browserless.io?token=${browserlessToken}`,
     })
-    return browser
+    return { browser: remoteBrowser, isRemote: true }
   }
 
-  // Local development - reuse browser instance
-  if (browser) {
-    return browser
+  // Local development - reuse browser instance if still connected
+  if (sharedBrowser && sharedBrowser.connected) {
+    return { browser: sharedBrowser, isRemote: false }
   }
 
   const chromiumPath =
@@ -29,7 +30,7 @@ async function getBrowser(): Promise<Browser> {
       ? "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
       : "/usr/bin/google-chrome")
 
-  browser = await puppeteer.launch({
+  sharedBrowser = await puppeteer.launch({
     executablePath: chromiumPath,
     headless: true,
     args: [
@@ -39,21 +40,50 @@ async function getBrowser(): Promise<Browser> {
       "--disable-gpu",
     ],
   })
-  return browser
+
+  sharedBrowser.on("disconnected", () => {
+    sharedBrowser = null
+  })
+
+  return { browser: sharedBrowser, isRemote: false }
 }
 
 export async function scanURL(url: string): Promise<ScanResult> {
+  // Enforce SSRF validation before launching or navigating browser
+  const ssrfCheck = await validateScanTargetUrl(url)
+  if (!ssrfCheck.valid) {
+    throw new Error(ssrfCheck.error || "Blocked restricted URL")
+  }
+  const targetUrl = ssrfCheck.normalizedUrl || url
+
   let page: Page | null = null
-  let browser: Browser | null = null
+  let activeBrowser: Browser | null = null
+  let isRemoteBrowser = false
 
   try {
-    new URL(url)
+    const conn = await getBrowser()
+    activeBrowser = conn.browser
+    isRemoteBrowser = conn.isRemote
 
-    browser = await getBrowser()
-    page = await browser.newPage()
-
-    // set viewport for consistent results
+    page = await activeBrowser.newPage()
+    await page.setBypassCSP(true)
     await page.setViewport({ width: 1920, height: 1080 })
+
+    // Intercept requests (including HTTP 301/302 redirects and sub-resources) to prevent SSRF
+    await page.setRequestInterception(true)
+    page.on("request", async (interceptedReq) => {
+      const reqUrl = interceptedReq.url()
+      if (reqUrl.startsWith("data:") || reqUrl.startsWith("blob:") || reqUrl === "about:blank") {
+        interceptedReq.continue().catch(() => {})
+        return
+      }
+      const check = await validateScanTargetUrl(reqUrl)
+      if (!check.valid) {
+        interceptedReq.abort("accessdenied").catch(() => {})
+      } else {
+        interceptedReq.continue().catch(() => {})
+      }
+    })
 
     // Set user agent to avoid bot detection
     await page.evaluateOnNewDocument(() => {
@@ -63,27 +93,25 @@ export async function scanURL(url: string): Promise<ScanResult> {
       })
     })
 
-    // set a reasonable timeout
-    await page.goto(url, {
-      waitUntil: "domcontentloaded", // Faster than 'networkidle2'
-      timeout: 15000, // 15 seconds to stay within free tier limits
+    await page.goto(targetUrl, {
+      waitUntil: "domcontentloaded",
+      timeout: 15000,
     })
 
-    // Wait a bit for dynamic content
+    // Wait briefly for dynamic content
     await new Promise((resolve) => setTimeout(resolve, 1000))
 
-    // Inject axe-core from CDN (MORE RELIABLE)
+    // Inject axe-core from CDN
     await page.addScriptTag({
       url: "https://cdnjs.cloudflare.com/ajax/libs/axe-core/4.12.0/axe.min.js",
     })
 
-    // run axe-core in the browser context
+    // Run axe-core in the browser context
     const results = await page.evaluate(async () => {
       // @ts-expect-error - axe is injected globally
       return await axe.run()
     })
 
-    // Type definitions for axe-core results
     interface AxeViolation {
       id: string
       impact: "minor" | "moderate" | "serious" | "critical" | null
@@ -100,31 +128,53 @@ export async function scanURL(url: string): Promise<ScanResult> {
       failureSummary?: string
     }
 
-    // Map an axe result (violation or incomplete) to our issue shape.
-    const mapIssue = (violation: AxeViolation): AccessibilityIssue => ({
-      id: violation.id,
-      impact: (violation.impact || "minor") as
+    const sanitizeHelpUrl = (rawHelpUrl: unknown): string => {
+      if (typeof rawHelpUrl !== "string") return "https://dequeuniversity.com/rules/axe/"
+      try {
+        const parsed = new URL(rawHelpUrl)
+        if (parsed.protocol === "https:" || parsed.protocol === "http:") {
+          return parsed.toString()
+        }
+      } catch {
+        // ignore
+      }
+      return "https://dequeuniversity.com/rules/axe/"
+    }
+
+    const mapIssue = (violation: AxeViolation): AccessibilityIssue => {
+      const rawImpact = typeof violation?.impact === "string" ? violation.impact.toLowerCase() : "minor"
+      const impact = (VALID_IMPACTS.has(rawImpact) ? rawImpact : "minor") as
         | "minor"
         | "moderate"
         | "serious"
-        | "critical",
-      description: violation.description,
-      help: violation.help,
-      helpUrl: violation.helpUrl,
-      tags: violation.tags,
-      nodes: violation.nodes.map((node: AxeNode) => ({
-        html: node.html,
-        target: node.target,
-        failureSummary: node.failureSummary || "",
-      })),
-    })
+        | "critical"
+      const nodes = Array.isArray(violation?.nodes) ? violation.nodes.slice(0, 50) : []
+      return {
+        id: String(violation?.id || "unknown-rule").slice(0, 120),
+        impact,
+        description: String(violation?.description || "").slice(0, 1000),
+        help: String(violation?.help || "").slice(0, 500),
+        helpUrl: sanitizeHelpUrl(violation?.helpUrl),
+        tags: Array.isArray(violation?.tags)
+          ? violation.tags.slice(0, 30).map((t) => String(t).slice(0, 64))
+          : [],
+        nodes: nodes.map((node: AxeNode) => ({
+          html: String(node?.html || "").slice(0, 4000),
+          target: Array.isArray(node?.target)
+            ? node.target.slice(0, 10).map((t) => String(t).slice(0, 250))
+            : [],
+          failureSummary: String(node?.failureSummary || "").slice(0, 1500),
+        })),
+      }
+    }
 
-    // Process violations and incomplete (needs-manual-review) results.
-    const violations: AccessibilityIssue[] = results.violations.map(mapIssue)
-    const incompleteItems: AccessibilityIssue[] =
-      results.incomplete.map(mapIssue)
+    const rawViolations = Array.isArray(results?.violations) ? results.violations.slice(0, 200) : []
+    const rawIncomplete = Array.isArray(results?.incomplete) ? results.incomplete.slice(0, 200) : []
+    const passesCount = Array.isArray(results?.passes) ? results.passes.length : 0
 
-    // Calculate summary
+    const violations: AccessibilityIssue[] = rawViolations.map(mapIssue)
+    const incompleteItems: AccessibilityIssue[] = rawIncomplete.map(mapIssue)
+
     const summary = {
       critical: violations.filter((v) => v.impact === "critical").length,
       serious: violations.filter((v) => v.impact === "serious").length,
@@ -133,11 +183,11 @@ export async function scanURL(url: string): Promise<ScanResult> {
     }
 
     return {
-      url,
+      url: targetUrl,
       timestamp: new Date().toISOString(),
       violations,
-      passes: results.passes.length,
-      incomplete: results.incomplete.length,
+      passes: passesCount,
+      incomplete: incompleteItems.length,
       incompleteItems,
       summary,
     }
@@ -150,19 +200,17 @@ export async function scanURL(url: string): Promise<ScanResult> {
     )
   } finally {
     if (page) {
-      await page.close()
+      await page.close().catch(() => {})
     }
-    // Disconnect browser if using Browserless (Browserless manages the instance)
-    if (browser && process.env.BROWSERLESS_TOKEN) {
-      await browser.close()
+    if (activeBrowser && isRemoteBrowser) {
+      await activeBrowser.close().catch(() => {})
     }
   }
 }
 
-// Clean up browser on shutdown
 export async function closeBrowser(): Promise<void> {
-  if (browser) {
-    await browser.close()
-    browser = null
+  if (sharedBrowser) {
+    await sharedBrowser.close().catch(() => {})
+    sharedBrowser = null
   }
 }

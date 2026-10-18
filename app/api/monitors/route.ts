@@ -7,6 +7,8 @@ import { MonitorFrequency } from "@/lib/types"
 
 const PRO_MONITOR_LIMIT = 3
 const AGENCY_MONITOR_LIMIT = 10
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 function getAdminClient() {
   return createAdminClient(
@@ -23,18 +25,28 @@ async function authenticate(request: NextRequest) {
   const adminSupabase = getAdminClient()
 
   if (apiKey) {
+    if (!apiKey.startsWith("aud_live_")) {
+      return { error: "Invalid API key", status: 401 as const }
+    }
     const crypto = await import("crypto")
     const keyHash = crypto.createHash("sha256").update(apiKey).digest("hex")
     const { data: keyRecord } = await adminSupabase
       .from("api_keys")
-      .select("user_id")
+      .select("id, user_id")
       .eq("key_hash", keyHash)
       .maybeSingle()
 
     if (!keyRecord) {
       return { error: "Invalid API key", status: 401 as const }
     }
-    return { userId: keyRecord.user_id, adminSupabase }
+
+    adminSupabase
+      .from("api_keys")
+      .update({ last_used_at: new Date().toISOString() })
+      .eq("id", keyRecord.id)
+      .then()
+
+    return { userId: keyRecord.user_id, adminSupabase, isApiKey: true }
   }
 
   const supabase = await createClient()
@@ -46,7 +58,7 @@ async function authenticate(request: NextRequest) {
     return { error: "Authentication required", status: 401 as const }
   }
 
-  return { userId: user.id, adminSupabase }
+  return { userId: user.id, adminSupabase, isApiKey: false }
 }
 
 /**
@@ -60,8 +72,15 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: auth.error }, { status: auth.status })
     }
 
-    const { userId, adminSupabase } = auth
+    const { userId, adminSupabase, isApiKey } = auth
     const { tier, teamId } = await resolveEffectiveTier(userId, adminSupabase)
+
+    if (isApiKey && tier === "free") {
+      return NextResponse.json(
+        { error: "API key access requires an active Pro or Agency plan" },
+        { status: 403 }
+      )
+    }
 
     // Build query: User's own monitors OR monitors belonging to their active team
     let query = adminSupabase
@@ -80,7 +99,7 @@ export async function GET(request: NextRequest) {
       `)
       .order("created_at", { ascending: false })
 
-    if (teamId) {
+    if (teamId && UUID_REGEX.test(teamId) && UUID_REGEX.test(userId)) {
       query = query.or(`user_id.eq.${userId},team_id.eq.${teamId}`)
     } else {
       query = query.eq("user_id", userId)
@@ -107,10 +126,10 @@ export async function GET(request: NextRequest) {
       maxMonitors,
       hasAccess: tier === "pro" || tier === "agency",
     })
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("Monitors GET error:", err)
     return NextResponse.json(
-      { error: err.message || "Internal server error" },
+      { error: "Internal server error" },
       { status: 500 }
     )
   }
@@ -150,7 +169,7 @@ export async function POST(request: NextRequest) {
       minScoreThreshold = 90,
     } = body
 
-    if (!url || typeof url !== "string") {
+    if (!url || typeof url !== "string" || url.length > 2048) {
       return NextResponse.json(
         { error: "A valid target URL is required" },
         { status: 400 }
@@ -169,9 +188,13 @@ export async function POST(request: NextRequest) {
     const validFrequency: MonitorFrequency =
       frequency === "daily" ? "daily" : "weekly"
 
+    const trimmedEmail = typeof alertEmail === "string" ? alertEmail.trim() : ""
     const cleanEmail =
-      typeof alertEmail === "string" && alertEmail.includes("@")
-        ? alertEmail.trim()
+      trimmedEmail.length > 0 &&
+      trimmedEmail.length <= 254 &&
+      EMAIL_REGEX.test(trimmedEmail) &&
+      !/[\r\n]/.test(trimmedEmail)
+        ? trimmedEmail
         : null
 
     if (!cleanEmail) {
@@ -189,7 +212,7 @@ export async function POST(request: NextRequest) {
       .from("monitors")
       .select("id", { count: "exact", head: true })
 
-    if (teamId) {
+    if (teamId && UUID_REGEX.test(teamId) && UUID_REGEX.test(userId)) {
       countQuery = countQuery.or(`user_id.eq.${userId},team_id.eq.${teamId}`)
     } else {
       countQuery = countQuery.eq("user_id", userId)
@@ -218,7 +241,7 @@ export async function POST(request: NextRequest) {
       .insert({
         user_id: userId,
         team_id: teamId || null,
-        url: url.trim(),
+        url: ssrfCheck.normalizedUrl || url.trim(),
         frequency: validFrequency,
         status: "active",
         alert_email: cleanEmail,
@@ -245,10 +268,10 @@ export async function POST(request: NextRequest) {
       },
       { status: 201 }
     )
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("Monitors POST error:", err)
     return NextResponse.json(
-      { error: err.message || "Internal server error" },
+      { error: "Internal server error" },
       { status: 500 }
     )
   }

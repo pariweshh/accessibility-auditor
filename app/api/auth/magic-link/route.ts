@@ -3,15 +3,38 @@ import { createClient as createAdminClient } from "@supabase/supabase-js"
 import { Resend } from "resend"
 import { getSafeRedirectUrl } from "@/lib/safe-redirect"
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit"
+import { SITE } from "@/lib/site"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+function resolveTrustedOrigin(request: NextRequest): string {
+  if (process.env.NODE_ENV === "production") {
+    return SITE.url
+  }
+  try {
+    const reqUrl = new URL(request.url)
+    if (reqUrl.hostname === "localhost" || reqUrl.hostname === "127.0.0.1") {
+      return reqUrl.origin
+    }
+  } catch {
+    // ignore
+  }
+  return SITE.url
+}
 
 export async function POST(request: NextRequest) {
   try {
     const { email, returnTo } = await request.json()
 
-    if (!email || typeof email !== "string" || !email.includes("@")) {
+    if (
+      !email ||
+      typeof email !== "string" ||
+      email.length > 254 ||
+      !EMAIL_REGEX.test(email.trim())
+    ) {
       return NextResponse.json({ error: "A valid email is required" }, { status: 400 })
     }
 
@@ -67,15 +90,15 @@ export async function POST(request: NextRequest) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     )
 
-    // Get request origin for redirect callback and sanitize return destination
-    const origin = new URL(request.url).origin
+    // Use trusted server origin for redirect callback and sanitize return destination
+    const origin = resolveTrustedOrigin(request)
     const safeReturnTo = getSafeRedirectUrl(returnTo, "/dashboard")
     const redirectTo = `${origin}/auth/callback?next=${encodeURIComponent(safeReturnTo)}`
 
     // 2. Generate passwordless magic link
     const { data, error: generateError } = await adminSupabase.auth.admin.generateLink({
       type: "magiclink",
-      email: email.trim().toLowerCase(),
+      email: normalizedEmail,
       options: {
         redirectTo,
       },
@@ -84,27 +107,37 @@ export async function POST(request: NextRequest) {
     if (generateError || !data?.properties?.action_link) {
       console.error("Magic link generation error:", generateError)
       return NextResponse.json(
-        { error: generateError?.message || "Failed to generate login link" },
+        { error: "Failed to generate login link" },
         { status: 500 }
       )
     }
 
     const loginLink = data.properties.action_link
+    const isStrictLocalDev =
+      process.env.NODE_ENV === "development" &&
+      process.env.ENABLE_DEV_MAGIC_LINK_BYPASS === "true"
 
     // 3. Send email via Resend
     const resendKey = process.env.RESEND_API_KEY
     if (!resendKey || resendKey.startsWith("re_xxxx")) {
-      // If Resend is not configured/mock, fallback to console output and return link for dev ease
+      if (process.env.NODE_ENV === "production") {
+        console.error("Magic link error: RESEND_API_KEY is not configured in production.")
+        return NextResponse.json(
+          { error: "Email delivery service is not configured." },
+          { status: 500 }
+        )
+      }
+
       console.log("----------------------------------------")
-      console.log("RESEND EMAIL FALLBACK (DEVELOPMENT ONLY)")
-      console.log(`Magic link generated for ${email}:`)
+      console.log("RESEND EMAIL FALLBACK (LOCAL DEVELOPMENT ONLY)")
+      console.log(`Magic link generated for ${normalizedEmail}:`)
       console.log(loginLink)
       console.log("----------------------------------------")
-      
+
       return NextResponse.json({
         success: true,
-        message: "Email client not configured. Link printed to server console.",
-        devLink: loginLink,
+        message: "Email client not configured. Link printed to local server console.",
+        ...(isStrictLocalDev ? { devLink: loginLink } : {}),
       })
     }
 
@@ -114,9 +147,9 @@ export async function POST(request: NextRequest) {
       process.env.RESEND_FROM_EMAIL ||
       "Equivance <notifications@yourdomain.com>"
 
-    const { data: sendData, error: sendError } = await resend.emails.send({
+    const { error: sendError } = await resend.emails.send({
       from: emailFrom,
-      to: email.trim().toLowerCase(),
+      to: normalizedEmail,
       subject: "Sign in to Equivance",
       html: `
         <!DOCTYPE html>
@@ -168,25 +201,26 @@ export async function POST(request: NextRequest) {
     if (sendError) {
       console.error("Resend send error:", sendError)
 
-      // Fallback in development so developer is never blocked by domain verification
-      if (process.env.NODE_ENV !== "production") {
+      if (process.env.NODE_ENV === "development") {
         console.log("----------------------------------------")
-        console.log("RESEND EMAIL FAILURE FALLBACK (DEVELOPMENT ONLY)")
+        console.log("RESEND EMAIL FAILURE FALLBACK (LOCAL DEVELOPMENT ONLY)")
         console.log(`Could not send email via Resend: ${sendError.message}`)
-        console.log(`Magic link for ${email}:`)
+        console.log(`Magic link for ${normalizedEmail}:`)
         console.log(loginLink)
         console.log("----------------------------------------")
 
-        return NextResponse.json({
-          success: true,
-          message: `Email delivery failed: ${sendError.message}. Bypass link generated.`,
-          devLink: loginLink,
-        })
+        if (isStrictLocalDev) {
+          return NextResponse.json({
+            success: true,
+            message: "Email delivery failed in dev mode. Bypass link generated.",
+            devLink: loginLink,
+          })
+        }
       }
 
       return NextResponse.json(
-        { error: `Email service error: ${sendError.message}` },
-        { status: 400 }
+        { error: "Unable to send login email at this time. Please try again shortly." },
+        { status: 500 }
       )
     }
 
@@ -194,7 +228,7 @@ export async function POST(request: NextRequest) {
   } catch (err: any) {
     console.error("Magic link POST error:", err)
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Internal server error" },
+      { error: "Internal server error" },
       { status: 500 }
     )
   }

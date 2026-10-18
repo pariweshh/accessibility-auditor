@@ -143,8 +143,8 @@ export default function ScanTable({ scans, tier, onUrlSelect, selectedUrl, total
         }
         return
       }
-      // Open the signed URL in a new tab
-      window.open(data.url, "_blank")
+      // Open the signed URL in a new tab safely
+      window.open(data.url, "_blank", "noopener,noreferrer")
     } finally {
       setPdfLoading(null)
     }

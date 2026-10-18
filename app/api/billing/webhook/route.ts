@@ -39,20 +39,26 @@ export async function POST(request: NextRequest) {
 
   const supabaseAdmin = getAdminClient()
 
-  // ── Idempotency Check: Prevent duplicate processing of retried Stripe events ─
+  // ── Atomic Idempotency Claim: Insert event ID before processing ───────────
+  let claimedIdempotencyLock = false
   try {
-    const { data: existingEvent } = await supabaseAdmin
+    const { error: claimError } = await supabaseAdmin
       .from("stripe_webhook_events")
-      .select("id")
-      .eq("id", event.id)
-      .maybeSingle()
+      .insert({
+        id: event.id,
+        event_type: event.type,
+      })
 
-    if (existingEvent) {
-      console.log(`Stripe event ${event.id} already processed. Returning idempotent 200.`)
-      return NextResponse.json({ received: true, deduplicated: true })
+    if (claimError) {
+      if (claimError.code === "23505") {
+        console.log(`Stripe event ${event.id} already processed. Returning idempotent 200.`)
+        return NextResponse.json({ received: true, deduplicated: true })
+      }
+      console.warn("Idempotency claim warning:", claimError)
+    } else {
+      claimedIdempotencyLock = true
     }
   } catch (idempotencyCheckErr) {
-    // Fail-open: if table is not yet provisioned, do not block billing updates
     console.warn("Idempotency lookup warning:", idempotencyCheckErr)
   }
 
@@ -140,7 +146,10 @@ export async function POST(request: NextRequest) {
       case "customer.subscription.deleted": {
         const subscription = event.data.object as Stripe.Subscription
         const customerId = subscription.customer as string
+        const subscriptionId = subscription.id
 
+        // Match both stripe_customer_id AND stripe_subscription_id so a cancelled old subscription
+        // does not overwrite a newer active subscription on the same customer
         const { error } = await supabaseAdmin
           .from("profiles")
           .update({
@@ -149,12 +158,13 @@ export async function POST(request: NextRequest) {
             subscription_status: "inactive",
           })
           .eq("stripe_customer_id", customerId)
+          .eq("stripe_subscription_id", subscriptionId)
 
         if (error) {
           console.error("Error deleting subscription:", error)
           throw error
         }
-        console.log(`Cancelled subscription for customer ${customerId}`)
+        console.log(`Cancelled subscription ${subscriptionId} for customer ${customerId}`)
         break
       }
 
@@ -183,19 +193,16 @@ export async function POST(request: NextRequest) {
         console.log(`Unhandled event type: ${event.type}`)
     }
 
-    // ── Idempotency Record: Mark event as processed ───────────────────────────
-    try {
-      await supabaseAdmin.from("stripe_webhook_events").insert({
-        id: event.id,
-        event_type: event.type,
-      })
-    } catch (recordErr) {
-      console.warn("Failed to record webhook event in idempotency table:", recordErr)
-    }
-
     return NextResponse.json({ received: true })
   } catch (error) {
     console.error("Webhook processing error:", error)
+    if (claimedIdempotencyLock) {
+      try {
+        await supabaseAdmin.from("stripe_webhook_events").delete().eq("id", event.id)
+      } catch {
+        // ignore cleanup error
+      }
+    }
     return NextResponse.json(
       { error: "Webhook handler failed" },
       { status: 500 }

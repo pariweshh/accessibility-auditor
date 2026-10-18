@@ -3,6 +3,9 @@ import { createClient } from "@/lib/supabase/server"
 import { createClient as createAdminClient } from "@supabase/supabase-js"
 import { resolveEffectiveTier } from "@/lib/quota"
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
 function getAdminClient() {
   return createAdminClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -15,18 +18,28 @@ async function authenticate(request: NextRequest) {
   const adminSupabase = getAdminClient()
 
   if (apiKey) {
+    if (!apiKey.startsWith("aud_live_")) {
+      return { error: "Invalid API key", status: 401 as const }
+    }
     const crypto = await import("crypto")
     const keyHash = crypto.createHash("sha256").update(apiKey).digest("hex")
     const { data: keyRecord } = await adminSupabase
       .from("api_keys")
-      .select("user_id")
+      .select("id, user_id")
       .eq("key_hash", keyHash)
       .maybeSingle()
 
     if (!keyRecord) {
       return { error: "Invalid API key", status: 401 as const }
     }
-    return { userId: keyRecord.user_id, adminSupabase }
+
+    adminSupabase
+      .from("api_keys")
+      .update({ last_used_at: new Date().toISOString() })
+      .eq("id", keyRecord.id)
+      .then()
+
+    return { userId: keyRecord.user_id, adminSupabase, isApiKey: true }
   }
 
   const supabase = await createClient()
@@ -38,7 +51,7 @@ async function authenticate(request: NextRequest) {
     return { error: "Authentication required", status: 401 as const }
   }
 
-  return { userId: user.id, adminSupabase }
+  return { userId: user.id, adminSupabase, isApiKey: false }
 }
 
 /**
@@ -51,8 +64,8 @@ export async function PATCH(
 ) {
   try {
     const { id: monitorId } = await context.params
-    if (!monitorId) {
-      return NextResponse.json({ error: "Monitor ID is required" }, { status: 400 })
+    if (!monitorId || !UUID_REGEX.test(monitorId)) {
+      return NextResponse.json({ error: "Valid monitor ID is required" }, { status: 400 })
     }
 
     const auth = await authenticate(request)
@@ -61,7 +74,17 @@ export async function PATCH(
     }
 
     const { userId, adminSupabase } = auth
-    const { teamId } = await resolveEffectiveTier(userId, adminSupabase)
+    const { tier, teamId } = await resolveEffectiveTier(userId, adminSupabase)
+
+    if (tier === "free") {
+      return NextResponse.json(
+        {
+          error: "tier_restricted",
+          message: "Updating scheduled monitors requires an active Pro or Agency plan.",
+        },
+        { status: 403 }
+      )
+    }
 
     // Verify ownership
     const { data: monitor, error: fetchError } = await adminSupabase
@@ -81,7 +104,7 @@ export async function PATCH(
     }
 
     const body = await request.json()
-    const updates: Record<string, any> = {}
+    const updates: Record<string, unknown> = {}
 
     if (body.status !== undefined) {
       if (body.status === "active" || body.status === "paused") {
@@ -95,8 +118,18 @@ export async function PATCH(
       }
     }
 
-    if (body.alertEmail && typeof body.alertEmail === "string" && body.alertEmail.includes("@")) {
-      updates.alert_email = body.alertEmail.trim()
+    if (body.alertEmail !== undefined) {
+      const trimmedEmail = typeof body.alertEmail === "string" ? body.alertEmail.trim() : ""
+      if (
+        trimmedEmail.length > 0 &&
+        trimmedEmail.length <= 254 &&
+        EMAIL_REGEX.test(trimmedEmail) &&
+        !/[\r\n]/.test(trimmedEmail)
+      ) {
+        updates.alert_email = trimmedEmail
+      } else {
+        return NextResponse.json({ error: "Invalid alert email address" }, { status: 400 })
+      }
     }
 
     if (body.minScoreThreshold !== undefined) {
@@ -128,9 +161,9 @@ export async function PATCH(
       message: "Monitor updated successfully",
       monitor: updated,
     })
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("Monitor PATCH error:", err)
-    return NextResponse.json({ error: err.message || "Internal server error" }, { status: 500 })
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
 
@@ -144,8 +177,8 @@ export async function DELETE(
 ) {
   try {
     const { id: monitorId } = await context.params
-    if (!monitorId) {
-      return NextResponse.json({ error: "Monitor ID is required" }, { status: 400 })
+    if (!monitorId || !UUID_REGEX.test(monitorId)) {
+      return NextResponse.json({ error: "Valid monitor ID is required" }, { status: 400 })
     }
 
     const auth = await authenticate(request)
@@ -153,8 +186,15 @@ export async function DELETE(
       return NextResponse.json({ error: auth.error }, { status: auth.status })
     }
 
-    const { userId, adminSupabase } = auth
-    const { teamId } = await resolveEffectiveTier(userId, adminSupabase)
+    const { userId, adminSupabase, isApiKey } = auth
+    const { tier, teamId } = await resolveEffectiveTier(userId, adminSupabase)
+
+    if (isApiKey && tier === "free") {
+      return NextResponse.json(
+        { error: "API key access requires an active Pro or Agency plan" },
+        { status: 403 }
+      )
+    }
 
     // Verify ownership
     const { data: monitor, error: fetchError } = await adminSupabase
@@ -187,8 +227,8 @@ export async function DELETE(
       success: true,
       message: "Monitor deleted successfully",
     })
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("Monitor DELETE error:", err)
-    return NextResponse.json({ error: err.message || "Internal server error" }, { status: 500 })
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

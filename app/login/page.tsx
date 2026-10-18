@@ -168,9 +168,11 @@ export default function LoginPage() {
   const handleTabKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
       e.preventDefault()
-      setIsPasswordLogin(!isPasswordLogin)
+      const nextIsPassword = !isPasswordLogin
+      setIsPasswordLogin(nextIsPassword)
       setMessage(null)
       setDevLink(null)
+      document.getElementById(nextIsPassword ? "tab-password" : "tab-passwordless")?.focus()
     }
   }
 

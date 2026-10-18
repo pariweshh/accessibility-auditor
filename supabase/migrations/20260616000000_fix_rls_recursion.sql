@@ -19,6 +19,7 @@ as $$
     select 1 from public.team_members
     where team_id = _team_id
       and user_id = _user_id
+      and (_user_id = auth.uid() or coalesce(auth.role(), '') = 'service_role')
       and status = 'active'
   );
 $$;
@@ -34,6 +35,7 @@ as $$
     select 1 from public.teams
     where id = _team_id
       and owner_id = _user_id
+      and (_user_id = auth.uid() or coalesce(auth.role(), '') = 'service_role')
   );
 $$;
 
@@ -101,7 +103,7 @@ drop policy if exists "Users can view own or team scans" on public.scans;
 create policy "Users can view own or team scans" on public.scans
   for select using (
     user_id = auth.uid() or
-    (team_id is not null and public.is_team_member(team_id, auth.uid()))
+    (team_id is not null and (public.is_team_member(team_id, auth.uid()) or public.is_team_owner(team_id, auth.uid())))
   );
 
 -- ── 5. Monitors RLS Policy (Recursion-Free) ───────────────────────────────────
@@ -110,5 +112,5 @@ drop policy if exists "Users can view own or team monitors" on public.monitors;
 create policy "Users can view own or team monitors" on public.monitors
   for select using (
     auth.uid() = user_id or
-    (team_id is not null and public.is_team_member(team_id, auth.uid()))
+    (team_id is not null and (public.is_team_member(team_id, auth.uid()) or public.is_team_owner(team_id, auth.uid())))
   );

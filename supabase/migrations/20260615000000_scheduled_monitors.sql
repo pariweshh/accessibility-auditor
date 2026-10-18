@@ -43,7 +43,7 @@ create policy "Users can update own monitors" on public.monitors for update usin
 create policy "Users can delete own monitors" on public.monitors for delete using (auth.uid() = user_id);
 
 -- Service role bypass policy for cron processing
-create policy "Service role has full access to monitors" on public.monitors for all using (true) with check (true);
+create policy "Service role has full access to monitors" on public.monitors for all to service_role using (true) with check (true);
 
 -- Indexes for performance
 create index if not exists idx_monitors_due on public.monitors (status, next_run_at) where status = 'active';

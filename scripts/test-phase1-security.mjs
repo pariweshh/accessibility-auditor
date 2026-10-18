@@ -5,6 +5,9 @@
 
 import { validateScanTargetUrl, parseCanonicalIpv4, isRestrictedIpAddress } from "../lib/ssrf.js"
 import { checkRateLimit, resetRateLimitKey } from "../lib/rate-limit.js"
+import { generateReportHTML } from "../lib/report-template.js"
+import { generateMonitorAlertHtml } from "../lib/monitor-alert-email.js"
+import { getSafeRedirectUrl } from "../lib/safe-redirect.js"
 
 let passedCount = 0
 let failedCount = 0
@@ -21,7 +24,7 @@ function assert(condition, testName, details = "") {
 
 async function runTests() {
   console.log("================================================================")
-  console.log(" RUNNING PHASE 1 SECURITY & HARDENING VERIFICATION")
+  console.log(" RUNNING PHASE 1 & DEEP AUDIT SECURITY VERIFICATION")
   console.log("================================================================\n")
 
   // ── 1. Canonical IPv4 Parsing & Normalization ──────────────────────────────
@@ -39,10 +42,20 @@ async function runTests() {
   console.log("\n--- 2. Restricted IP Address Range Checks ---")
   assert(isRestrictedIpAddress("127.0.0.1") === true, "127.0.0.1 is restricted")
   assert(isRestrictedIpAddress("169.254.169.254") === true, "Cloud metadata 169.254.169.254 is restricted")
+  assert(isRestrictedIpAddress("198.18.0.1") === true, "Benchmark testing 198.18.0.1 is restricted")
+  assert(isRestrictedIpAddress("224.0.0.1") === true, "Multicast 224.0.0.1 is restricted")
+  assert(isRestrictedIpAddress("255.255.255.255") === true, "Broadcast 255.255.255.255 is restricted")
   assert(isRestrictedIpAddress("::1") === true, "IPv6 loopback ::1 is restricted")
+  assert(isRestrictedIpAddress("0:0:0:0:0:0:0:1") === true, "Expanded IPv6 loopback 0:0:0:0:0:0:0:1 is restricted")
   assert(isRestrictedIpAddress("::") === true, "IPv6 unspecified :: is restricted")
+  assert(isRestrictedIpAddress("0:0:0:0:0:0:0:0") === true, "Expanded IPv6 unspecified is restricted")
   assert(isRestrictedIpAddress("::ffff:169.254.169.254") === true, "IPv4-mapped metadata is restricted")
   assert(isRestrictedIpAddress("::ffff:a9fe:a9fe") === true, "IPv6 hex-mapped metadata is restricted")
+  assert(isRestrictedIpAddress("64:ff9b::169.254.169.254") === true, "NAT64 64:ff9b::/96 is restricted")
+  assert(isRestrictedIpAddress("2002:7f00:0001::") === true, "6to4 2002::/16 is restricted")
+  assert(isRestrictedIpAddress("2001:0000:4136:e378:8000:63bf:3fff:fdd2") === true, "Teredo 2001:0000::/32 is restricted")
+  assert(isRestrictedIpAddress("fd12:3456:789a::1") === true, "IPv6 ULA fd00::/8 is restricted")
+  assert(isRestrictedIpAddress("fe80::1ff:fe23:4567:890a") === true, "IPv6 link-local fe80::/10 is restricted")
   assert(isRestrictedIpAddress("8.8.8.8") === false, "Public DNS 8.8.8.8 is NOT restricted")
   assert(isRestrictedIpAddress("1.1.1.1") === false, "Public Cloudflare DNS 1.1.1.1 is NOT restricted")
 
@@ -150,6 +163,63 @@ async function runTests() {
 
   assert(isRecentStale === false, "1-minute old scan is NOT classified as stale")
   assert(isOldStale === true, "4-minute old scan is correctly classified as stale (> 3 min)")
+
+  // ── 6. Report Template & Alert Email XSS/CSS Sanitization Tests ────────────
+  console.log("\n--- 6. Report HTML & Email Sanitization Tests ---")
+  const reportHtml = generateReportHTML(
+    {
+      url: 'https://example.com/"><script>alert(1)</script>',
+      timestamp: '2026-06-18"><img src=x onerror=alert(1)>',
+      passes: 10,
+      summary: { totalViolations: 1, critical: 1, serious: 0, moderate: 0, minor: 0 },
+      violations: [
+        {
+          id: "image-alt",
+          impact: 'critical"><script>evil()</script>',
+          description: "Images must have alt text",
+          help: "Add alt attribute",
+          helpUrl: "javascript:alert('xss')",
+          tags: ["wcag2a"],
+          nodes: [{ html: "<img src='a.jpg'>", target: ["img"], failureSummary: "Missing alt" }],
+        },
+      ],
+    },
+    {
+      name: "<script>alert('brand')</script>",
+      logoUrl: "javascript:alert('logo')",
+      primaryColor: "red; } body { background: url(http://169.254.169.254)",
+      tagline: "<b>Tagline</b>",
+      footerText: "<iframe src='http://169.254.169.254'></iframe>",
+      hideWatermark: true,
+    }
+  )
+
+  assert(!reportHtml.includes("<script>alert(1)</script>"), "Report HTML escapes script tag in scan URL")
+  assert(!reportHtml.includes("<script>alert('brand')</script>"), "Report HTML escapes script tag in brand name")
+  assert(!reportHtml.includes("javascript:alert('logo')"), "Report HTML strips javascript: logoUrl")
+  assert(!reportHtml.includes("javascript:alert('xss')"), "Report HTML strips javascript: helpUrl")
+  assert(!reportHtml.includes("background: url(http://169.254.169.254)"), "Report HTML rejects CSS injection in primaryColor")
+
+  const emailOut = generateMonitorAlertHtml({
+    url: 'https://example.com/"><script>alert(1)</script>',
+    scanId: "00000000-0000-0000-0000-000000000000",
+    previousScore: 95,
+    newScore: 70,
+    threshold: 85,
+    criticalCount: 1,
+    seriousCount: 1,
+    moderateCount: 0,
+    topViolations: [{ id: "<script>rule</script>", help: "<img src=x onerror=alert(1)>", count: 1 }],
+  })
+  assert(!emailOut.html.includes("<script>alert(1)</script>"), "Monitor email HTML escapes script tag in URL")
+  assert(!emailOut.html.includes("<img src=x onerror=alert(1)>"), "Monitor email HTML escapes rule help text")
+
+  // ── 7. Open Redirect Protection Tests ──────────────────────────────────────
+  console.log("\n--- 7. Open Redirect Protection Tests ---")
+  assert(getSafeRedirectUrl("/dashboard") === "/dashboard", "Allows internal path /dashboard")
+  assert(getSafeRedirectUrl("https://evil.com/phish") === "/dashboard", "Blocks absolute external URL")
+  assert(getSafeRedirectUrl("//evil.com/phish") === "/dashboard", "Blocks protocol-relative URL //evil.com")
+  assert(getSafeRedirectUrl("/\\evil.com") === "/dashboard", "Blocks backslash-prefixed URL /\\evil.com")
 
   // ── Summary ────────────────────────────────────────────────────────────────
   console.log("\n================================================================")

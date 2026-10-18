@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, forwardRef, useImperativeHandle } from "react";
+import { useState, useEffect, useRef, forwardRef, useImperativeHandle } from "react";
 import { createPortal } from "react-dom";
+import { useFocusTrap } from "@/hooks/use-focus-trap";
 
 export interface BillingButtonHandle {
   openModal: () => void;
@@ -17,10 +18,17 @@ const BillingButton = forwardRef<BillingButtonHandle, BillingButtonProps>(
   const [isLoading, setIsLoading] = useState(false);
   const [showPricingModal, setShowPricingModal] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const modalRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useFocusTrap({
+    isOpen: showPricingModal,
+    onClose: () => setShowPricingModal(false),
+    containerRef: modalRef,
+  });
 
   useImperativeHandle(ref, () => ({
     openModal: () => setShowPricingModal(true),
@@ -135,7 +143,13 @@ const BillingButton = forwardRef<BillingButtonHandle, BillingButtonProps>(
         <div style={{ position: 'fixed', inset: 0, zIndex: 9999, overflowY: 'auto', backgroundColor: 'rgba(2,6,23,0.85)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)' }}>
           {/* Flex centering container using viewport height */}
           <div className="min-h-screen flex items-center justify-center p-4 md:p-6">
-            <div className="relative w-full max-w-2xl bg-slate-900 border border-slate-800/80 rounded-2xl p-6 md:p-8 shadow-2xl overflow-hidden my-8">
+            <div
+              ref={modalRef}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="pricing-modal-title"
+              className="relative w-full max-w-2xl bg-slate-900 border border-slate-800/80 rounded-2xl p-6 md:p-8 shadow-2xl overflow-hidden my-8"
+            >
               {/* Top ambient glow */}
               <div className="absolute -top-20 left-1/2 -translate-x-1/2 w-80 h-80 bg-indigo-500/15 rounded-full blur-3xl pointer-events-none"></div>
 
@@ -153,7 +167,7 @@ const BillingButton = forwardRef<BillingButtonHandle, BillingButtonProps>(
               </button>
 
               <div className="text-center mb-8 relative z-10">
-                <h3 className="text-2xl font-black bg-linear-to-r from-white to-slate-300 bg-clip-text text-transparent mb-2">
+                <h3 id="pricing-modal-title" className="text-2xl font-black bg-linear-to-r from-white to-slate-300 bg-clip-text text-transparent mb-2">
                   Upgrade Your Equivance Plan
                 </h3>
                 <p className="text-xs text-slate-400 max-w-md mx-auto">

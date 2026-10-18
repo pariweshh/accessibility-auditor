@@ -2,8 +2,10 @@ import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { createClient as createAdminClient } from "@supabase/supabase-js"
 import puppeteer from "puppeteer-core"
-import { generateReportHTML } from "@/lib/report-template"
+import { generateReportHTML, escapeHtml } from "@/lib/report-template"
 import { resolveEffectiveTier } from "@/lib/quota"
+import { validateScanTargetUrl } from "@/lib/ssrf"
+import { checkRateLimit } from "@/lib/rate-limit"
 import { ScanRecord } from "@/lib/types"
 import { Resend } from "resend"
 
@@ -12,6 +14,7 @@ export const dynamic = "force-dynamic"
 export const maxDuration = 60
 
 const PAID_TIERS = ["pro", "agency"]
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 function getAdminSupabase() {
   return createAdminClient(
@@ -21,8 +24,8 @@ function getAdminSupabase() {
 }
 
 async function handlePdfRequest(scanId: string | null, force: boolean) {
-  if (!scanId) {
-    return NextResponse.json({ error: "scanId is required" }, { status: 400 })
+  if (!scanId || !UUID_REGEX.test(scanId)) {
+    return NextResponse.json({ error: "Valid scanId is required" }, { status: 400 })
   }
 
   // ── Auth ────────────────────────────────────────────────────────────────
@@ -57,14 +60,15 @@ async function handlePdfRequest(scanId: string | null, force: boolean) {
     return NextResponse.json({ error: "Scan not found or incomplete" }, { status: 404 })
   }
 
-  const storagePath = `${user.id}/${scanId}.pdf`
+  const ownerFolder = scan.user_id && UUID_REGEX.test(scan.user_id) ? scan.user_id : user.id
+  const storagePath = `${ownerFolder}/${scanId}.pdf`
 
   // ── Return cached PDF if it already exists (unless force = true) ────────
   if (!force) {
     const { data: existingFile } = await adminSupabase
       .storage
       .from("reports")
-      .list(user.id, { search: `${scanId}.pdf` })
+      .list(ownerFolder, { search: `${scanId}.pdf` })
 
     if (existingFile && existingFile.length > 0) {
       const { data: urlData } = await adminSupabase
@@ -78,18 +82,50 @@ async function handlePdfRequest(scanId: string | null, force: boolean) {
     }
   }
 
+  // ── Rate limit Browserless PDF rendering per user ───────────────────────
+  const rateLimit = checkRateLimit({
+    key: `pdf_gen:user:${user.id}`,
+    limit: 20,
+    windowMs: 60 * 60 * 1000, // 20 renders per hour
+  })
+  if (!rateLimit.success) {
+    return NextResponse.json(
+      { error: "Too many PDF generation requests. Please wait before regenerating." },
+      {
+        status: 429,
+        headers: {
+          "Retry-After": String(rateLimit.resetSeconds),
+        },
+      }
+    )
+  }
+
   // ── Resolve Agency White-Label Branding ─────────────────────────────────
   let branding = null
   if (tier === "agency") {
-    const { data: team } = await adminSupabase
-      .from("teams")
-      .select(
-        "brand_name, brand_logo_url, brand_primary_color, brand_tagline, brand_footer_text, brand_hide_watermark"
-      )
-      .or(
-        `owner_id.eq.${user.id},id.eq.${activeTeamId || scan.team_id || "00000000-0000-0000-0000-000000000000"}`
-      )
-      .maybeSingle()
+    const targetTeamId = activeTeamId || scan.team_id
+    let team = null
+
+    if (targetTeamId && UUID_REGEX.test(targetTeamId)) {
+      const { data } = await adminSupabase
+        .from("teams")
+        .select(
+          "brand_name, brand_logo_url, brand_primary_color, brand_tagline, brand_footer_text, brand_hide_watermark"
+        )
+        .eq("id", targetTeamId)
+        .maybeSingle()
+      team = data
+    }
+    if (!team) {
+      const { data } = await adminSupabase
+        .from("teams")
+        .select(
+          "brand_name, brand_logo_url, brand_primary_color, brand_tagline, brand_footer_text, brand_hide_watermark"
+        )
+        .eq("owner_id", user.id)
+        .limit(1)
+      team = data?.[0] ?? null
+    }
 
     if (team) {
       branding = {
@@ -118,6 +154,31 @@ async function handlePdfRequest(scanId: string | null, force: boolean) {
   let pdfBuffer: Buffer
   try {
     const page = await browser.newPage()
+
+    // Intercept network requests during PDF generation to prevent SSRF via custom logo URLs
+    await page.setRequestInterception(true)
+    page.on("request", async (req) => {
+      try {
+        const reqUrl = req.url()
+        if (reqUrl.startsWith("data:") || reqUrl.startsWith("about:")) {
+          await req.continue()
+          return
+        }
+        const check = await validateScanTargetUrl(reqUrl)
+        if (!check.valid) {
+          await req.abort("accessdenied")
+          return
+        }
+        await req.continue()
+      } catch {
+        try {
+          await req.abort("accessdenied")
+        } catch {
+          // ignore if already handled
+        }
+      }
+    })
+
     await page.setContent(html, { waitUntil: "domcontentloaded" })
     // Wait for any web fonts or images to settle
     await new Promise((r) => setTimeout(r, 800))
@@ -160,10 +221,12 @@ async function handlePdfRequest(scanId: string | null, force: boolean) {
 
   // ── Email the signed URL via Resend (optional — graceful if not configured) ─
   const resendKey = process.env.RESEND_API_KEY
-  if (resendKey && user.email) {
+  if (resendKey && !resendKey.startsWith("re_xxxx") && user.email) {
     try {
       const resend = new Resend(resendKey)
-      const domain = new URL(scan.url).hostname
+      const domain = new URL(scan.url).hostname.replace(/[\r\n]+/g, "")
+      const safeDomain = escapeHtml(domain)
+      const safeSignedUrl = escapeHtml(signedUrl)
       const emailFrom =
         process.env.EMAIL_FROM ||
         process.env.RESEND_FROM_EMAIL ||
@@ -175,8 +238,8 @@ async function handlePdfRequest(scanId: string | null, force: boolean) {
         html: `
           <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:32px">
             <h2 style="color:#4f46e5;margin-bottom:8px">Your PDF Report is Ready</h2>
-            <p style="color:#475569;margin-bottom:24px">Your accessibility audit report for <strong>${domain}</strong> has been generated.</p>
-            <a href="${signedUrl}" style="display:inline-block;background:#4f46e5;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600">Download PDF Report &rarr;</a>
+            <p style="color:#475569;margin-bottom:24px">Your accessibility audit report for <strong>${safeDomain}</strong> has been generated.</p>
+            <a href="${safeSignedUrl}" style="display:inline-block;background:#4f46e5;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600">Download PDF Report &rarr;</a>
             <p style="color:#94a3b8;font-size:12px;margin-top:24px">This link expires in 1 hour. You can regenerate it any time from your dashboard.</p>
           </div>
         `,
@@ -198,7 +261,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error("PDF generation GET error:", error)
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "PDF generation failed" },
+      { error: "PDF generation failed" },
       { status: 500 }
     )
   }
@@ -211,7 +274,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("PDF generation error:", error)
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "PDF generation failed" },
+      { error: "PDF generation failed" },
       { status: 500 }
     )
   }

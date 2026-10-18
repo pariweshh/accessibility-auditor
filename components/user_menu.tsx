@@ -32,15 +32,12 @@ export default function UserMenu({
   // Toggle Dark/Light theme
   const toggleTheme = () => {
     const nextTheme = theme === "dark" ? "light" : "dark"
-    console.log(`[Theme Toggle] Current theme: ${theme}, switching to: ${nextTheme}`)
     if (nextTheme === "light") {
       document.documentElement.classList.add("light")
       localStorage.setItem("theme", "light")
-      console.log("[Theme Toggle] Added '.light' class to root HTML element")
     } else {
       document.documentElement.classList.remove("light")
       localStorage.setItem("theme", "dark")
-      console.log("[Theme Toggle] Removed '.light' class from root HTML element")
     }
     setTheme(nextTheme)
   }

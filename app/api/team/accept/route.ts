@@ -5,6 +5,13 @@ import { createClient as createAdminClient } from "@supabase/supabase-js"
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+function isSubscriptionActive(status: string | null | undefined): boolean {
+  if (!status) return true
+  return status === "active" || status === "trialing"
+}
+
 function getAdminClient() {
   return createAdminClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -16,8 +23,8 @@ export async function GET(request: NextRequest) {
   try {
     const token = request.nextUrl.searchParams.get("token")
 
-    if (!token || typeof token !== "string") {
-      return NextResponse.json({ error: "Missing invitation token" }, { status: 400 })
+    if (!token || typeof token !== "string" || !UUID_REGEX.test(token.trim())) {
+      return NextResponse.json({ error: "Missing or invalid invitation token" }, { status: 400 })
     }
 
     const adminSupabase = getAdminClient()
@@ -43,7 +50,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const team = member.teams as any
+    const team = member.teams as { id?: string; name?: string; owner_id?: string } | null
 
     return NextResponse.json({
       valid: true,
@@ -77,7 +84,7 @@ export async function POST(request: NextRequest) {
 
     const { token } = await request.json()
 
-    if (!token || typeof token !== "string") {
+    if (!token || typeof token !== "string" || !UUID_REGEX.test(token.trim())) {
       return NextResponse.json({ error: "A valid invitation token is required" }, { status: 400 })
     }
 
@@ -92,13 +99,14 @@ export async function POST(request: NextRequest) {
 
     if (memberErr || !member) {
       // Check if user is already accepted/active
-      const { data: existingActive } = await adminSupabase
+      const { data: existingActiveRows } = await adminSupabase
         .from("team_members")
         .select("id, team_id")
         .eq("user_id", user.id)
         .eq("status", "active")
-        .maybeSingle()
+        .limit(1)
 
+      const existingActive = existingActiveRows?.[0]
       if (existingActive) {
         return NextResponse.json({
           success: true,
@@ -120,6 +128,19 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Verify authenticated user's email matches the invited email
+    const authenticatedEmail = (user.email || "").trim().toLowerCase()
+    const invitedEmail = (member.email || "").trim().toLowerCase()
+    if (!authenticatedEmail || authenticatedEmail !== invitedEmail) {
+      return NextResponse.json(
+        {
+          error:
+            "This invitation was issued to a different email address. Please sign in with the invited email account.",
+        },
+        { status: 403 }
+      )
+    }
+
     // 2. Fetch team info and verify owner still has an active Agency subscription
     const { data: team, error: teamErr } = await adminSupabase
       .from("teams")
@@ -133,11 +154,14 @@ export async function POST(request: NextRequest) {
 
     const { data: ownerProfile } = await adminSupabase
       .from("profiles")
-      .select("subscription_tier")
+      .select("subscription_tier, subscription_status")
       .eq("id", team.owner_id)
       .maybeSingle()
 
-    if (ownerProfile?.subscription_tier !== "agency") {
+    if (
+      ownerProfile?.subscription_tier !== "agency" ||
+      !isSubscriptionActive(ownerProfile?.subscription_status)
+    ) {
       return NextResponse.json(
         { error: "This team workspace does not currently have an active Agency subscription." },
         { status: 403 }
@@ -158,18 +182,21 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // 4. Activate the member
-    const { error: updateErr } = await adminSupabase
+    // 4. Activate the member atomically only if still pending
+    const { data: activatedMember, error: updateErr } = await adminSupabase
       .from("team_members")
       .update({
         user_id: user.id,
-        email: user.email || member.email,
+        email: authenticatedEmail,
         status: "active",
         invite_token: null,
       })
       .eq("id", member.id)
+      .eq("status", "pending")
+      .select("id")
+      .maybeSingle()
 
-    if (updateErr) {
+    if (updateErr || !activatedMember) {
       console.error("Failed to activate team membership:", updateErr)
       return NextResponse.json({ error: "Failed to join team workspace" }, { status: 500 })
     }
@@ -183,7 +210,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("POST /api/team/accept error:", error)
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to accept team invitation" },
+      { error: "Failed to accept team invitation" },
       { status: 500 }
     )
   }

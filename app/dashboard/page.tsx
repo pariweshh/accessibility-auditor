@@ -1,8 +1,11 @@
 import { createClient } from "@/lib/supabase/server"
+import { createClient as createAdminClient } from "@supabase/supabase-js"
 import { redirect } from "next/navigation"
 import { ScanRecord } from "@/lib/types"
 import { resolveEffectiveTier } from "@/lib/quota"
 import DashboardClient from "./dashboard_client"
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -13,21 +16,32 @@ export default async function DashboardPage() {
   // Fetch profile details for tier and billing management
   const { data: profile } = await supabase
     .from("profiles")
-    .select("*")
+    .select("id, subscription_tier, subscription_status, scans_used, scans_reset_at, stripe_customer_id, stripe_subscription_id")
     .eq("id", user.id)
     .single()
 
-  const { tier, teamId: activeTeamId } = await resolveEffectiveTier(user.id, supabase)
+  const adminDb =
+    process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY
+      ? createAdminClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL,
+          process.env.SUPABASE_SERVICE_ROLE_KEY
+        )
+      : supabase
+
+  const { tier, teamId: activeTeamId } = await resolveEffectiveTier(user.id, adminDb)
 
   const isPaid = tier === "pro" || tier === "agency"
   const email = user.email ?? ""
+
+  const validTeamFilter =
+    activeTeamId && UUID_REGEX.test(activeTeamId) && UUID_REGEX.test(user.id)
 
   // Count total scans ever run by this user or their team
   let countQuery = supabase
     .from("scans")
     .select("id", { count: "exact", head: true })
 
-  if (activeTeamId) {
+  if (validTeamFilter) {
     countQuery = countQuery.or(`user_id.eq.${user.id},team_id.eq.${activeTeamId}`)
   } else {
     countQuery = countQuery.eq("user_id", user.id)
@@ -42,7 +56,7 @@ export default async function DashboardPage() {
     .from("scans")
     .select("*")
 
-  if (activeTeamId) {
+  if (validTeamFilter) {
     scansQuery = scansQuery.or(`user_id.eq.${user.id},team_id.eq.${activeTeamId}`)
   } else {
     scansQuery = scansQuery.eq("user_id", user.id)
@@ -56,6 +70,8 @@ export default async function DashboardPage() {
     console.error("Dashboard fetch error:", error)
   }
 
+  const effectiveProfile = profile ? { ...profile, subscription_tier: tier } : null
+
   return (
     <DashboardClient
       scans={(scans ?? []) as ScanRecord[]}
@@ -63,7 +79,7 @@ export default async function DashboardPage() {
       tier={tier}
       email={email}
       user={user}
-      profile={profile}
+      profile={effectiveProfile}
     />
   )
 }

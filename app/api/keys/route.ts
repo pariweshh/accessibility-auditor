@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
+import { createClient as createAdminClient } from "@supabase/supabase-js"
 import { resolveEffectiveTier } from "@/lib/quota"
 import crypto from "crypto"
 
@@ -7,6 +8,15 @@ export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
 
 const PAID_TIERS = ["pro", "agency"]
+const MAX_API_KEYS_PER_USER = 10
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+function getAdminClient() {
+  return createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+}
 
 // GET /api/keys - List all keys for the logged-in user
 export async function GET() {
@@ -41,8 +51,11 @@ export async function POST(request: NextRequest) {
   try {
     const { name } = await request.json()
 
-    if (!name || typeof name !== "string" || name.trim().length === 0) {
-      return NextResponse.json({ error: "API key name is required" }, { status: 400 })
+    if (!name || typeof name !== "string" || name.trim().length === 0 || name.trim().length > 64) {
+      return NextResponse.json(
+        { error: "API key name is required (max 64 characters)" },
+        { status: 400 }
+      )
     }
 
     const supabase = await createClient()
@@ -52,13 +65,27 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    // Check effective user tier (verifies team owner's active Agency subscription)
-    const { tier } = await resolveEffectiveTier(user.id, supabase)
+    // Check effective user tier (verifies team owner's active Agency subscription via admin client)
+    const adminSupabase = getAdminClient()
+    const { tier } = await resolveEffectiveTier(user.id, adminSupabase)
 
     if (!PAID_TIERS.includes(tier)) {
       return NextResponse.json(
         { error: "upgrade_required", message: "Developer API access is available on Pro and Agency plans." },
         { status: 403 }
+      )
+    }
+
+    // Enforce maximum active API keys per user
+    const { count: existingCount } = await supabase
+      .from("api_keys")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id)
+
+    if ((existingCount || 0) >= MAX_API_KEYS_PER_USER) {
+      return NextResponse.json(
+        { error: `Maximum of ${MAX_API_KEYS_PER_USER} active API keys allowed. Please revoke an unused key first.` },
+        { status: 400 }
       )
     }
 
@@ -100,8 +127,8 @@ export async function DELETE(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const keyId = searchParams.get("id")
 
-    if (!keyId) {
-      return NextResponse.json({ error: "API key ID is required" }, { status: 400 })
+    if (!keyId || !UUID_REGEX.test(keyId)) {
+      return NextResponse.json({ error: "Valid API key ID is required" }, { status: 400 })
     }
 
     const supabase = await createClient()

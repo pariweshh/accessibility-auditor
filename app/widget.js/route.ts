@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server"
-import fs from "fs"
+import fs from "fs/promises"
 import path from "path"
 
 export const runtime = "nodejs"
+
+let cachedScriptContent: string | null = null
 
 /**
  * GET /widget.js
@@ -10,13 +12,16 @@ export const runtime = "nodejs"
  */
 export async function GET() {
   try {
-    const filePath = path.join(process.cwd(), "public", "widget.js")
-    const scriptContent = fs.readFileSync(filePath, "utf-8")
+    if (!cachedScriptContent || process.env.NODE_ENV !== "production") {
+      const filePath = path.join(process.cwd(), "public", "widget.js")
+      cachedScriptContent = await fs.readFile(filePath, "utf-8")
+    }
 
-    return new NextResponse(scriptContent, {
+    return new NextResponse(cachedScriptContent, {
       status: 200,
       headers: {
         "Content-Type": "application/javascript; charset=utf-8",
+        "X-Content-Type-Options": "nosniff",
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Methods": "GET, OPTIONS",
         "Cache-Control": "public, max-age=3600, s-maxage=86400, stale-while-revalidate=86400",
@@ -28,6 +33,7 @@ export async function GET() {
       status: 500,
       headers: {
         "Content-Type": "application/javascript; charset=utf-8",
+        "X-Content-Type-Options": "nosniff",
         "Access-Control-Allow-Origin": "*",
       },
     })

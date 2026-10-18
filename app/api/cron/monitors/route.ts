@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient as createAdminClient } from "@supabase/supabase-js"
 import { Resend } from "resend"
+import crypto from "crypto"
 import { checkQuota, resolveEffectiveTier } from "@/lib/quota"
 import { generateMonitorAlertHtml } from "@/lib/monitor-alert-email"
+import { validateScanTargetUrl } from "@/lib/ssrf"
 
 function getAdminClient() {
   return createAdminClient(
@@ -11,24 +13,26 @@ function getAdminClient() {
   )
 }
 
+function timingSafeCompare(a: string, b: string): boolean {
+  const bufA = Buffer.from(a, "utf8")
+  const bufB = Buffer.from(b, "utf8")
+  if (bufA.length !== bufB.length) return false
+  return crypto.timingSafeEqual(bufA, bufB)
+}
+
 function verifyCronSecret(request: NextRequest): boolean {
-  const authHeader = request.headers.get("authorization")
+  const authHeader = request.headers.get("authorization") || ""
   const cronSecret = process.env.CRON_SECRET
 
-  // In production, strictly require CRON_SECRET match
-  if (process.env.NODE_ENV === "production" && cronSecret) {
-    if (authHeader !== `Bearer ${cronSecret}`) {
-      const urlSecret = request.nextUrl.searchParams.get("key")
-      if (urlSecret !== cronSecret) {
-        return false
-      }
-    }
-    return true
+  // In production, fail closed if CRON_SECRET is not configured
+  if (process.env.NODE_ENV === "production") {
+    if (!cronSecret) return false
+    return timingSafeCompare(authHeader, `Bearer ${cronSecret}`)
   }
 
   // In development, allow if secret matches or if secret is not configured
   if (!cronSecret) return true
-  return authHeader === `Bearer ${cronSecret}` || request.nextUrl.searchParams.get("key") === cronSecret
+  return timingSafeCompare(authHeader, `Bearer ${cronSecret}`)
 }
 
 /**
@@ -42,7 +46,7 @@ async function processDueMonitors(request: NextRequest) {
   const adminSupabase = getAdminClient()
   const now = new Date()
 
-  // 1. Fetch due monitors (up to 15 per batch to prevent serverless execution timeout)
+  // 1. Fetch due monitors (up to 10 per batch to stay well within 60s serverless execution timeout)
   const { data: monitors, error: fetchError } = await adminSupabase
     .from("monitors")
     .select(`
@@ -58,7 +62,7 @@ async function processDueMonitors(request: NextRequest) {
     .eq("status", "active")
     .lte("next_run_at", now.toISOString())
     .order("next_run_at", { ascending: true })
-    .limit(15)
+    .limit(10)
 
   if (fetchError) {
     console.error("Cron monitors fetch error:", fetchError)
@@ -109,10 +113,26 @@ async function processDueMonitors(request: NextRequest) {
         continue
       }
 
+      // Re-validate monitor URL against SSRF / DNS rebinding at execution time
+      const ssrfCheck = await validateScanTargetUrl(monitor.url)
+      if (!ssrfCheck.valid) {
+        await adminSupabase
+          .from("monitors")
+          .update({ status: "paused" })
+          .eq("id", monitor.id)
+
+        results.push({
+          monitorId: monitor.id,
+          url: monitor.url,
+          status: "error",
+        })
+        continue
+      }
+      const targetUrl = ssrfCheck.normalizedUrl || monitor.url
+
       // Check monthly quota
       const quota = await checkQuota(monitor.user_id, adminSupabase)
       if (!quota.allowed) {
-        // Compute next run interval to avoid stuck loop
         const intervalMs =
           monitor.frequency === "daily"
             ? 24 * 60 * 60 * 1000
@@ -126,7 +146,7 @@ async function processDueMonitors(request: NextRequest) {
 
         results.push({
           monitorId: monitor.id,
-          url: monitor.url,
+          url: targetUrl,
           status: "skipped_quota",
         })
         continue
@@ -138,7 +158,7 @@ async function processDueMonitors(request: NextRequest) {
         .insert({
           user_id: monitor.user_id,
           team_id: quota.teamId ?? monitor.team_id ?? null,
-          url: monitor.url,
+          url: targetUrl,
           status: "pending",
         })
         .select("id")
@@ -148,7 +168,7 @@ async function processDueMonitors(request: NextRequest) {
         console.error("Failed to insert scan for monitor:", monitor.id, insertError)
         results.push({
           monitorId: monitor.id,
-          url: monitor.url,
+          url: targetUrl,
           status: "error",
         })
         continue
@@ -182,7 +202,7 @@ async function processDueMonitors(request: NextRequest) {
         },
         body: JSON.stringify({
           scanId,
-          url: monitor.url,
+          url: targetUrl,
           userId: monitor.user_id,
           tier: quota.tier,
         }),
@@ -190,96 +210,109 @@ async function processDueMonitors(request: NextRequest) {
         console.error("Failed to invoke scan-site edge function for monitor:", err)
       })
 
-      // Check degradation alert on previous scan vs new baseline if available
-      // If monitor already had a last_score and user wants alert on degradation
+      // Poll for scan completion to record baseline/updated last_score and evaluate degradation alerts
       let alertSent = false
-      if (monitor.alert_on_degradation && monitor.last_score !== null && monitor.alert_email && resend) {
-        // Poll for scan completion with backoff (up to 15s) to evaluate score
-        let completedScan: any = null
-        for (let attempt = 0; attempt < 6; attempt++) {
-          await new Promise((r) => setTimeout(r, 2500))
-          const { data: latestScan } = await adminSupabase
-            .from("scans")
-            .select("*")
-            .eq("id", scanId)
-            .maybeSingle()
+      let completedScan: any = null
+      for (let attempt = 0; attempt < 4; attempt++) {
+        await new Promise((r) => setTimeout(r, 2000))
+        const { data: latestScan } = await adminSupabase
+          .from("scans")
+          .select("*")
+          .eq("id", scanId)
+          .maybeSingle()
 
-          if (latestScan && (latestScan.status === "completed" || latestScan.status === "failed")) {
-            completedScan = latestScan
-            break
-          }
+        if (latestScan && (latestScan.status === "completed" || latestScan.status === "failed")) {
+          completedScan = latestScan
+          break
         }
+      }
 
-        if (completedScan && completedScan.status === "completed") {
-          const passesCount = completedScan.passes ?? completedScan.result?.passes ?? 0
-          const violationsCount = completedScan.violations ?? completedScan.result?.violations?.length ?? 0
-          const totalChecks = passesCount + violationsCount
-          const newScore = totalChecks > 0 ? Math.round((passesCount / totalChecks) * 100) : 100
+      if (completedScan && completedScan.status === "completed") {
+        const passesCount =
+          typeof completedScan.passes === "number"
+            ? completedScan.passes
+            : typeof completedScan.result?.passes === "number"
+            ? completedScan.result.passes
+            : 0
+        const violationsCount =
+          typeof completedScan.violations === "number"
+            ? completedScan.violations
+            : Array.isArray(completedScan.result?.violations)
+            ? completedScan.result.violations.length
+            : 0
+        const totalChecks = passesCount + violationsCount
+        const newScore = totalChecks > 0 ? Math.round((passesCount / totalChecks) * 100) : 100
 
-          const prevScore = monitor.last_score
-          const isDrop = prevScore !== null && (prevScore - newScore >= 5 || newScore < monitor.min_score_threshold)
+        const prevScore = typeof monitor.last_score === "number" ? monitor.last_score : null
+        const isDrop =
+          (prevScore !== null && prevScore - newScore >= 5) ||
+          newScore < (monitor.min_score_threshold ?? 90)
 
-          const summary = completedScan.summary || {}
-          const criticalCount = summary.critical ?? 0
-          const seriousCount = summary.serious ?? 0
-          const moderateCount = summary.moderate ?? 0
+        const summary = completedScan.summary || {}
+        const criticalCount = summary.critical ?? 0
+        const seriousCount = summary.serious ?? 0
+        const moderateCount = summary.moderate ?? 0
 
-          // Update monitor with new score
-          await adminSupabase
-            .from("monitors")
-            .update({ last_score: newScore })
-            .eq("id", monitor.id)
+        // Always update monitor with the latest score so baseline is established on first run
+        await adminSupabase
+          .from("monitors")
+          .update({ last_score: newScore })
+          .eq("id", monitor.id)
 
-          // Dispatch email if score dropped significantly or fell below threshold
-          if (isDrop || criticalCount > 0) {
-            let team = monitor.teams
-            if (!team && teamId) {
-              const { data: teamRecord } = await adminSupabase
-                .from("teams")
-                .select("brand_name, brand_primary_color, brand_logo_url")
-                .eq("id", teamId)
-                .maybeSingle()
-              team = teamRecord
-            }
-            const topViolations = (completedScan.result?.violations || []).slice(0, 5).map((v: any) => ({
-              id: v.id,
-              help: v.help,
-              count: v.nodes?.length || 1,
-            }))
+        // Dispatch email if alert_on_degradation is enabled and score dropped or critical issues found
+        if (
+          monitor.alert_on_degradation &&
+          monitor.alert_email &&
+          resend &&
+          (isDrop || criticalCount > 0)
+        ) {
+          let team = monitor.teams
+          if (!team && teamId) {
+            const { data: teamRecord } = await adminSupabase
+              .from("teams")
+              .select("brand_name, brand_primary_color, brand_logo_url")
+              .eq("id", teamId)
+              .maybeSingle()
+            team = teamRecord
+          }
+          const topViolations = (completedScan.result?.violations || []).slice(0, 5).map((v: any) => ({
+            id: v.id,
+            help: v.help,
+            count: v.nodes?.length || 1,
+          }))
 
-            const emailPayload = generateMonitorAlertHtml({
-              url: monitor.url,
-              previousScore: prevScore,
-              newScore,
-              threshold: monitor.min_score_threshold,
-              scanId,
-              criticalCount,
-              seriousCount,
-              moderateCount,
-              topViolations,
-              brandName: team?.brand_name || null,
-              brandPrimaryColor: team?.brand_primary_color || null,
-              brandLogoUrl: team?.brand_logo_url || null,
+          const emailPayload = generateMonitorAlertHtml({
+            url: targetUrl,
+            previousScore: prevScore,
+            newScore,
+            threshold: monitor.min_score_threshold,
+            scanId,
+            criticalCount,
+            seriousCount,
+            moderateCount,
+            topViolations,
+            brandName: team?.brand_name || null,
+            brandPrimaryColor: team?.brand_primary_color || null,
+            brandLogoUrl: team?.brand_logo_url || null,
+          })
+
+          try {
+            await resend.emails.send({
+              from: emailFrom,
+              to: monitor.alert_email,
+              subject: emailPayload.subject,
+              html: emailPayload.html,
             })
-
-            try {
-              await resend.emails.send({
-                from: emailFrom,
-                to: monitor.alert_email,
-                subject: emailPayload.subject,
-                html: emailPayload.html,
-              })
-              alertSent = true
-            } catch (emailErr) {
-              console.error("Failed to dispatch monitor degradation email:", emailErr)
-            }
+            alertSent = true
+          } catch (emailErr) {
+            console.error("Failed to dispatch monitor degradation email:", emailErr)
           }
         }
       }
 
       results.push({
         monitorId: monitor.id,
-        url: monitor.url,
+        url: targetUrl,
         status: "dispatched",
         scanId,
         alertSent,

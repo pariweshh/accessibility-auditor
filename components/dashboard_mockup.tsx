@@ -145,8 +145,17 @@ export default function DashboardMockup() {
                 {items.map((item) => (
                   <div
                     key={item.id}
+                    role="button"
+                    tabIndex={0}
+                    aria-pressed={item.status === "fixed"}
                     onClick={() => handleToggle(item.id)}
-                    className={`p-3 rounded-xl border flex items-center justify-between gap-3 cursor-pointer select-none transition-all duration-300 ${
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault()
+                        handleToggle(item.id)
+                      }
+                    }}
+                    className={`p-3 rounded-xl border flex items-center justify-between gap-3 cursor-pointer select-none transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
                       item.status === "fixed"
                         ? "bg-emerald-500/5 border-emerald-500/25 hover:border-emerald-500/40 shadow-xs"
                         : "bg-slate-900/40 border-slate-850 hover:bg-slate-900/60 hover:border-slate-800"
@@ -159,7 +168,7 @@ export default function DashboardMockup() {
                           : "border-slate-700 bg-slate-950"
                       }`}>
                         {item.status === "fixed" && (
-                          <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={4}>
+                          <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={4} aria-hidden="true">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                           </svg>
                         )}
@@ -192,7 +201,7 @@ export default function DashboardMockup() {
                 <div className="text-center space-y-2 py-2 flex flex-col items-center">
                   <div className="relative w-28 h-28 flex items-center justify-center">
                     {/* Circle SVG */}
-                    <svg className="absolute inset-0 w-full h-full -rotate-90">
+                    <svg className="absolute inset-0 w-full h-full -rotate-90" aria-hidden="true">
                       <circle
                         cx="56"
                         cy="56"
@@ -234,7 +243,7 @@ export default function DashboardMockup() {
                     <span className="text-indigo-400 tabular-nums">+{complianceScore - 38}% Increase</span>
                   </div>
                   <div className="h-14 w-full relative">
-                    <svg className="w-full h-full overflow-visible" viewBox="0 0 340 100" preserveAspectRatio="none">
+                    <svg className="w-full h-full overflow-visible" viewBox="0 0 340 100" preserveAspectRatio="none" aria-hidden="true">
                       <defs>
                         <linearGradient id="chartGlow" x1="0" y1="0" x2="0" y2="1">
                           <stop offset="0%" stopColor="#6366f1" stopOpacity="0.25" />
@@ -292,7 +301,7 @@ export default function DashboardMockup() {
                 </svg>
               </div>
               <div className="space-y-1">
-                <h5 className="text-xs font-bold text-slate-200">AI Code Integration Active</h5>
+                <h3 className="text-xs font-bold text-slate-200">AI Code Integration Active</h3>
                 <p className="text-[10px] text-slate-500 max-w-sm leading-relaxed">
                   Equivance is integrated with your repository. Accessibility fixes are compiled automatically on every push and queued as code-suggest PRs.
                 </p>
@@ -314,7 +323,7 @@ export default function DashboardMockup() {
                 </svg>
               </div>
               <div className="space-y-1">
-                <h5 className="text-xs font-bold text-slate-200">Executive PDF Compliance Exports</h5>
+                <h3 className="text-xs font-bold text-slate-200">Executive PDF Compliance Exports</h3>
                 <p className="text-[10px] text-slate-500 max-w-sm leading-relaxed">
                   Compile comprehensive compliance reports listing your accessibility score history, solved violations, and standard checkpoints.
                 </p>

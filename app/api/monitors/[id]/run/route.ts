@@ -2,6 +2,9 @@ import { NextRequest, NextResponse, after } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { createClient as createAdminClient } from "@supabase/supabase-js"
 import { checkQuota, resolveEffectiveTier } from "@/lib/quota"
+import { validateScanTargetUrl } from "@/lib/ssrf"
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 function getAdminClient() {
   return createAdminClient(
@@ -15,17 +18,27 @@ async function authenticate(request: NextRequest) {
   const adminSupabase = getAdminClient()
 
   if (apiKey) {
+    if (!apiKey.startsWith("aud_live_")) {
+      return { error: "Invalid API key", status: 401 as const }
+    }
     const crypto = await import("crypto")
     const keyHash = crypto.createHash("sha256").update(apiKey).digest("hex")
     const { data: keyRecord } = await adminSupabase
       .from("api_keys")
-      .select("user_id")
+      .select("id, user_id")
       .eq("key_hash", keyHash)
       .maybeSingle()
 
     if (!keyRecord) {
       return { error: "Invalid API key", status: 401 as const }
     }
+
+    adminSupabase
+      .from("api_keys")
+      .update({ last_used_at: new Date().toISOString() })
+      .eq("id", keyRecord.id)
+      .then()
+
     return { userId: keyRecord.user_id, adminSupabase }
   }
 
@@ -51,8 +64,8 @@ export async function POST(
 ) {
   try {
     const { id: monitorId } = await context.params
-    if (!monitorId) {
-      return NextResponse.json({ error: "Monitor ID is required" }, { status: 400 })
+    if (!monitorId || !UUID_REGEX.test(monitorId)) {
+      return NextResponse.json({ error: "Valid monitor ID is required" }, { status: 400 })
     }
 
     const auth = await authenticate(request)
@@ -62,6 +75,16 @@ export async function POST(
 
     const { userId, adminSupabase } = auth
     const { tier, teamId } = await resolveEffectiveTier(userId, adminSupabase)
+
+    if (tier === "free") {
+      return NextResponse.json(
+        {
+          error: "tier_restricted",
+          message: "Scheduled monitor execution requires an active Pro or Agency plan.",
+        },
+        { status: 403 }
+      )
+    }
 
     // Verify ownership
     const { data: monitor, error: fetchError } = await adminSupabase
@@ -78,6 +101,15 @@ export async function POST(
     const isTeammate = teamId && monitor.team_id === teamId
     if (!isOwner && !isTeammate) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 })
+    }
+
+    // Re-validate monitor URL at runtime against DNS rebinding / SSRF
+    const ssrfCheck = await validateScanTargetUrl(monitor.url)
+    if (!ssrfCheck.valid) {
+      return NextResponse.json(
+        { error: ssrfCheck.error || "Monitor target URL failed security validation" },
+        { status: 400 }
+      )
     }
 
     // Check monthly quota
@@ -147,8 +179,8 @@ export async function POST(
       message: "Monitor audit dispatched successfully",
       scanId,
     })
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("Monitor run POST error:", err)
-    return NextResponse.json({ error: err.message || "Internal server error" }, { status: 500 })
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

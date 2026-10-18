@@ -33,6 +33,14 @@ function StatCard({
   )
 }
 
+function safeHostname(rawUrl: string): string {
+  try {
+    return new URL(rawUrl).hostname
+  } catch {
+    return rawUrl || "Unknown"
+  }
+}
+
 export default function StatsCards({ scans }: StatsCardsProps) {
   const completed = scans.filter(s => s.status === "completed")
 
@@ -79,7 +87,7 @@ export default function StatsCards({ scans }: StatsCardsProps) {
       <StatCard
         label="Best Score"
         value={bestScan ? bestScan.violations : "—"}
-        sub={bestScan ? new URL(bestScan.url).hostname : "No scans yet"}
+        sub={bestScan ? safeHostname(bestScan.url) : "No scans yet"}
         color="emerald"
       />
     </div>

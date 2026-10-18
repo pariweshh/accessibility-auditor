@@ -17,9 +17,9 @@ alter table public.ai_fix_cache enable row level security;
 drop policy if exists "Allow authenticated users to read cache" on public.ai_fix_cache;
 drop policy if exists "Allow authenticated users to insert cache" on public.ai_fix_cache;
 
--- Policies: allow any authenticated user to select and insert cache entries
+-- Policies: allow authenticated users to read cache; only service_role may insert
 create policy "Allow authenticated users to read cache" on public.ai_fix_cache
   for select to authenticated using (true);
 
-create policy "Allow authenticated users to insert cache" on public.ai_fix_cache
-  for insert to authenticated with check (true);
+create policy "Service role can insert cache" on public.ai_fix_cache
+  for insert to service_role with check (true);

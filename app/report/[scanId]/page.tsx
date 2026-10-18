@@ -5,6 +5,8 @@ import { resolveEffectiveTier } from "@/lib/quota"
 import { ScanRecord } from "@/lib/types"
 import { redirect } from "next/navigation"
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 interface Props {
   params: Promise<{ scanId: string }>
   searchParams: Promise<{ verify?: string }>
@@ -15,6 +17,17 @@ export default async function ReportPage({ params, searchParams }: Props) {
   const resolvedSearchParams = await searchParams
   const isPublicVerify = resolvedSearchParams?.verify === "1"
 
+  if (!scanId || !UUID_REGEX.test(scanId)) {
+    return (
+      <main id="main-content" tabIndex={-1} className="min-h-screen bg-white flex items-center justify-center focus:outline-hidden">
+        <div className="text-center p-8">
+          <h1 className="text-lg font-bold text-slate-800">Report not found</h1>
+          <p className="text-sm text-slate-500 mt-1">Invalid report identifier.</p>
+        </div>
+      </main>
+    )
+  }
+
   const supabase = await createClient()
   const {
     data: { user },
@@ -24,15 +37,15 @@ export default async function ReportPage({ params, searchParams }: Props) {
     redirect("/login")
   }
 
-  const db =
-    isPublicVerify &&
-    process.env.NEXT_PUBLIC_SUPABASE_URL &&
-    process.env.SUPABASE_SERVICE_ROLE_KEY
+  const adminDb =
+    process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY
       ? createAdminClient(
           process.env.NEXT_PUBLIC_SUPABASE_URL,
           process.env.SUPABASE_SERVICE_ROLE_KEY
         )
       : supabase
+
+  const db = isPublicVerify ? adminDb : supabase
 
   const { data: scan, error } = await db
     .from("scans")
@@ -61,13 +74,25 @@ export default async function ReportPage({ params, searchParams }: Props) {
   let activeTeamId: string | null = null
 
   if (targetUserId) {
-    const resolved = await resolveEffectiveTier(targetUserId, db)
+    const resolved = await resolveEffectiveTier(targetUserId, adminDb)
     tier = resolved.tier
     activeTeamId = resolved.teamId
   }
 
+  let viewerTeamId: string | null = null
+  if (user) {
+    if (user.id === targetUserId) {
+      viewerTeamId = activeTeamId
+    } else {
+      const viewerResolved = await resolveEffectiveTier(user.id, adminDb)
+      viewerTeamId = viewerResolved.teamId
+    }
+  }
+
   const isOwnerOrTeam = Boolean(
-    user && (scan.user_id === user.id || (activeTeamId && scan.team_id === activeTeamId))
+    user &&
+      (scan.user_id === user.id ||
+        (viewerTeamId && scan.team_id && viewerTeamId === scan.team_id))
   )
 
   // Public verification view is only unlocked for Pro & Agency scans
@@ -93,11 +118,25 @@ export default async function ReportPage({ params, searchParams }: Props) {
   // Resolve Agency White-Label Branding (only if owner/team currently has active Agency subscription)
   let branding = null
   if (tier === "agency" && targetUserId) {
-    const { data: team } = await db
-      .from("teams")
-      .select("brand_name, brand_logo_url, brand_primary_color, brand_tagline, brand_footer_text, brand_hide_watermark")
-      .or(`owner_id.eq.${targetUserId},id.eq.${activeTeamId || scan.team_id || "00000000-0000-0000-0000-000000000000"}`)
-      .maybeSingle()
+    const lookupTeamId = activeTeamId || scan.team_id
+    let team = null
+
+    if (lookupTeamId && UUID_REGEX.test(lookupTeamId)) {
+      const { data } = await adminDb
+        .from("teams")
+        .select("brand_name, brand_logo_url, brand_primary_color, brand_tagline, brand_footer_text, brand_hide_watermark")
+        .eq("id", lookupTeamId)
+        .maybeSingle()
+      team = data
+    }
+    if (!team && UUID_REGEX.test(targetUserId)) {
+      const { data } = await adminDb
+        .from("teams")
+        .select("brand_name, brand_logo_url, brand_primary_color, brand_tagline, brand_footer_text, brand_hide_watermark")
+        .eq("owner_id", targetUserId)
+        .limit(1)
+      team = data?.[0] ?? null
+    }
 
     if (team) {
       branding = {
@@ -120,6 +159,7 @@ export default async function ReportPage({ params, searchParams }: Props) {
       <iframe
         title="WCAG 2.2 Level AA Accessibility Audit Report"
         srcDoc={html}
+        sandbox="allow-popups allow-popups-to-escape-sandbox"
         className="w-full min-h-screen border-none block"
       />
     </main>

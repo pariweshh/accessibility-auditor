@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
+import { createClient as createAdminClient } from "@supabase/supabase-js"
+import { SITE } from "@/lib/site"
 import Stripe from "stripe"
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY || ""
@@ -10,11 +12,28 @@ const PRICE_IDS: Record<string, string | undefined> = {
   agency: process.env.STRIPE_AGENCY_PRICE_ID,
 }
 
+function getTrustedOrigin(request: NextRequest): string {
+  const configured = SITE.url?.replace(/\/$/, "")
+  if (process.env.NODE_ENV === "production" && configured) {
+    return configured
+  }
+  const reqOrigin = request.headers.get("origin")
+  if (
+    reqOrigin &&
+    (reqOrigin === configured ||
+      reqOrigin.startsWith("http://localhost:") ||
+      reqOrigin.startsWith("http://127.0.0.1:"))
+  ) {
+    return reqOrigin
+  }
+  return configured || "http://localhost:3000"
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { plan } = await request.json()
 
-    if (!plan || !PRICE_IDS[plan]) {
+    if (!plan || typeof plan !== "string" || !PRICE_IDS[plan]) {
       return NextResponse.json(
         { error: "Invalid or missing plan" },
         { status: 400 }
@@ -74,20 +93,23 @@ export async function POST(request: NextRequest) {
       })
       customerId = customer.id
 
-      // Update the user's profile in Supabase
-      const { error: updateError } = await supabase
+      // Update the user's profile in Supabase using service_role to satisfy billing column protection trigger
+      const adminSupabase = createAdminClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!
+      )
+      const { error: updateError } = await adminSupabase
         .from("profiles")
         .update({ stripe_customer_id: customerId })
         .eq("id", user.id)
 
       if (updateError) {
         console.error("Failed to update stripe_customer_id:", updateError)
-        // Continue anyway as the customer is created in Stripe
       }
     }
 
-    // Determine the origin for redirects
-    const origin = request.headers.get("origin") || "http://localhost:3000"
+    // Determine trusted origin for redirects
+    const origin = getTrustedOrigin(request)
 
     // Create Stripe Checkout Session
     const session = await stripe.checkout.sessions.create({
@@ -111,12 +133,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("Stripe Checkout API error:", error)
     return NextResponse.json(
-      {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to create checkout session",
-      },
+      { error: "Failed to create checkout session" },
       { status: 500 }
     )
   }

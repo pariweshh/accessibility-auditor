@@ -76,6 +76,8 @@ export default function ScanHistory({ scans, onLoadResult, tier, onUpgradeClick 
   return (
     <div className="w-full max-w-2xl mx-auto mt-4">
       <button
+        type="button"
+        aria-expanded={isOpen}
         onClick={() => setIsOpen((o) => !o)}
         className="w-full flex items-center justify-between px-4 py-3 bg-slate-900/30 hover:bg-slate-900/50 border border-slate-800/60 rounded-xl text-sm text-slate-400 hover:text-slate-200 transition-all duration-200 cursor-pointer group"
       >

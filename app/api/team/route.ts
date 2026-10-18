@@ -5,6 +5,11 @@ import { createClient as createAdminClient } from "@supabase/supabase-js"
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
 
+function isSubscriptionActive(status: string | null | undefined): boolean {
+  if (!status) return true
+  return status === "active" || status === "trialing"
+}
+
 function getAdminClient() {
   return createAdminClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -25,11 +30,12 @@ export async function GET() {
 
     const { data: profile } = await supabase
       .from("profiles")
-      .select("subscription_tier")
+      .select("subscription_tier, subscription_status")
       .eq("id", user.id)
       .single()
 
-    const tier = profile?.subscription_tier ?? "free"
+    const rawTier = profile?.subscription_tier ?? "free"
+    const tier = isSubscriptionActive(profile?.subscription_status) ? rawTier : "free"
     const adminSupabase = getAdminClient()
 
     let teamId: string | null = null
@@ -80,28 +86,40 @@ export async function GET() {
       }
     } else {
       // 2. Check if user is an active member in someone else's team whose owner has an active Agency subscription
-      const { data: membership } = await adminSupabase
+      const { data: memberships } = await adminSupabase
         .from("team_members")
         .select("team_id, role, teams(id, name, owner_id, max_seats)")
         .eq("user_id", user.id)
         .eq("status", "active")
-        .maybeSingle()
+        .order("created_at", { ascending: false })
 
-      if (membership?.team_id) {
-        const teamData = membership.teams as any
-        const ownerId = teamData?.owner_id
-        if (ownerId && ownerId !== user.id) {
-          const { data: ownerProfile } = await adminSupabase
-            .from("profiles")
-            .select("subscription_tier")
-            .eq("id", ownerId)
-            .maybeSingle()
+      if (memberships && memberships.length > 0) {
+        for (const membership of memberships) {
+          if (!membership?.team_id) continue
+          const teamData = membership.teams as {
+            id?: string
+            name?: string
+            owner_id?: string
+            max_seats?: number
+          } | null
+          const ownerId = teamData?.owner_id
+          if (ownerId && ownerId !== user.id) {
+            const { data: ownerProfile } = await adminSupabase
+              .from("profiles")
+              .select("subscription_tier, subscription_status")
+              .eq("id", ownerId)
+              .maybeSingle()
 
-          if (ownerProfile?.subscription_tier === "agency") {
-            teamId = membership.team_id
-            isOwner = false
-            teamName = teamData?.name ?? "Agency Team"
-            maxSeats = teamData?.max_seats ?? 3
+            if (
+              ownerProfile?.subscription_tier === "agency" &&
+              isSubscriptionActive(ownerProfile?.subscription_status)
+            ) {
+              teamId = membership.team_id
+              isOwner = false
+              teamName = teamData?.name ?? "Agency Team"
+              maxSeats = teamData?.max_seats ?? 3
+              break
+            }
           }
         }
       }
@@ -148,7 +166,7 @@ export async function GET() {
   } catch (error) {
     console.error("GET /api/team error:", error)
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to load team data" },
+      { error: "Failed to load team data" },
       { status: 500 }
     )
   }

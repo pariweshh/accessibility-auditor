@@ -5,7 +5,6 @@ import { ScanResult } from "@/lib/types"
 import { SCAN_LIMITS } from "@/lib/constants"
 import ScanForm from "@/components/scan_form"
 import ResultsDisplay from "@/components/results_display"
-import BillingButton from "@/components/billing_button"
 import ScanHistory from "@/components/scan_history"
 import ScanProgress from "@/components/scan_progress"
 import { createClient } from "@/lib/supabase/client"
@@ -42,19 +41,36 @@ export default function HomeClient({ features }: HomeClientProps) {
   const [activeScan, setActiveScan] = useState<ActiveScan | null>(null)
   const [user, setUser] = useState<any>(null)
   const [profile, setProfile] = useState<any>(null)
+  const [effectiveTier, setEffectiveTier] = useState<string>("free")
   const [isLoadingUser, setIsLoadingUser] = useState(true)
   const [scansUsed, setScansUsed] = useState(0)
   const [recentScans, setRecentScans] = useState<any[]>([])
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
 
-  const billingButtonRef = useRef<{ openModal: () => void } | null>(null)
-  // Store Realtime channel so we can unsubscribe on unmount/new scan
+  // Store Realtime channel and polling interval so we can clean up on unmount/new scan
   const realtimeChannelRef = useRef<any>(null)
+  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const activeScanIdRef = useRef<string | null>(null)
 
   const supabase = createClient()
 
   // Scroll-linked reveal for the "How It Works" section.
   const howItWorks = useScrollReveal()
+
+  const cleanupScanWatchers = () => {
+    if (realtimeChannelRef.current) {
+      supabase.removeChannel(realtimeChannelRef.current)
+      realtimeChannelRef.current = null
+    }
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current)
+      pollIntervalRef.current = null
+    }
+  }
+
+  const handleUpgradeScroll = () => {
+    document.getElementById("pricing")?.scrollIntoView({ behavior: "smooth" })
+  }
 
   const fetchUserData = async (userId: string) => {
     const { data: prof } = await supabase
@@ -64,29 +80,57 @@ export default function HomeClient({ features }: HomeClientProps) {
       .single()
     setProfile(prof)
 
+    let resolvedTier = prof?.subscription_tier ?? "free"
+    let isAgencyTeamMember = false
+
+    if (resolvedTier !== "agency") {
+      try {
+        const teamRes = await fetch("/api/team")
+        if (teamRes.ok) {
+          const teamData = await teamRes.json()
+          if (teamData?.team) {
+            resolvedTier = "agency"
+            isAgencyTeamMember = true
+          }
+        }
+      } catch {
+        // Ignore team check errors and fall back to profile tier
+      }
+    }
+    setEffectiveTier(resolvedTier)
+
     const startOfMonth = new Date()
     startOfMonth.setDate(1)
     startOfMonth.setHours(0, 0, 0, 0)
 
-    const { count } = await supabase
+    let countQuery = supabase
       .from("scans")
       .select("id", { count: "exact", head: true })
-      .eq("user_id", userId)
       .neq("status", "failed")
       .gte("created_at", startOfMonth.toISOString())
+
+    if (!isAgencyTeamMember) {
+      countQuery = countQuery.eq("user_id", userId)
+    }
+
+    const { count } = await countQuery
     setScansUsed(count ?? 0)
 
-    const userTier = prof?.subscription_tier ?? "free"
-    const isPaid = userTier === "pro" || userTier === "agency"
+    const isPaid = resolvedTier === "pro" || resolvedTier === "agency"
     const historyLimit = isPaid ? 10 : 1
 
-    const { data: history } = await supabase
+    let historyQuery = supabase
       .from("scans")
       .select("id, url, created_at, violations, passes, summary, result")
-      .eq("user_id", userId)
       .eq("status", "completed")
       .order("created_at", { ascending: false })
       .limit(historyLimit)
+
+    if (!isAgencyTeamMember) {
+      historyQuery = historyQuery.eq("user_id", userId)
+    }
+
+    const { data: history } = await historyQuery
     setRecentScans(history ?? [])
   }
 
@@ -113,6 +157,7 @@ export default function HomeClient({ features }: HomeClientProps) {
           await fetchUserData(session.user.id)
         } else {
           setProfile(null)
+          setEffectiveTier("free")
           setScansUsed(0)
           setRecentScans([])
         }
@@ -121,19 +166,48 @@ export default function HomeClient({ features }: HomeClientProps) {
 
     return () => {
       subscription.unsubscribe()
-      // Clean up any active Realtime channel
-      if (realtimeChannelRef.current) {
-        supabase.removeChannel(realtimeChannelRef.current)
-      }
+      cleanupScanWatchers()
     }
   }, [])
 
-  // ── Subscribe to Realtime updates for an in-flight scan ──────────────────
-  const subscribeToScan = (scanId: string, url: string) => {
-    // Remove any existing channel first
-    if (realtimeChannelRef.current) {
-      supabase.removeChannel(realtimeChannelRef.current)
+  // ── Subscribe to Realtime updates + polling fallback for an in-flight scan ──
+  const handleScanRowUpdate = (scanId: string, row: any) => {
+    if (activeScanIdRef.current !== scanId) return
+    const status = row.status as ScanStatus
+
+    if (status === "completed" && row.result) {
+      activeScanIdRef.current = null
+      cleanupScanWatchers()
+      setCurrentScanId(scanId)
+      setScanResult(row.result as ScanResult)
+      setActiveScan(null)
+      supabase.auth.getUser().then(({ data: { user: currentUser } }) => {
+        if (currentUser) fetchUserData(currentUser.id)
+      })
+      return
     }
+
+    if (status === "failed") {
+      activeScanIdRef.current = null
+      cleanupScanWatchers()
+      setActiveScan((prev) =>
+        prev && prev.scanId === scanId
+          ? { ...prev, status: "failed", errorMessage: row.error_message }
+          : prev
+      )
+      return
+    }
+
+    setActiveScan((prev) =>
+      prev && prev.scanId === scanId
+        ? { ...prev, status, errorMessage: row.error_message }
+        : prev
+    )
+  }
+
+  const subscribeToScan = (scanId: string, _url: string) => {
+    cleanupScanWatchers()
+    activeScanIdRef.current = scanId
 
     const channel = supabase
       .channel(`scan-${scanId}`)
@@ -146,78 +220,30 @@ export default function HomeClient({ features }: HomeClientProps) {
           filter: `id=eq.${scanId}`,
         },
         (payload) => {
-          const row = payload.new as any
-          const status: ScanStatus = row.status
-
-          setActiveScan((prev) =>
-            prev ? { ...prev, status, errorMessage: row.error_message } : null
-          )
-
-          if (status === "completed" && row.result) {
-            // Scan done — show results
-            setCurrentScanId(scanId)
-            setScanResult(row.result as ScanResult)
-            setActiveScan(null)
-            // Refresh quota + history
-            supabase.auth.getUser().then(({ data: { user: currentUser } }) => {
-              if (currentUser) fetchUserData(currentUser.id)
-            })
-            supabase.removeChannel(channel)
-            realtimeChannelRef.current = null
-          }
-
-          if (status === "failed") {
-            // Keep activeScan visible in failed state so the user sees the error
-            supabase.removeChannel(channel)
-            realtimeChannelRef.current = null
-          }
+          handleScanRowUpdate(scanId, payload.new)
         }
       )
       .subscribe()
 
     realtimeChannelRef.current = channel
 
-    // Fetch initial state immediately to avoid race conditions (e.g. if scan has already started processing or completed)
-    supabase
-      .from("scans")
-      .select("*")
-      .eq("id", scanId)
-      .single()
-      .then(({ data: scan, error }) => {
-        if (error) {
-          console.error("Initial scan query failed:", error)
+    const pollScanStatus = async () => {
+      if (activeScanIdRef.current !== scanId) return
+      try {
+        const res = await fetch(`/api/scan?scanId=${encodeURIComponent(scanId)}`)
+        if (!res.ok) return
+        const data = await res.json()
+        if (data?.scan) {
+          handleScanRowUpdate(scanId, data.scan)
         }
-        if (scan) {
-          setActiveScan((currentActive) => {
-            // If the scan has already completed/failed or user started another scan, do not overwrite the current state.
-            if (!currentActive || currentActive.scanId !== scanId) {
-              return currentActive
-            }
+      } catch {
+        // Ignore transient poll errors
+      }
+    }
 
-            const status = scan.status as ScanStatus
-            if (status === "completed" && scan.result) {
-              setCurrentScanId(scanId)
-              setScanResult(scan.result as ScanResult)
-              supabase.auth.getUser().then(({ data: { user: currentUser } }) => {
-                if (currentUser) fetchUserData(currentUser.id)
-              })
-              supabase.removeChannel(channel)
-              if (realtimeChannelRef.current === channel) {
-                realtimeChannelRef.current = null
-              }
-              return null
-            } else if (status === "failed") {
-              supabase.removeChannel(channel)
-              if (realtimeChannelRef.current === channel) {
-                realtimeChannelRef.current = null
-              }
-              return { ...currentActive, status, errorMessage: scan.error_message }
-            } else {
-              return { ...currentActive, status, errorMessage: scan.error_message }
-            }
-          })
-        }
-      })
+    // Immediate check + 4s fallback interval in case Realtime WebSocket drops
+    pollScanStatus()
+    pollIntervalRef.current = setInterval(pollScanStatus, 4000)
   }
 
   // Check for in-flight scan parameters on redirect (e.g. from dashboard rerun)
@@ -272,16 +298,14 @@ export default function HomeClient({ features }: HomeClientProps) {
   }
 
   const handleNewScan = () => {
+    activeScanIdRef.current = null
     setScanResult(null)
     setCurrentScanId(null)
     setActiveScan(null)
-    if (realtimeChannelRef.current) {
-      supabase.removeChannel(realtimeChannelRef.current)
-      realtimeChannelRef.current = null
-    }
+    cleanupScanWatchers()
   }
 
-  const tier = profile?.subscription_tier ?? "free"
+  const tier = effectiveTier
   const scansLimit = SCAN_LIMITS[tier] ?? SCAN_LIMITS.free
 
   // Decide what main content to render
@@ -320,7 +344,7 @@ export default function HomeClient({ features }: HomeClientProps) {
           profile={profile}
           scansUsed={scansUsed}
           scansLimit={scansLimit}
-          onUpgradeClick={() => billingButtonRef.current?.openModal()}
+          onUpgradeClick={handleUpgradeScroll}
         />
         {user && recentScans.length > 0 && (
           <ScanHistory
@@ -330,7 +354,7 @@ export default function HomeClient({ features }: HomeClientProps) {
               setCurrentScanId(id ?? null)
               setScanResult(result)
             }}
-            onUpgradeClick={() => billingButtonRef.current?.openModal()}
+            onUpgradeClick={handleUpgradeScroll}
           />
         )}
       </>
@@ -456,9 +480,9 @@ export default function HomeClient({ features }: HomeClientProps) {
                 {brand}
               </span>
             ))}
-            {/* Brand Set 2 */}
+            {/* Brand Set 2 (decorative duplicate for seamless scroll) */}
             {["Vercel", "Supabase", "Stripe", "GitHub", "Tailwind CSS", "axe-core", "Deque Systems", "OpenAI"].map((brand, i) => (
-              <span key={`b2-${i}`} className="text-3xs font-black uppercase tracking-widest text-slate-500 hover:text-slate-300 transition-colors font-display">
+              <span key={`b2-${i}`} aria-hidden="true" className="text-3xs font-black uppercase tracking-widest text-slate-500 hover:text-slate-300 transition-colors font-display">
                 {brand}
               </span>
             ))}
@@ -476,7 +500,7 @@ export default function HomeClient({ features }: HomeClientProps) {
             <span className="text-2xs font-extrabold uppercase tracking-widest text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-3 py-1 rounded-full">
               Free Scanner
             </span>
-            <h3 className="text-xl md:text-2xl font-black text-slate-50 mt-3 font-display tracking-tight">Run a quick audit</h3>
+            <h2 className="text-xl md:text-2xl font-black text-slate-50 mt-3 font-display tracking-tight">Run a quick audit</h2>
           </div>
           {renderMainContent()}
         </div>
@@ -509,9 +533,9 @@ export default function HomeClient({ features }: HomeClientProps) {
               Stay Compliant
             </span>
             
-            <h3 className="text-xl md:text-2xl font-black text-slate-50 font-display tracking-tight">
+            <h2 className="text-xl md:text-2xl font-black text-slate-50 font-display tracking-tight">
               Get weekly accessibility engineering guides
-            </h3>
+            </h2>
             
             <p className="text-xs text-slate-400 max-w-md mx-auto leading-relaxed font-medium">
               Join 4,000+ developers receiving our newsletter on WCAG compliance, ARIA updates, and AI accessibility fixes.
@@ -520,6 +544,7 @@ export default function HomeClient({ features }: HomeClientProps) {
             <form onSubmit={(e) => e.preventDefault()} className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto relative z-10">
               <input
                 type="email"
+                aria-label="Email address for accessibility newsletter"
                 placeholder="you@domain.com"
                 required
                 className="flex-1 bg-slate-950/60 border border-slate-850 rounded-xl px-4 py-3 text-xs text-slate-50 placeholder-slate-600 focus:outline-hidden focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all font-medium"

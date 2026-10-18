@@ -323,7 +323,7 @@ function JoinTeamContent() {
 
             <button
               onClick={handleAcceptInvite}
-              disabled={isAccepting || !!successMsg}
+              disabled={isAccepting || !!successMsg || Boolean(isEmailMismatch)}
               className="w-full py-3 px-4 rounded-xl font-semibold text-xs bg-linear-to-r from-indigo-500 to-indigo-600 hover:from-indigo-400 hover:to-indigo-500 text-white transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             >
               {isAccepting ? "Joining Team..." : `Accept Invitation & Join ${inviteDetails?.teamName || "Team"}`}
@@ -339,7 +339,7 @@ function JoinTeamContent() {
                     <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                   </svg>
                 </div>
-                <h3 className="text-xs font-bold text-slate-200">Magic Link Sent!</h3>
+                <h2 className="text-xs font-bold text-slate-200">Magic Link Sent!</h2>
                 <p className="text-2xs text-slate-400 leading-relaxed">
                   We sent a sign-in link to <strong className="text-slate-300">{email}</strong>. Open
                   the email to sign in and you will automatically join{" "}

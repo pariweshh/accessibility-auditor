@@ -98,12 +98,54 @@
       console.error("[Equivance Widget] Error loading widget data:", err);
     });
 
+  function escapeHtml(str) {
+    return String(str == null ? "" : str)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
+
+  function sanitizeHexColor(rawColor, fallback) {
+    var trimmed = String(rawColor || "").trim();
+    return /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(trimmed) ? trimmed : fallback;
+  }
+
+  function sanitizeUrl(rawUrl, allowMailto, fallback) {
+    if (!rawUrl || typeof rawUrl !== "string") return fallback || "#";
+    var trimmed = rawUrl.trim();
+    if (allowMailto && /^mailto:[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(\?[a-zA-Z0-9=&%_-]*)?$/.test(trimmed)) {
+      return trimmed;
+    }
+    try {
+      var parsed = new URL(trimmed);
+      if (parsed.protocol === "https:" || parsed.protocol === "http:") {
+        return parsed.toString();
+      }
+    } catch (e) {
+      // ignore
+    }
+    return fallback || "#";
+  }
+
+  function sanitizeLogoUrl(rawLogo) {
+    if (!rawLogo || typeof rawLogo !== "string") return null;
+    var trimmed = rawLogo.trim();
+    if (/^data:image\/(png|jpeg|jpg|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(trimmed)) {
+      return trimmed;
+    }
+    var httpLogo = sanitizeUrl(trimmed, false, "");
+    return httpLogo || null;
+  }
+
   function initWidget(data) {
     const isDark = theme !== "light";
-    const brandColor = customColor || data.branding.color || "#4f46e5";
-    const brandName = data.branding.name || "Equivance";
-    const isWhiteLabel = Boolean(data.branding.whiteLabel);
-    const score = data.score || 0;
+    const brandingObj = (data && data.branding) || {};
+    const brandColor = sanitizeHexColor(customColor || brandingObj.color, "#4f46e5");
+    const brandName = brandingObj.name || "Equivance";
+    const isWhiteLabel = Boolean(brandingObj.whiteLabel);
+    const score = Math.max(0, Math.min(100, Number(data.score) || 0));
     const scoreColor = score >= 90 ? "#10b981" : score >= 70 ? "#f59e0b" : "#f43f5e";
 
     const auditDateStr = data.auditDate
@@ -114,11 +156,14 @@
         })
       : "Recent";
 
-    const barrierContactHref = contactOverride
+    const rawContactHref = contactOverride
       ? contactOverride.indexOf("@") !== -1 && contactOverride.indexOf("mailto:") === -1
         ? "mailto:" + contactOverride
         : contactOverride
-      : "mailto:accessibility@" + (window.location.hostname.replace(/^www\./, "") || "website.com") + "?subject=Accessibility%20Barrier%20Report";
+      : "mailto:accessibility@" + (window.location.hostname.replace(/^www\./, "").replace(/[^a-zA-Z0-9.-]/g, "") || "website.com") + "?subject=Accessibility%20Barrier%20Report";
+    const barrierContactHref = sanitizeUrl(rawContactHref, true, "#");
+    const safeLogo = sanitizeLogoUrl(brandingObj.logo);
+    const safeVerifyUrl = sanitizeUrl(data.verifyUrl, false, apiOrigin);
 
     // Stylesheet for Shadow DOM
     const style = document.createElement("style");
@@ -534,7 +579,7 @@
           <path d="m8 20.5 4-6 4 6"></path>
         </svg>
       </span>
-      <span>${customLabel || "Accessibility"}</span>
+      <span>${escapeHtml(customLabel || "Accessibility")}</span>
       <span class="trigger-badge">${score}%</span>
     `;
 
@@ -560,10 +605,10 @@
         return `
         <div class="pour-card">
           <div class="pour-card-header">
-            <span class="pour-name">${item.name}</span>
-            <span class="pour-badge ${isPass ? "pour-pass" : "pour-review"}">${item.status}</span>
+            <span class="pour-name">${escapeHtml(item.name)}</span>
+            <span class="pour-badge ${isPass ? "pour-pass" : "pour-review"}">${escapeHtml(item.status)}</span>
           </div>
-          <p class="pour-desc">${item.description}</p>
+          <p class="pour-desc">${escapeHtml(item.description)}</p>
         </div>
       `;
       })
@@ -573,13 +618,13 @@
       <div class="dialog-header">
         <div class="header-brand">
           ${
-            data.branding.logo
-              ? `<img src="${data.branding.logo}" alt="${brandName} Logo" class="brand-logo-img" />`
+            safeLogo
+              ? `<img src="${escapeHtml(safeLogo)}" alt="${escapeHtml(brandName)} Logo" class="brand-logo-img" />`
               : `<div class="trigger-icon" aria-hidden="true" style="width:28px;height:28px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="4.5" r="2.5"></circle><path d="M4 8.5h16"></path><path d="M12 8.5v6"></path><path d="m8 20.5 4-6 4 6"></path></svg></div>`
           }
           <div>
-            <h3 class="brand-title" id="equivance-title">${brandName}</h3>
-            <p class="brand-subtitle">${data.branding.tagline || "Accessibility Conformance"}</p>
+            <h3 class="brand-title" id="equivance-title">${escapeHtml(brandName)}</h3>
+            <p class="brand-subtitle">${escapeHtml(brandingObj.tagline || "Accessibility Conformance")}</p>
           </div>
         </div>
         <button type="button" class="close-button" aria-label="Close accessibility statement">
@@ -593,8 +638,8 @@
       <div class="dialog-body">
         <div class="score-banner">
           <div class="score-info">
-            <h4>${data.conformance}</h4>
-            <p>Audited: ${auditDateStr} · WCAG 2.2 AA</p>
+            <h4>${escapeHtml(data.conformance || "WCAG 2.2 AA")}</h4>
+            <p>Audited: ${escapeHtml(auditDateStr)} · WCAG 2.2 AA</p>
           </div>
           <div class="score-circle">
             ${score}
@@ -607,7 +652,7 @@
         </div>
 
         <div class="action-group">
-          <a href="${data.verifyUrl}" target="_blank" rel="noopener noreferrer" class="action-btn-primary">
+          <a href="${escapeHtml(safeVerifyUrl)}" target="_blank" rel="noopener noreferrer" class="action-btn-primary">
             <span>View Verified Audit Report</span>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
@@ -615,7 +660,7 @@
               <line x1="10" y1="14" x2="21" y2="3"></line>
             </svg>
           </a>
-          <a href="${barrierContactHref}" class="action-btn-secondary">
+          <a href="${escapeHtml(barrierContactHref)}" class="action-btn-secondary">
             <span>Report an Accessibility Barrier</span>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <rect x="2" y="4" width="20" height="16" rx="2"></rect>
@@ -630,11 +675,11 @@
         ${
           !isWhiteLabel
             ? `<div class="footer-brand-tag">
-                <span>Verified by <a href="${apiOrigin}" target="_blank" rel="noopener noreferrer">Equivance</a></span>
+                <span>Verified by <a href="${escapeHtml(apiOrigin)}" target="_blank" rel="noopener noreferrer">Equivance</a></span>
                 <span>ISO/IEC 40500</span>
                </div>`
-            : data.branding.footerText
-            ? `<div class="footer-brand-tag"><span>${data.branding.footerText}</span></div>`
+            : brandingObj.footerText
+            ? `<div class="footer-brand-tag"><span>${escapeHtml(brandingObj.footerText)}</span></div>`
             : ""
         }
       </div>

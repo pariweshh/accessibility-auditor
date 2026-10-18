@@ -157,7 +157,7 @@ drop policy if exists "Users can view own or team scans" on public.scans;
 create policy "Users can view own or team scans" on public.scans
   for select using (
     user_id = auth.uid() or
-    (team_id is not null and public.is_team_member(team_id, auth.uid()))
+    (team_id is not null and (public.is_team_member(team_id, auth.uid()) or public.is_team_owner(team_id, auth.uid())))
   );
 
 create index if not exists idx_scans_team_id on public.scans (team_id);
@@ -169,7 +169,7 @@ create index if not exists idx_team_members_invite_token on public.team_members 
 drop policy if exists "Users can view own or team monitors" on public.monitors;
 create policy "Users can view own or team monitors" on public.monitors for select using (
   auth.uid() = user_id or
-  (team_id is not null and public.is_team_member(team_id, auth.uid()))
+  (team_id is not null and (public.is_team_member(team_id, auth.uid()) or public.is_team_owner(team_id, auth.uid())))
 );
 
 drop policy if exists "Users can insert own monitors" on public.monitors;
@@ -182,7 +182,7 @@ drop policy if exists "Users can delete own monitors" on public.monitors;
 create policy "Users can delete own monitors" on public.monitors for delete using (auth.uid() = user_id);
 
 drop policy if exists "Service role has full access to monitors" on public.monitors;
-create policy "Service role has full access to monitors" on public.monitors for all using (true) with check (true);
+create policy "Service role has full access to monitors" on public.monitors for all to service_role using (true) with check (true);
 
 create index if not exists idx_monitors_due on public.monitors (status, next_run_at) where status = 'active';
 create index if not exists idx_monitors_user on public.monitors (user_id, created_at desc);

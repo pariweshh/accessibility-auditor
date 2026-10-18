@@ -2,10 +2,18 @@ import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { createClient as createAdminClient } from "@supabase/supabase-js"
 import { resolveEffectiveTier } from "@/lib/quota"
+import { validateScanTargetUrl } from "@/lib/ssrf"
 import { AgencyBranding } from "@/lib/types"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
+
+const SAFE_DATA_IMAGE_REGEX = /^data:image\/(png|jpeg|jpg|webp|gif);base64,[A-Za-z0-9+/=\s]+$/i
+
+function isSubscriptionActive(status: string | null | undefined): boolean {
+  if (!status) return true
+  return status === "active" || status === "trialing"
+}
 
 function getAdminClient() {
   return createAdminClient(
@@ -71,7 +79,7 @@ export async function GET() {
   } catch (error) {
     console.error("GET /api/team/branding error:", error)
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to load branding" },
+      { error: "Failed to load branding" },
       { status: 500 }
     )
   }
@@ -88,14 +96,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    // Verify Agency tier
+    // Verify Agency tier and active subscription
     const { data: profile } = await supabase
       .from("profiles")
-      .select("subscription_tier")
+      .select("subscription_tier, subscription_status")
       .eq("id", user.id)
       .single()
 
-    if (profile?.subscription_tier !== "agency") {
+    if (
+      profile?.subscription_tier !== "agency" ||
+      !isSubscriptionActive(profile?.subscription_status)
+    ) {
       return NextResponse.json(
         { error: "White-Label custom branding is exclusively available on the Agency plan ($99 AUD/mo)." },
         { status: 403 }
@@ -110,30 +121,43 @@ export async function POST(request: NextRequest) {
       brandTagline,
       brandFooterText,
       brandHideWatermark,
+      hideWatermark,
     } = body
 
     // Validation
     const hexRegex = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/
     const sanitizedColor =
-      brandPrimaryColor && hexRegex.test(brandPrimaryColor)
-        ? brandPrimaryColor
+      brandPrimaryColor && typeof brandPrimaryColor === "string" && hexRegex.test(brandPrimaryColor.trim())
+        ? brandPrimaryColor.trim()
         : "#4f46e5"
 
     const sanitizedName = brandName ? String(brandName).trim().slice(0, 80) : "Agency Workspace"
     const sanitizedTagline = brandTagline ? String(brandTagline).trim().slice(0, 120) : "Accessibility Audit Report"
     const sanitizedFooter = brandFooterText ? String(brandFooterText).trim().slice(0, 250) : null
-    const sanitizedHideWatermark = Boolean(brandHideWatermark)
+    const sanitizedHideWatermark = Boolean(brandHideWatermark ?? hideWatermark)
 
-    // Optional URL validation for logo
+    // Strict URL / Data URI validation for logo (blocks data:image/svg+xml and SSRF targets)
     let sanitizedLogoUrl: string | null = null
     if (brandLogoUrl && typeof brandLogoUrl === "string") {
       const trimmedLogo = brandLogoUrl.trim()
-      if (
-        trimmedLogo.startsWith("http://") ||
-        trimmedLogo.startsWith("https://") ||
-        trimmedLogo.startsWith("data:image/")
-      ) {
-        sanitizedLogoUrl = trimmedLogo
+      if (trimmedLogo.startsWith("data:")) {
+        if (trimmedLogo.length <= 500_000 && SAFE_DATA_IMAGE_REGEX.test(trimmedLogo)) {
+          sanitizedLogoUrl = trimmedLogo
+        } else {
+          return NextResponse.json(
+            { error: "Invalid logo image format. Only PNG, JPEG, WebP, or GIF base64 images under 350KB are allowed." },
+            { status: 400 }
+          )
+        }
+      } else if (trimmedLogo.startsWith("http://") || trimmedLogo.startsWith("https://")) {
+        const ssrfCheck = await validateScanTargetUrl(trimmedLogo)
+        if (!ssrfCheck.valid) {
+          return NextResponse.json(
+            { error: ssrfCheck.error || "Invalid or restricted logo URL" },
+            { status: 400 }
+          )
+        }
+        sanitizedLogoUrl = ssrfCheck.normalizedUrl || trimmedLogo
       }
     }
 
@@ -162,6 +186,14 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "Failed to initialize agency team" }, { status: 500 })
       }
       team = newTeam
+
+      await adminSupabase.from("team_members").insert({
+        team_id: newTeam.id,
+        user_id: user.id,
+        email: user.email || "",
+        role: "owner",
+        status: "active",
+      })
     }
 
     // 2. Update branding columns
@@ -201,7 +233,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("POST /api/team/branding error:", error)
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to save branding" },
+      { error: "Failed to save branding" },
       { status: 500 }
     )
   }

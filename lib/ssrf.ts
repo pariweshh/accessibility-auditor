@@ -16,19 +16,33 @@ const BLOCKED_EXACT_HOSTS = new Set([
   "::",
   "[::]",
   "169.254.169.254", // AWS/GCP/Azure instance metadata (IMDS)
+  "100.100.100.200", // Alibaba Cloud IMDS
+  "192.0.0.192",     // Oracle Cloud IMDS
+  "fd00:ec2::254",   // AWS IPv6 IMDS
+  "[fd00:ec2::254]",
   "metadata.google.internal", // GCP internal metadata hostname
   "metadata.google",
+  "metadata",
   "instance-data",
+  "kubernetes.default",
+  "kubernetes.default.svc",
 ])
 
 const BLOCKED_HOST_SUFFIXES = [
   ".localhost",
   ".local",
   ".internal",
-  ".NIP.IO",
+  ".lan",
+  ".home",
+  ".corp",
+  ".intranet",
   ".nip.io",
   ".sslip.io",
   ".xip.io",
+  ".traefik.me",
+  ".localtest.me",
+  ".lvh.me",
+  ".vcap.me",
 ]
 
 /**
@@ -37,7 +51,7 @@ const BLOCKED_HOST_SUFFIXES = [
  * Returns canonical dotted decimal "a.b.c.d" or null if not a numeric IPv4.
  */
 export function parseCanonicalIpv4(host: string): string | null {
-  const clean = host.trim().toLowerCase().replace(/^\[|\]$/g, "")
+  const clean = host.trim().toLowerCase().replace(/^\[|\]$/g, "").replace(/\.+$/, "")
   if (!clean || clean.includes(":") || clean.includes("/") || clean.includes(" ")) {
     return null
   }
@@ -104,11 +118,22 @@ export function parseCanonicalIpv4(host: string): string | null {
  * link-local, cloud metadata, unspecified, or private network range.
  */
 export function isRestrictedIpAddress(ip: string, allowPrivateLanInDev: boolean = false): boolean {
-  const cleanIp = ip.replace(/^\[|\]$/g, "").toLowerCase()
+  let cleanIp = ip.trim().replace(/^\[|\]$/g, "").replace(/\.+$/, "").toLowerCase()
 
-  // Handle IPv4-mapped IPv6 addresses (e.g. ::ffff:127.0.0.1, ::ffff:2130706433, or ::ffff:a9fe:a9fe)
-  if (cleanIp.startsWith("::ffff:")) {
-    const mappedPart = cleanIp.slice(7)
+  // Normalize IPv6 via WHATWG URL parser if it contains colons
+  if (cleanIp.includes(":")) {
+    try {
+      const normalized = new URL(`http://[${cleanIp}]/`).hostname
+      cleanIp = normalized.replace(/^\[|\]$/g, "").toLowerCase()
+    } catch {
+      // keep cleanIp as-is
+    }
+  }
+
+  // Handle IPv4-mapped IPv6 addresses (e.g. ::ffff:127.0.0.1, ::ffff:2130706433, ::ffff:a9fe:a9fe, 0:0:0:0:0:ffff:...)
+  const mappedPrefixMatch = cleanIp.match(/^(?:::ffff:|(?:0+:){5}ffff:)(.+)$/)
+  if (mappedPrefixMatch) {
+    const mappedPart = mappedPrefixMatch[1]
     const canonical = parseCanonicalIpv4(mappedPart)
     if (canonical) {
       return isRestrictedIpAddress(canonical, allowPrivateLanInDev)
@@ -127,10 +152,21 @@ export function isRestrictedIpAddress(ip: string, allowPrivateLanInDev: boolean 
   const canonicalIpv4 = parseCanonicalIpv4(cleanIp)
   if (canonicalIpv4) {
     const parts = canonicalIpv4.split(".").map((n) => parseInt(n, 10))
-    const [a, b] = parts
+    const [a, b, c, d] = parts
 
     // Always block loopback (127.0.0.0/8), unspecified (0.0.0.0/8), and link-local/IMDS (169.254.0.0/16)
     if (a === 127 || a === 0 || (a === 169 && b === 254)) {
+      return true
+    }
+
+    // Always block Alibaba IMDS (100.100.100.200) and Oracle IMDS / IETF Protocol Assignments (192.0.0.0/24)
+    if (
+      (a === 100 && b === 100 && c === 100 && d === 200) ||
+      (a === 192 && b === 0 && (c === 0 || c === 2)) ||
+      (a === 198 && (b === 18 || b === 19)) ||
+      (a === 198 && b === 51 && c === 100) ||
+      (a === 203 && b === 0 && c === 113)
+    ) {
       return true
     }
 
@@ -155,12 +191,33 @@ export function isRestrictedIpAddress(ip: string, allowPrivateLanInDev: boolean 
   }
 
   if (net.isIPv6(cleanIp)) {
-    // Loopback (::1) or unspecified (::)
-    if (cleanIp === "::1" || cleanIp === "::" || cleanIp === "0:0:0:0:0:0:0:1" || cleanIp === "0:0:0:0:0:0:0:0") {
+    // Loopback (::1), unspecified (::), or AWS IPv6 IMDS (fd00:ec2::254)
+    if (
+      cleanIp === "::1" ||
+      cleanIp === "::" ||
+      cleanIp === "0:0:0:0:0:0:0:1" ||
+      cleanIp === "0:0:0:0:0:0:0:0" ||
+      cleanIp === "fd00:ec2::254" ||
+      cleanIp === "fd00:ec2:0:0:0:0:0:254"
+    ) {
       return true
     }
-    // IPv6 Link-local (fe80::/10)
-    if (cleanIp.startsWith("fe8") || cleanIp.startsWith("fe9") || cleanIp.startsWith("fea") || cleanIp.startsWith("feb")) {
+    // IPv6 Link-local (fe80::/10), NAT64 (64:ff9b::/96), 6to4 (2002::/16), Teredo (2001:0::/32),
+    // Documentation (2001:db8::/32), Benchmarking (2001:2::/48), Discard-Only (100::/64)
+    if (
+      cleanIp.startsWith("fe8") ||
+      cleanIp.startsWith("fe9") ||
+      cleanIp.startsWith("fea") ||
+      cleanIp.startsWith("feb") ||
+      cleanIp.startsWith("64:ff9b:") ||
+      cleanIp.startsWith("2002:") ||
+      cleanIp.startsWith("2001:0:") ||
+      cleanIp.startsWith("2001:0000:") ||
+      cleanIp.startsWith("2001:db8:") ||
+      cleanIp.startsWith("2001:2:") ||
+      cleanIp.startsWith("100::") ||
+      cleanIp.startsWith("100:0:")
+    ) {
       return true
     }
     // IPv6 Unique Local Addresses (fc00::/7) and Multicast (ff00::/8)
@@ -209,7 +266,10 @@ export async function validateScanTargetUrl(rawUrl: string): Promise<SsrfValidat
   }
 
   const hostname = urlObj.hostname.toLowerCase()
-  const cleanHost = hostname.replace(/^\[|\]$/g, "")
+  const cleanHost = hostname.replace(/^\[|\]$/g, "").replace(/\.+$/, "")
+  if (!cleanHost) {
+    return { valid: false, error: "Invalid URL hostname" }
+  }
   const allowPrivateLanInDev = process.env.NODE_ENV !== "production"
 
   // 3. Block exact hostnames and internal domain suffixes
@@ -237,7 +297,7 @@ export async function validateScanTargetUrl(rawUrl: string): Promise<SsrfValidat
   }
 
   // 5. Check IPv6 or IPv4-mapped IPv6 literals
-  if (net.isIPv6(cleanHost) || cleanHost.startsWith("::ffff:")) {
+  if (net.isIPv6(cleanHost) || cleanHost.startsWith("::ffff:") || cleanHost.includes(":")) {
     if (isRestrictedIpAddress(cleanHost, allowPrivateLanInDev)) {
       return {
         valid: false,
@@ -264,6 +324,12 @@ export async function validateScanTargetUrl(rawUrl: string): Promise<SsrfValidat
   // 7. Resolve DNS records to defend against wildcard DNS / DNS rebinding (e.g. 127.0.0.1.nip.io)
   try {
     const records = await dns.promises.lookup(cleanHost, { all: true })
+    if (!records || records.length === 0) {
+      return {
+        valid: false,
+        error: "Target domain could not be resolved.",
+      }
+    }
     for (const record of records) {
       // Always block loopback and link-local/IMDS even in dev when resolved via external hostname
       if (isRestrictedIpAddress(record.address, false)) {
@@ -274,12 +340,10 @@ export async function validateScanTargetUrl(rawUrl: string): Promise<SsrfValidat
       }
     }
   } catch {
-    // If DNS lookup fails transiently in restricted sandbox environments, allow only if hostname is a valid public domain format
-    if (!cleanHost.includes(".")) {
-      return {
-        valid: false,
-        error: "Invalid or unresolvable hostname.",
-      }
+    // Fail closed if hostname cannot be resolved in DNS
+    return {
+      valid: false,
+      error: "Invalid or unresolvable target hostname.",
     }
   }
 

@@ -5,6 +5,8 @@ import { createClient as createAdminClient } from "@supabase/supabase-js"
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 function getAdminClient() {
   return createAdminClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -26,8 +28,8 @@ export async function DELETE(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const memberId = searchParams.get("id")
 
-    if (!memberId) {
-      return NextResponse.json({ error: "Member ID is required" }, { status: 400 })
+    if (!memberId || !UUID_REGEX.test(memberId)) {
+      return NextResponse.json({ error: "Valid Member ID is required" }, { status: 400 })
     }
 
     const adminSupabase = getAdminClient()
@@ -86,7 +88,7 @@ export async function DELETE(request: NextRequest) {
   } catch (error) {
     console.error("DELETE /api/team/member error:", error)
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to remove team member" },
+      { error: "Failed to remove team member" },
       { status: 500 }
     )
   }

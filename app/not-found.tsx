@@ -72,7 +72,7 @@ export default function NotFound() {
             API Documentation
           </Link>
           <span>·</span>
-          <Link href="/pricing" className="hover:text-slate-200 transition-colors">
+          <Link href="/#pricing" className="hover:text-slate-200 transition-colors">
             Pricing Plans
           </Link>
           <span>·</span>

@@ -26,6 +26,27 @@ function getHostname(rawUrl: string): string {
   }
 }
 
+function escapeHtml(value: string): string {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;")
+}
+
+function sanitizeHttpUrl(rawUrl: string): string {
+  try {
+    const parsed = new URL(rawUrl)
+    if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+      return parsed.toString()
+    }
+  } catch {
+    // Fall through
+  }
+  return "https://equivance.app"
+}
+
 function computeScore(summary: ScanResult["summary"]): number {
   const penalty =
     (summary.critical || 0) * 15 +
@@ -137,6 +158,14 @@ export default function ComplianceKitModal({
   const badgeUrl = `${origin}/api/badge/${effectiveScanId}`
   const verifyUrl = `${origin}/report/${effectiveScanId}?verify=1`
 
+  const safeOrgHtml = escapeHtml(orgName)
+  const safeUrlHref = escapeHtml(sanitizeHttpUrl(url))
+  const safeUrlText = escapeHtml(url)
+  const safeEmailHtml = escapeHtml(contactEmail.replace(/[\r\n]/g, ""))
+  const safeDateHtml = escapeHtml(formattedDate)
+  const safeVerifyUrlHtml = escapeHtml(verifyUrl)
+  const safeBadgeUrlHtml = escapeHtml(badgeUrl)
+
   const markdownStatement = `# Accessibility Statement for ${orgName}
 
 **Website:** ${url}
@@ -163,16 +192,16 @@ We welcome your feedback on the accessibility of ${orgName}. Please let us know 
 - **Target Response Time:** Within 5 business days`
 
   const htmlStatement = `<section aria-labelledby="a11y-statement-heading">
-  <h1 id="a11y-statement-heading">Accessibility Statement for ${orgName}</h1>
-  <p><strong>Website:</strong> <a href="${url}">${url}</a><br />
-  <strong>Last Audited:</strong> ${formattedDate}<br />
+  <h1 id="a11y-statement-heading">Accessibility Statement for ${safeOrgHtml}</h1>
+  <p><strong>Website:</strong> <a href="${safeUrlHref}">${safeUrlText}</a><br />
+  <strong>Last Audited:</strong> ${safeDateHtml}<br />
   <strong>Automated Compliance Score:</strong> ${score}% (${passesCount} passed rules)</p>
 
   <h2>Commitment to Digital Accessibility</h2>
-  <p>${orgName} is committed to ensuring digital accessibility for people with disabilities. We continually improve the user experience for everyone and apply the relevant accessibility standards aligned with the <strong>${regulationLabel}</strong>.</p>
+  <p>${safeOrgHtml} is committed to ensuring digital accessibility for people with disabilities. We continually improve the user experience for everyone and apply the relevant accessibility standards aligned with the <strong>${escapeHtml(regulationLabel)}</strong>.</p>
 
   <h2>Conformance Status</h2>
-  <p><strong>${url}</strong> is <strong>${conformanceStatus}</strong> with <strong>WCAG 2.2 Level AA</strong>.</p>
+  <p><strong>${safeUrlText}</strong> is <strong>${conformanceStatus}</strong> with <strong>WCAG 2.2 Level AA</strong>.</p>
   <ul>
     <li><strong>Passed Automated Checks:</strong> ${passesCount} WCAG 2.2 Level A &amp; AA rules</li>
     <li><strong>Critical / Serious Blockers:</strong> ${summary.critical + summary.serious}</li>
@@ -180,22 +209,22 @@ We welcome your feedback on the accessibility of ${orgName}. Please let us know 
   </ul>
 
   <h2>Assessment Approach</h2>
-  <p>${orgName} assessed the accessibility of ${url} via automated headless Chromium DOM inspection (WCAG 2.2 Level A &amp; AA) on ${formattedDate}.${
+  <p>${safeOrgHtml} assessed the accessibility of ${safeUrlText} via automated headless Chromium DOM inspection (WCAG 2.2 Level A &amp; AA) on ${safeDateHtml}.${
     scanId
-      ? ` <a href="${verifyUrl}" target="_blank" rel="noopener noreferrer">View Public Verification Report</a>.`
+      ? ` <a href="${safeVerifyUrlHtml}" target="_blank" rel="noopener noreferrer">View Public Verification Report</a>.`
       : ""
   }</p>
 
   <h2>Feedback &amp; Contact Information</h2>
-  <p>We welcome your feedback on the accessibility of ${orgName}. Please let us know if you encounter accessibility barriers:</p>
+  <p>We welcome your feedback on the accessibility of ${safeOrgHtml}. Please let us know if you encounter accessibility barriers:</p>
   <ul>
-    <li><strong>Email:</strong> <a href="mailto:${contactEmail}">${contactEmail}</a></li>
+    <li><strong>Email:</strong> <a href="mailto:${safeEmailHtml}">${safeEmailHtml}</a></li>
     <li><strong>Target Response Time:</strong> Within 5 business days</li>
   </ul>
 </section>`
 
-  const htmlBadgeSnippet = `<a href="${verifyUrl}" target="_blank" rel="noopener noreferrer" title="Verify WCAG 2.2 AA Accessibility Audit for ${orgName}">
-  <img src="${badgeUrl}" alt="WCAG 2.2 AA Accessibility Audit: ${score}% Pass" height="28" />
+  const htmlBadgeSnippet = `<a href="${safeVerifyUrlHtml}" target="_blank" rel="noopener noreferrer" title="Verify WCAG 2.2 AA Accessibility Audit for ${safeOrgHtml}">
+  <img src="${safeBadgeUrlHtml}" alt="WCAG 2.2 AA Accessibility Audit: ${score}% Pass" height="28" />
 </a>`
 
   const markdownBadgeSnippet = `[![WCAG 2.2 AA Accessibility Audit: ${score}% Pass](${badgeUrl})](${verifyUrl})`
