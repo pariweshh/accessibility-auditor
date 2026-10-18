@@ -9,7 +9,7 @@ interface ErrorProps {
   reset: () => void
 }
 
-export default function GlobalError({ error, reset }: ErrorProps) {
+export default function RouteError({ error, reset }: ErrorProps) {
   useEffect(() => {
     // Log unexpected client or SSR render failure
     console.error("Unhandled Application Error:", error)

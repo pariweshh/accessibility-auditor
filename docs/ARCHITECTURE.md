@@ -114,6 +114,7 @@ accessibility-auditor/
 │   │   ├── cron/
 │   │   │   └── monitors/route.ts        # Vercel Cron worker executing due monitors & alert dispatch
 │   │   ├── fix-suggestions/route.ts     # Framework-aware OpenAI remediation endpoint
+│   │   ├── health/route.ts              # Synthetic uptime & database latency healthcheck endpoint
 │   │   ├── keys/route.ts                # API Key creation, listing, revocation
 │   │   ├── monitors/                    # Scheduled Accessibility Monitors API
 │   │   │   ├── route.ts                 # Monitor listing & provisioning with SSRF check
@@ -139,7 +140,8 @@ accessibility-auditor/
 │   ├── legal/                           # In-app Terms of Service, Privacy & Disclaimers
 │   ├── login/                           # User login & magic link submission with safe redirect
 │   ├── report/[scanId]/page.tsx         # Private & public (?verify=1) web-based audit report view
-│   ├── error.tsx                        # Global client runtime error boundary (500)
+│   ├── error.tsx                        # Segment client runtime error boundary (500)
+│   ├── global-error.tsx                 # Root layout catastrophic error boundary (HTML shell)
 │   ├── not-found.tsx                    # Accessible custom branded 404 page
 │   ├── icon.tsx                         # Dynamic SVG/PNG app icon generator
 │   ├── opengraph-image.tsx              # Dynamic OpenGraph social card generator
@@ -500,7 +502,9 @@ The client script (`public/widget.js`, served via `/widget.js`) uses an open **S
 
 ### 4. Resilient Error Containment Architecture
 * Custom `app/not-found.tsx` provides accessible, branded navigation recovery.
-* Global client error boundary `app/error.tsx` catches React rendering exceptions with an incident digest, `role="alert"`, and recovery retry trigger (`reset()`).
+* Segment client error boundary `app/error.tsx` catches React rendering exceptions with an incident digest, `role="alert"`, and recovery retry trigger (`reset()`).
+* Root layout catastrophic error boundary `app/global-error.tsx` catches fatal exceptions in root `app/layout.tsx` with self-contained `<html>` and `<body>` tags, safe retry, and fallback navigation.
+* Public synthetic health monitor endpoint `app/api/health/route.ts` provides zero-quota uptime and Supabase connection pool diagnostics for external telemetry systems.
 
 ---
 

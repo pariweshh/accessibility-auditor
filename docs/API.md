@@ -722,5 +722,52 @@ Returns public WCAG 2.2 AA conformance metadata, POUR principle status, and whit
 }
 ```
 
+---
+
+### 11. Synthetic Uptime & System Health
+
+#### `GET /api/health`
+Zero-quota, unauthenticated synthetic health check endpoint designed for external uptime monitoring services (e.g., BetterStack, UptimeRobot, Datadog). Validates runtime responsiveness and live PostgreSQL database connectivity without consuming user scan quota.
+
+**Headers:**
+None required (Public endpoint, no session cookie or API key required).
+
+**Response (200 OK - Healthy):**
+```json
+{
+  "status": "healthy",
+  "timestamp": "2026-10-18T02:30:00.000Z",
+  "uptimeSeconds": 1420,
+  "environment": "production",
+  "latencyMs": 42,
+  "checks": {
+    "database": {
+      "status": "connected",
+      "latencyMs": 38
+    }
+  }
+}
+```
+
+**Response (503 Service Unavailable - Degraded):**
+```json
+{
+  "status": "degraded",
+  "timestamp": "2026-10-18T02:30:00.000Z",
+  "uptimeSeconds": 1420,
+  "environment": "production",
+  "latencyMs": 52,
+  "checks": {
+    "database": {
+      "status": "degraded",
+      "error": "connection timeout"
+    }
+  }
+}
+```
+
+*Note: Returns `Cache-Control: no-store, no-cache, must-revalidate` to ensure real-time health checks bypass CDN caching.*
+
+
 
 

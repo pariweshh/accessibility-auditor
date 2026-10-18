@@ -72,6 +72,7 @@ accessibility-auditor/
 │   │   ├── cron/
 │   │   │   └── monitors/route.ts        # Hourly Vercel Cron monitor execution & degradation worker
 │   │   ├── fix-suggestions/route.ts     # Framework-aware OpenAI remediation endpoint
+│   │   ├── health/route.ts              # Synthetic uptime & database latency healthcheck endpoint
 │   │   ├── keys/route.ts                # Developer API key management
 │   │   ├── monitors/                    # Scheduled Accessibility Monitors API
 │   │   │   ├── route.ts                 # Monitor listing & creation with SSRF check
@@ -94,7 +95,8 @@ accessibility-auditor/
 │   ├── legal/                           # In-app Terms of Service, Privacy & Disclaimers
 │   ├── login/                           # Authentication portal with safe redirect
 │   ├── report/[scanId]/page.tsx         # Standalone & public (?verify=1) web audit report
-│   ├── error.tsx                        # Global client runtime error boundary (500)
+│   ├── error.tsx                        # Segment client runtime error boundary (500)
+│   ├── global-error.tsx                 # Root layout catastrophic error boundary (HTML shell)
 │   ├── not-found.tsx                    # Accessible custom branded 404 page
 │   ├── icon.tsx                         # Dynamic SVG/PNG app icon generator
 │   ├── opengraph-image.tsx              # Dynamic OpenGraph social card generator

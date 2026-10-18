@@ -236,14 +236,16 @@
 
 ---
 
-## Phase 7: Infrastructure, Observability & Cost Guardrails
-
-- [ ] **Set OpenAI & Browserless Spend Caps**
-  - Configure hard monthly dollar budget limits and billing alerts in OpenAI Platform and Browserless.io so a traffic spike or abuse cannot cause a surprise cloud bill.
+- [x] **Fault Containment & Error Boundaries (`app/error.tsx` & `app/global-error.tsx`)**
+  - Segment route error boundary ([`app/error.tsx`](../app/error.tsx)) provides safe client recovery and incident digest logging without unmounting navigation.
+  - Root layout catastrophic error boundary ([`app/global-error.tsx`](../app/global-error.tsx)) encapsulates fallback `<html>` and `<body>` tags to recover from fatal shell/font crashes with 100% keyboard accessibility and zero raw emojis.
+- [x] **Synthetic Uptime & Database Connectivity Monitoring (`GET /api/health`)**
+  - Zero-quota, unauthenticated endpoint ([`app/api/health/route.ts`](../app/api/health/route.ts)) testing live PostgreSQL connection pool responsiveness and reporting uptime, latency, and status with `no-store` cache headers for telemetry services.
 - [x] **Verify Vercel Function Configuration (`vercel.json`)**
   - Configured 1024 MB memory allocation and 60-second execution caps for `/api/cron/monitors` and `/api/reports/pdf`, plus 30-second cap for `/api/scan`.
-- [ ] **Error Monitoring & Uptime Alerts**
-  - Connect error tracking (e.g., Sentry or Vercel Log Drains) and configure an uptime monitor on `/` and `/api/scan`.
+- [ ] **External Telemetry & Spend Caps (External Dashboards)**
+  - Configure hard monthly dollar budget limits in OpenAI Platform and Browserless.io (code guardrails: `max_tokens: 550` and `ai_fix_cache` SHA-256 deduplication are active in code).
+  - Point external synthetic monitor (e.g., BetterStack, UptimeRobot, Datadog) to `GET https://<domain>/api/health`.
 - [x] **Clean Up Temporary & Scratch Files**
   - Verified: `.playwright-mcp/`, `scratch/`, `nexusflow-full.jpeg`, and `/test-results/` are strictly ignored in [`.gitignore`](../.gitignore).
 - [x] **Final Build & Type Verification Gate**
