@@ -64,6 +64,19 @@ alter table public.monitors enable row level security;
 
 -- ── 3. Security Definer Helper Functions (Prevents Infinite RLS Recursion) ────
 
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  insert into public.profiles (id, email, subscription_tier)
+  values (new.id, new.email, 'free');
+  return new;
+end;
+$$;
+
 create or replace function public.is_team_member(_team_id uuid, _user_id uuid)
 returns boolean
 language sql
@@ -75,6 +88,7 @@ as $$
     select 1 from public.team_members
     where team_id = _team_id
       and user_id = _user_id
+      and (_user_id = auth.uid() or coalesce(auth.role(), '') = 'service_role')
       and status = 'active'
   );
 $$;
@@ -90,8 +104,59 @@ as $$
     select 1 from public.teams
     where id = _team_id
       and owner_id = _user_id
+      and (_user_id = auth.uid() or coalesce(auth.role(), '') = 'service_role')
   );
 $$;
+
+-- ── 3.1 Privilege Escalation Prevention Triggers ──────────────────────────────
+
+create or replace function public.protect_profile_billing_columns()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if coalesce(auth.role(), '') <> 'service_role'
+     and current_user not in ('postgres', 'supabase_admin', 'supabase_auth_admin') then
+    if new.subscription_tier is distinct from old.subscription_tier
+       or new.subscription_status is distinct from old.subscription_status
+       or new.stripe_customer_id is distinct from old.stripe_customer_id
+       or new.stripe_subscription_id is distinct from old.stripe_subscription_id then
+      raise exception 'Direct modification of billing or subscription fields is forbidden';
+    end if;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_protect_profile_billing on public.profiles;
+create trigger trg_protect_profile_billing
+  before update on public.profiles
+  for each row execute function public.protect_profile_billing_columns();
+
+create or replace function public.protect_team_privileged_columns()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if coalesce(auth.role(), '') <> 'service_role'
+     and current_user not in ('postgres', 'supabase_admin') then
+    if new.max_seats is distinct from old.max_seats
+       or new.owner_id is distinct from old.owner_id then
+      raise exception 'Direct modification of team seat limits or ownership is forbidden';
+    end if;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_protect_team_privileged on public.teams;
+create trigger trg_protect_team_privileged
+  before update on public.teams
+  for each row execute function public.protect_team_privileged_columns();
 
 -- ── 4. Teams RLS Policies ─────────────────────────────────────────────────────
 
@@ -150,8 +215,15 @@ create policy "Team owners or members themselves can delete membership" on publi
     public.is_team_owner(team_id, auth.uid())
   );
 
--- ── 6. Scans RLS Policies & Indexes ───────────────────────────────────────────
+-- ── 6. Scans, Violations & AI Fix Cache RLS Policies & Indexes ────────────────
 
+alter table public.scans
+  add column if not exists violations int default 0,
+  add column if not exists passes int default 0,
+  add column if not exists score int,
+  add column if not exists result jsonb;
+
+drop policy if exists "Users can view their own scans" on public.scans;
 drop policy if exists "Users can view own scans" on public.scans;
 drop policy if exists "Users can view own or team scans" on public.scans;
 create policy "Users can view own or team scans" on public.scans
@@ -159,6 +231,43 @@ create policy "Users can view own or team scans" on public.scans
     user_id = auth.uid() or
     (team_id is not null and (public.is_team_member(team_id, auth.uid()) or public.is_team_owner(team_id, auth.uid())))
   );
+
+drop policy if exists "Service role can update any scan" on public.scans;
+drop policy if exists "Service role can update scans" on public.scans;
+create policy "Service role can update scans"
+  on public.scans for update
+  to service_role
+  using (true)
+  with check (true);
+
+drop policy if exists "Users can delete own scans" on public.scans;
+drop policy if exists "Service role can delete scans" on public.scans;
+create policy "Service role can delete scans"
+  on public.scans for delete
+  to service_role
+  using (true);
+
+drop policy if exists "Users can view violations for their scans" on public.violations;
+drop policy if exists "Users can view violations of own scans" on public.violations;
+create policy "Users can view violations of own scans"
+  on public.violations for select
+  using (
+    exists (
+      select 1 from public.scans
+      where scans.id = violations.scan_id
+        and (
+          scans.user_id = auth.uid() or
+          (scans.team_id is not null and (public.is_team_member(scans.team_id, auth.uid()) or public.is_team_owner(scans.team_id, auth.uid())))
+        )
+    )
+  );
+
+drop policy if exists "Allow authenticated users to insert cache" on public.ai_fix_cache;
+drop policy if exists "Service role can insert cache" on public.ai_fix_cache;
+create policy "Service role can insert cache"
+  on public.ai_fix_cache for insert
+  to service_role
+  with check (true);
 
 create index if not exists idx_scans_team_id on public.scans (team_id);
 create index if not exists idx_team_members_user_id on public.team_members (user_id);
@@ -181,6 +290,7 @@ create policy "Users can update own monitors" on public.monitors for update usin
 drop policy if exists "Users can delete own monitors" on public.monitors;
 create policy "Users can delete own monitors" on public.monitors for delete using (auth.uid() = user_id);
 
+drop policy if exists "Service role can manage all monitors" on public.monitors;
 drop policy if exists "Service role has full access to monitors" on public.monitors;
 create policy "Service role has full access to monitors" on public.monitors for all to service_role using (true) with check (true);
 
@@ -199,4 +309,3 @@ create table if not exists public.stripe_webhook_events (
 alter table public.stripe_webhook_events enable row level security;
 
 create index if not exists idx_stripe_webhook_events_processed_at on public.stripe_webhook_events (processed_at desc);
-

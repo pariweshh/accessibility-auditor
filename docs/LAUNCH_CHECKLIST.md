@@ -56,15 +56,17 @@
   - [`docs/LEGAL.md`](./LEGAL.md) (Section 04.4) explicitly states users can delete their account and all associated data via the Settings modal. Add a `DELETE /api/auth/account` endpoint (using `adminSupabase.auth.admin.deleteUser(user.id)` + Stripe subscription cancellation) and wire a confirmation flow into `SettingsModal.tsx`.
 - [x] **Standardize Environment Variable Names Across Code & Docs ([`docs/SETUP.md`](./SETUP.md), [`lib/site.ts`](../lib/site.ts), [`app/api/reports/pdf/route.ts`](../app/api/reports/pdf/route.ts), [`app/api/team/invite/route.ts`](../app/api/team/invite/route.ts))**
   - [`docs/SETUP.md`](./SETUP.md) specifies `RESEND_FROM_EMAIL` and `NEXT_PUBLIC_APP_URL`, whereas the codebase reads `EMAIL_FROM` and `NEXT_PUBLIC_SITE_URL` (and `app/api/auth/magic-link/route.ts` should be checked for consistency). Support both via fallback (`process.env.EMAIL_FROM || process.env.RESEND_FROM_EMAIL`) and unify documentation.
-- [x] **Harden SSRF Against DNS Rebinding, Alternative Encodings & Redirect Bypasses ([`lib/ssrf.ts`](../lib/ssrf.ts) & [`supabase/functions/scan-site/index.ts`](../supabase/functions/scan-site/index.ts))**
-  - Full canonical 32-bit IPv4 normalizer handling decimal integers (`http://2130706433/`), octal (`http://0177.0.0.1/`), hex DWORDs (`http://0x7f000001/`), dotted hex (`http://0x7f.0.0.1/`), shorthand (`127.1`), and IPv6-mapped IPv4 (`[::ffff:169.254.169.254]`, `[::ffff:a9fe:a9fe]`).
-  - Added DNS resolution (`dns.lookup`) validation in Node, request interception (`page.setRequestInterception(true)`), and redirect inspection (`page.on('response')`) inside `scan-site` to block private/link-local/IMDS requests during navigation. Verified with 41-point security suite.
+- [x] **Harden SSRF Against DNS Rebinding, Alternative Encodings & Redirect Bypasses ([`lib/ssrf.ts`](../lib/ssrf.ts), [`lib/scanner.ts`](../lib/scanner.ts) & [`supabase/functions/scan-site/index.ts`](../supabase/functions/scan-site/index.ts))**
+  - Full canonical 32-bit IPv4 & IPv6 normalizer handling decimal integers (`http://2130706433/`), octal (`http://0177.0.0.1/`), hex DWORDs (`http://0x7f000001/`), dotted hex (`http://0x7f.0.0.1/`), shorthand (`127.1`), IPv6-mapped IPv4 (`[::ffff:169.254.169.254]`, `[::ffff:a9fe:a9fe]`), NAT64 (`64:ff9b::/96`), 6to4 (`2002::/16`), Teredo (`2001:0000::/32`), ULA (`fc00::/7`), and expanded IPv6 loopback (`0:0:0:0:0:0:0:1`).
+  - Added DNS resolution (`dns.lookup` & `Deno.resolveDns`) validation, request interception (`page.setRequestInterception(true)`), and CDP redirect inspection (`Network.requestWillBeSent`) inside `scan-site` and `lib/scanner.ts` to block private/link-local/IMDS requests during navigation. Verified with 62-point security suite (`scripts/test-phase1-security.mjs`).
 - [x] **Stripe Webhook Idempotency & Deduplication Table ([`supabase/migrations/20260617000000_stripe_webhook_events.sql`](../supabase/migrations/20260617000000_stripe_webhook_events.sql), [`app/api/billing/webhook/route.ts`](../app/api/billing/webhook/route.ts))**
-  - Created `public.stripe_webhook_events` with RLS. The webhook handler inspects `event.id` prior to processing; returns `NextResponse.json({ received: true, deduplicated: true })` on duplicate deliveries and fails open gracefully if table is transiently unreachable.
+  - Created `public.stripe_webhook_events` with RLS. The webhook handler inspects `event.id` prior to processing; returns `NextResponse.json({ received: true, deduplicated: true })` on duplicate deliveries, rolls back the idempotency row on downstream transient failures so Stripe can retry, and pins subscription updates to the active `stripe_subscription_id`.
 - [x] **Automated Stuck-Scan Recovery & Slot Deadlock Prevention ([`supabase/functions/scan-site/index.ts`](../supabase/functions/scan-site/index.ts), [`app/api/scan/route.ts`](../app/api/scan/route.ts))**
   - Automated 3-minute cutoff: both the `scan-site` Edge Function and `GET /api/scan` polling endpoint detect scans lingering in `pending` or `processing` for `> 3 minutes`, updating their status to `failed` (`Scan timed out while processing.`) and releasing concurrency slots.
-- [x] **Sensitive Route Rate Limiting Throttles ([`lib/rate-limit.ts`](../lib/rate-limit.ts), [`app/api/auth/magic-link/route.ts`](../app/api/auth/magic-link/route.ts), [`app/api/team/invite/route.ts`](../app/api/team/invite/route.ts))**
-  - In-memory sliding-window rate limiter with automatic sweep (`unref()`). Throttles passwordless magic link requests (max 5 per 10 minutes per IP/email) and team member invitations (max 10 per hour per user, max 20 per hour per IP) with RFC-compliant `Retry-After` headers.
+- [x] **Sensitive Route Rate Limiting Throttles ([`lib/rate-limit.ts`](../lib/rate-limit.ts))**
+  - In-memory sliding-window rate limiter prioritizing `x-vercel-forwarded-for` with automatic sweep (`unref()`). Throttles magic links (`/api/auth/magic-link`), team invitations (`/api/team/invite`), invite acceptance (`/api/team/accept`), scan dispatches (`/api/scan`), AI fixes (`/api/fix-suggestions`), PDF generation (`POST /api/reports/pdf`), and manual monitor runs (`/api/monitors/[id]/run`) with RFC-compliant `Retry-After` headers.
+- [x] **Deep Codebase Security Audit (40/40 Findings Remediated)**
+  - Completed comprehensive 4-wave security & code audit across all 65+ source files: scoped service RLS policies to `to service_role`, added `BEFORE UPDATE` privilege-escalation triggers on `profiles` and `teams`, added CSRF `Origin` vs `Host` enforcement in `proxy.ts`, added constant-time `crypto.timingSafeEqual` secret comparison on `CRON_SECRET` and `scan-site`, sandboxed report iframes (`sandbox=""`), and replaced `innerHTML` with safe DOM APIs in `public/widget.js`.
 - [x] **Populate or Deprecate `public.violations` Relational Table ([`supabase/functions/scan-site/index.ts`](../supabase/functions/scan-site/index.ts) & [`docs/DATABASE.md`](./DATABASE.md))**
   - `scan-site` batch-inserts normalized rows into `public.violations` on scan completion for cross-scan analytics.
 - [x] **Remove Remaining Raw Emojis from Production UI ([`components/settings_modal.tsx`](../components/settings_modal.tsx), [`app/docs/page.tsx`](../app/docs/page.tsx))**
@@ -129,17 +131,18 @@
   - [x] `20260615000000_scheduled_monitors.sql` (scheduled compliance monitors)
   - [x] `20260616000000_fix_rls_recursion.sql` (security definer RLS functions)
   - [x] `20260617000000_stripe_webhook_events.sql` (webhook idempotency log)
+  - [x] `20260618000000_security_hardening_rls.sql` (RLS `to service_role` scoping & privilege-escalation triggers on `profiles` and `teams`)
   - *(All migrations consolidated in [`supabase/migrations/combined_pending_migrations.sql`](../supabase/migrations/combined_pending_migrations.sql) for reproducible 1-click deployment to official production project).*
 - [x] **Verify Row Level Security (RLS) on Every Public Table**
   - Confirmed `rls_enabled = true` on all 9 tables: `profiles`, `scans`, `violations`, `api_keys`, `ai_fix_cache`, `teams`, `team_members`, `monitors`, `stripe_webhook_events`.
-- [x] **Verify `on_auth_user_created` Trigger**
-  - Trigger and security definer function `public.handle_new_user()` active on `auth.users` to provision `subscription_tier = 'free'`.
+- [x] **Verify `on_auth_user_created` & Privilege Protection Triggers**
+  - Trigger `on_auth_user_created` (`public.handle_new_user()`) active on `auth.users`, plus `trg_protect_profile_billing` on `public.profiles` and `trg_protect_team_privileged` on `public.teams`.
 - [x] **Verify Supabase Realtime Publication**
   - Table `public.scans` added to `supabase_realtime` publication for live progress steppers.
 - [x] **Verify Private `reports` Storage Bucket**
   - Bucket `reports` provisioned with `public = false` for signed URL PDF report delivery.
 - [x] **Deploy & Configure `scan-site` Edge Function**
-  - Deployed to Supabase Cloud with hardened SSRF protection, IPv6-mapped IPv4 decoding, redirect interception, and 3-minute timeout recovery.
+  - Deployed to Supabase Cloud with constant-time `SUPABASE_SERVICE_ROLE_KEY` bearer authentication, `Deno.resolveDns` SSRF protection, IPv6-mapped IPv4/NAT64/6to4/Teredo decoding, redirect interception, and 3-minute timeout recovery.
 - [x] **Automated Stuck-Scan Cleanup / Timeout Recovery**
   - Dual-layer timeout recovery active: enforced in `scan-site` prior to concurrency slot allocation and in `GET /api/scan` polling endpoint (auto-transitions scans older than 3 minutes to `failed`).
 
@@ -198,12 +201,12 @@
 
 - [x] **Zero-Violation Self-Audit across All Public & Authenticated Routes**
   - Run `axe-core` and Lighthouse Accessibility audits (`a11y-debugging` skill) on:
-    - [x] Landing Page (`/`) — Verified: 0 violations across 45 rules.
+    - [x] Landing Page (`/`) — Verified: 0 violations across 46 rules.
     - [x] Login Page (`/login`) — Verified: 0 violations across 40 rules.
     - [x] Developer API Docs (`/docs`) — Verified: 0 violations across 44 rules.
     - [x] Legal & Privacy Page (`/legal`) — Verified: 0 violations across 39 rules.
     - [x] Dashboard & Tabs (`/dashboard`) — WAI-ARIA tablist arrow-navigation & dialog focus-trapped.
-    - [x] Public/Shared Audit Report (`/report/[scanId]`) — Isolated iframe architecture eliminates nested HTML landmarks.
+    - [x] Public/Shared Audit Report (`/report/[scanId]`) — Sandboxed isolated iframe architecture (`sandbox=""`) eliminates nested HTML landmarks.
     - [x] Team Join Page (`/auth/join`) — Clean semantic form structure and focusable controls.
     - [x] 404 & Error Pages (`/not-found`) — Verified: 0 violations across 38 rules.
   - Automated regression suite added: `npm run test:a11y` (`scripts/self-a11y-audit.mjs`).
@@ -211,6 +214,7 @@
   - Zero-dependency focus trap hook implemented (`hooks/use-focus-trap.ts`) across all modals:
     - `components/settings_modal.tsx`
     - `components/compliance_kit_modal.tsx`
+    - `components/billing_button.tsx` (Pricing upgrade modal)
     - `app/dashboard/dashboard_client.tsx` (Create Monitor Modal)
   - WAI-ARIA tablist arrow-key navigation implemented across all tab sets (Settings tabs, Compliance Kit tabs, Dashboard tabs, Documentation code tabs, Login tabs).
   - Visible-on-focus skip navigation link implemented (`<a href="#main-content">Skip to main content</a>`).
@@ -236,13 +240,15 @@
 
 ---
 
+## Phase 7: Infrastructure, Observability & Cost Guardrails
+
 - [x] **Fault Containment & Error Boundaries (`app/error.tsx` & `app/global-error.tsx`)**
   - Segment route error boundary ([`app/error.tsx`](../app/error.tsx)) provides safe client recovery and incident digest logging without unmounting navigation.
   - Root layout catastrophic error boundary ([`app/global-error.tsx`](../app/global-error.tsx)) encapsulates fallback `<html>` and `<body>` tags to recover from fatal shell/font crashes with 100% keyboard accessibility and zero raw emojis.
 - [x] **Synthetic Uptime & Database Connectivity Monitoring (`GET /api/health`)**
   - Zero-quota, unauthenticated endpoint ([`app/api/health/route.ts`](../app/api/health/route.ts)) testing live PostgreSQL connection pool responsiveness and reporting uptime, latency, and status with `no-store` cache headers for telemetry services.
 - [x] **Verify Vercel Function Configuration (`vercel.json`)**
-  - Configured 1024 MB memory allocation and 60-second execution caps for `/api/cron/monitors` and `/api/reports/pdf`, plus 30-second cap for `/api/scan`.
+  - Configured 1024 MB memory allocation and 60-second execution caps for `/api/cron/monitors` and `/api/reports/pdf`, plus 30-second caps for `/api/scan` and `/api/monitors/[id]/run`.
 - [ ] **External Telemetry & Spend Caps (External Dashboards)**
   - Configure hard monthly dollar budget limits in OpenAI Platform and Browserless.io (code guardrails: `max_tokens: 550` and `ai_fix_cache` SHA-256 deduplication are active in code).
   - Point external synthetic monitor (e.g., BetterStack, UptimeRobot, Datadog) to `GET https://<domain>/api/health`.
@@ -251,8 +257,9 @@
 - [x] **Final Build & Type Verification Gate**
   - [x] `npx tsc --noEmit` passes with 0 errors.
   - [x] `npm run lint` passes with 0 warnings/errors.
-  - [x] `npm run test:a11y` passes with 0 violations across 45 rules.
-  - [x] `npm run test:tiers` passes with 28/28 checks across Free, Pro, and Agency tiers.
+  - [x] `npx tsx scripts/test-phase1-security.mjs` passes with 62/62 security checks.
+  - [x] `npm run test:a11y` passes with 0 violations across 46 rules.
+  - [x] `npm run test:tiers` passes with 28/28 checks (0 pending migrations) across Free, Pro, and Agency tiers.
   - [x] `npm run build` succeeds cleanly in Turbopack.
 
 ---

@@ -51,6 +51,7 @@ npm install
    - `20260615000000_scheduled_monitors.sql` (Scheduled accessibility monitors, alerts, RLS)
    - `20260616000000_fix_rls_recursion.sql` (Security definer functions preventing cyclic RLS)
    - `20260617000000_stripe_webhook_events.sql` (Stripe webhook idempotency log)
+   - `20260618000000_security_hardening_rls.sql` (RLS `to service_role` scoping & privilege-escalation triggers)
 3. Ensure the private Storage Bucket named `reports` is created for vector PDF document storage.
 4. Execute `supabase/migrations/phase2_cloud_verification.sql` to confirm all 9 public tables have active Row Level Security (RLS).
 
@@ -141,8 +142,8 @@ npm run test:a11y
 # Tier-by-tier live functional & E2E verification (28/28 checks across Free, Pro, Agency)
 npm run test:tiers
 
-# SSRF and canonical IP security test suite (41/41 passing checks)
-node scripts/test-phase1-security.mjs
+# SSRF, XSS/CSS sanitization & redirect security test suite (62/62 passing checks)
+npx tsx scripts/test-phase1-security.mjs
 
 # Production build verification
 npm run build

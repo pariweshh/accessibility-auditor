@@ -41,8 +41,13 @@ Browser client sessions use HTTP-only, secure cookies managed by `@supabase/ssr`
 Monthly audit allowances are enforced atomically via `lib/quota.ts` against PostgreSQL records. Requests exceeding monthly quotas return `429 Too Many Requests`.
 
 Additionally, abuse-prevention sliding-window rate limiters (`lib/rate-limit.ts`) protect sensitive endpoints:
-* **Magic Link Authentication (`POST /api/auth/magic-link`):** Max 5 requests per 15-minute sliding window per client IP.
-* **Team Invitations (`POST /api/team/invite`):** Max 10 invitations per 60-minute sliding window per authenticated user.
+* **Magic Link Authentication (`POST /api/auth/magic-link`):** Max 5 requests per 10-minute sliding window per client IP and email.
+* **Team Invitations (`POST /api/team/invite`):** Max 10 invitations per 60-minute sliding window per authenticated user (max 20 per IP).
+* **Team Invite Acceptance (`POST /api/team/accept`):** Max 10 token acceptance attempts per 15-minute window per authenticated user.
+* **Scan Dispatch (`POST /api/scan`):** Max 15 scan dispatches per 60-second window per authenticated user/IP.
+* **AI Remediation (`POST /api/fix-suggestions`):** Max 20 requests per 60-second window per authenticated user (batch capped at 10 issues per call).
+* **Executive PDF Generation (`POST /api/reports/pdf`):** Max 10 exports per 5-minute window per authenticated user.
+* **Manual Monitor Trigger (`POST /api/monitors/[id]/run`):** Max 5 manual triggers per 5-minute window per authenticated user.
 
 ---
 
@@ -417,7 +422,6 @@ Updates custom branding assets applied to web reports and PDF exports. Input fie
 
 ### 6. PDF Reports & Live SVG Compliance Badges
 
-#### `GET /api/reports/pdf?scanId={scanId}`
 #### `POST /api/reports/pdf`
 Generates or retrieves a vector-grade compliance audit PDF (including the VPAT/ACR-style **WCAG 2.2 4-Principle POUR Conformance Summary Matrix**). Agency tier documents dynamically inject the team's white-label branding. Pass `force: true` to invalidate previous PDF caches.
 

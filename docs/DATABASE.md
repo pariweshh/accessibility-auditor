@@ -162,6 +162,7 @@ create table public.scans (
   status text not null default 'pending' check (status in ('pending', 'processing', 'completed', 'failed')),
   violations int default 0 not null,
   passes int default 0 not null,
+  score int,
   summary jsonb, -- { critical: 0, serious: 0, moderate: 0, minor: 0 }
   result jsonb,  -- Full ScanResult structure with violations and incomplete items
   error_message text,
@@ -292,10 +293,10 @@ create table public.stripe_webhook_events (
 
 ## 03 Row Level Security (RLS) Policies
 
-All tables have RLS enabled by default. No client can access another tenant's audit data.
+All tables have RLS enabled by default. No client can access another tenant's audit data or escalate privileges via PostgREST.
 
 ```sql
--- Profiles
+-- Profiles (protected by BEFORE UPDATE trigger trg_protect_profile_billing)
 alter table public.profiles enable row level security;
 create policy "Users can view own profile" on public.profiles for select using (auth.uid() = id);
 create policy "Users can update own profile" on public.profiles for update using (auth.uid() = id);
@@ -304,29 +305,22 @@ create policy "Users can update own profile" on public.profiles for update using
 alter table public.scans enable row level security;
 -- View own scans or scans belonging to active team
 create policy "Users can view own or team scans" on public.scans for select using (
-  auth.uid() = user_id or (
-    team_id is not null and exists (
-      select 1 from public.team_members
-      where team_members.team_id = scans.team_id
-        and team_members.user_id = auth.uid()
-        and team_members.status = 'active'
+  user_id = auth.uid() or (
+    team_id is not null and (
+      public.is_team_member(team_id, auth.uid()) or
+      public.is_team_owner(team_id, auth.uid())
     )
   )
 );
 create policy "Users can insert own scans" on public.scans for insert with check (auth.uid() = user_id);
-create policy "Users can delete own scans" on public.scans for delete using (auth.uid() = user_id);
--- Edge Function service role override for updating scan progress and results
-create policy "Service role can update scans" on public.scans for update using (true) with check (true);
+-- Strictly scoped to service_role (prevents client-side scan result tampering & quota reset via DELETE)
+create policy "Service role can update scans" on public.scans for update to service_role using (true) with check (true);
+create policy "Service role can delete scans" on public.scans for delete to service_role using (true);
 
--- Teams
+-- Teams (protected by BEFORE UPDATE trigger trg_protect_team_privileged)
 alter table public.teams enable row level security;
 create policy "Owners and members can view their team" on public.teams for select using (
-  owner_id = auth.uid() or exists (
-    select 1 from public.team_members
-    where team_members.team_id = teams.id
-      and team_members.user_id = auth.uid()
-      and team_members.status = 'active'
-  )
+  owner_id = auth.uid() or public.is_team_member(id, auth.uid())
 );
 create policy "Agency owners can insert team" on public.teams for insert with check (
   owner_id = auth.uid() and exists (
@@ -339,32 +333,35 @@ create policy "Owners can delete own team" on public.teams for delete using (own
 -- Team Members
 alter table public.team_members enable row level security;
 create policy "Team owners and members can view member list" on public.team_members for select using (
-  exists (
-    select 1 from public.teams
-    where teams.id = team_members.team_id and (
-      teams.owner_id = auth.uid() or exists (
-        select 1 from public.team_members tm
-        where tm.team_id = teams.id and tm.user_id = auth.uid() and tm.status = 'active'
-      )
-    )
-  )
+  user_id = auth.uid() or
+  public.is_team_owner(team_id, auth.uid()) or
+  public.is_team_member(team_id, auth.uid())
 );
 create policy "Team owners can insert members" on public.team_members for insert with check (
-  exists (select 1 from public.teams where teams.id = team_members.team_id and teams.owner_id = auth.uid())
+  public.is_team_owner(team_id, auth.uid())
 );
 create policy "Team owners can update members" on public.team_members for update using (
-  exists (select 1 from public.teams where teams.id = team_members.team_id and teams.owner_id = auth.uid())
+  public.is_team_owner(team_id, auth.uid())
 );
 create policy "Team owners or members themselves can delete membership" on public.team_members for delete using (
-  user_id = auth.uid() or exists (
-    select 1 from public.teams where teams.id = team_members.team_id and teams.owner_id = auth.uid()
-  )
+  user_id = auth.uid() or public.is_team_owner(team_id, auth.uid())
 );
 
 -- Violations
 alter table public.violations enable row level security;
 create policy "Users can view violations of own scans" on public.violations for select using (
-  exists (select 1 from public.scans where scans.id = violations.scan_id and scans.user_id = auth.uid())
+  exists (
+    select 1 from public.scans
+    where scans.id = violations.scan_id
+      and (
+        scans.user_id = auth.uid() or (
+          scans.team_id is not null and (
+            public.is_team_member(scans.team_id, auth.uid()) or
+            public.is_team_owner(scans.team_id, auth.uid())
+          )
+        )
+      )
+  )
 );
 create policy "Users can insert violations of own scans" on public.violations for insert with check (
   exists (select 1 from public.scans where scans.id = violations.scan_id and scans.user_id = auth.uid())
@@ -376,34 +373,32 @@ create policy "Users can view own API keys" on public.api_keys for select using 
 create policy "Users can insert own API keys" on public.api_keys for insert with check (auth.uid() = user_id);
 create policy "Users can delete own API keys" on public.api_keys for delete using (auth.uid() = user_id);
 
--- AI Fix Cache (Global read/write for authenticated users)
+-- AI Fix Cache (Read for authenticated users; writes strictly restricted to service_role to prevent cache poisoning)
 alter table public.ai_fix_cache enable row level security;
 create policy "Allow authenticated users to read cache" on public.ai_fix_cache for select to authenticated using (true);
-create policy "Allow authenticated users to insert cache" on public.ai_fix_cache for insert to authenticated with check (true);
+create policy "Service role can insert cache" on public.ai_fix_cache for insert to service_role with check (true);
 
 -- Scheduled Monitors
 alter table public.monitors enable row level security;
 create policy "Users can view own or team monitors" on public.monitors for select using (
   auth.uid() = user_id or (
-    team_id is not null and exists (
-      select 1 from public.team_members
-      where team_members.team_id = monitors.team_id
-        and team_members.user_id = auth.uid()
-        and team_members.status = 'active'
+    team_id is not null and (
+      public.is_team_member(team_id, auth.uid()) or
+      public.is_team_owner(team_id, auth.uid())
     )
   )
 );
 create policy "Users can insert own monitors" on public.monitors for insert with check (auth.uid() = user_id);
 create policy "Users can update own monitors" on public.monitors for update using (auth.uid() = user_id);
 create policy "Users can delete own monitors" on public.monitors for delete using (auth.uid() = user_id);
-create policy "Service role has full access to monitors" on public.monitors for all using (true) with check (true);
+create policy "Service role has full access to monitors" on public.monitors for all to service_role using (true) with check (true);
 
 -- Stripe Webhook Events
 alter table public.stripe_webhook_events enable row level security;
 -- Service role client bypasses RLS; anon/authenticated roles have zero read/write access.
 
--- Recursion-Free Helper Functions (Security Definer)
--- Used by Teams, Team Members, Scans, and Monitors policies to prevent cyclic infinite recursion
+-- Recursion-Free Helper Functions (Security Definer with auth.uid() binding)
+-- Used by Teams, Team Members, Scans, Violations, and Monitors policies to prevent cyclic recursion and cross-tenant enumeration
 create or replace function public.is_team_member(_team_id uuid, _user_id uuid)
 returns boolean
 language sql
@@ -415,6 +410,7 @@ as $$
     select 1 from public.team_members
     where team_id = _team_id
       and user_id = _user_id
+      and (_user_id = auth.uid() or coalesce(auth.role(), '') = 'service_role')
       and status = 'active'
   );
 $$;
@@ -430,6 +426,7 @@ as $$
     select 1 from public.teams
     where id = _team_id
       and owner_id = _user_id
+      and (_user_id = auth.uid() or coalesce(auth.role(), '') = 'service_role')
   );
 $$;
 ```
@@ -438,22 +435,82 @@ $$;
 
 ## 04 Automated Functions & Triggers
 
-### Automated User Provisioning
+### 1. Automated User Provisioning (`on_auth_user_created`)
 When a user authenticates via Supabase Auth (Magic Link), a trigger automatically initializes their row in `public.profiles` with the default `free` tier.
 
 ```sql
 create or replace function public.handle_new_user()
-returns trigger as $$
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
 begin
   insert into public.profiles (id, email, subscription_tier)
   values (new.id, new.email, 'free');
   return new;
 end;
-$$ language plpgsql security definer;
+$$;
 
 create or replace trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure public.handle_new_user();
+```
+
+### 2. Billing & Subscription Column Protection (`trg_protect_profile_billing`)
+Prevents authenticated users from escalating their own subscription tier or tampering with Stripe billing columns via direct client-side PostgREST `UPDATE` calls.
+
+```sql
+create or replace function public.protect_profile_billing_columns()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if coalesce(auth.role(), '') <> 'service_role'
+     and current_user not in ('postgres', 'supabase_admin', 'supabase_auth_admin') then
+    if new.subscription_tier is distinct from old.subscription_tier
+       or new.subscription_status is distinct from old.subscription_status
+       or new.stripe_customer_id is distinct from old.stripe_customer_id
+       or new.stripe_subscription_id is distinct from old.stripe_subscription_id then
+      raise exception 'Direct modification of billing or subscription fields is forbidden';
+    end if;
+  end if;
+  return new;
+end;
+$$;
+
+create trigger trg_protect_profile_billing
+  before update on public.profiles
+  for each row execute function public.protect_profile_billing_columns();
+```
+
+### 3. Team Seat & Ownership Protection (`trg_protect_team_privileged`)
+Prevents team owners from bypassing the 3-seat Agency cap by modifying `max_seats` or `owner_id` via direct client-side PostgREST `UPDATE` calls.
+
+```sql
+create or replace function public.protect_team_privileged_columns()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if coalesce(auth.role(), '') <> 'service_role'
+     and current_user not in ('postgres', 'supabase_admin') then
+    if new.max_seats is distinct from old.max_seats
+       or new.owner_id is distinct from old.owner_id then
+      raise exception 'Direct modification of team seat limits or ownership is forbidden';
+    end if;
+  end if;
+  return new;
+end;
+$$;
+
+create trigger trg_protect_team_privileged
+  before update on public.teams
+  for each row execute function public.protect_team_privileged_columns();
 ```
 
 ---
@@ -493,7 +550,6 @@ create index if not exists idx_stripe_webhook_events_processed_at on public.stri
 * `20260615000000_scheduled_monitors.sql`: Created `monitors` table with RLS, performance indexes, and foreign keys for automated recurring audits.
 * `20260616000000_fix_rls_recursion.sql`: Security definer functions (`is_team_member`, `is_team_owner`) eliminating cyclic RLS recursion between `teams`, `team_members`, `scans`, and `monitors`.
 * `20260617000000_stripe_webhook_events.sql`: Idempotency table for Stripe webhook events preventing duplicate processing and race conditions.
-* `combined_pending_migrations.sql`: Master consolidated migration script combining all pending schema, RLS, and security updates for single-step database deployment.
+* `20260618000000_security_hardening_rls.sql`: Comprehensive RLS & trigger hardening (`to service_role` scoping on `monitors`, `scans`, and `ai_fix_cache`; `BEFORE UPDATE` privilege-escalation triggers on `profiles` and `teams`; `auth.uid()` binding in `SECURITY DEFINER` helpers).
+* `combined_pending_migrations.sql`: Master consolidated migration script combining all schema, RLS, and security hardening updates for single-step database deployment.
 * `phase2_cloud_verification.sql`: Verification script ensuring RLS is enabled and operational across all 9 public tables (`ai_fix_cache`, `api_keys`, `monitors`, `profiles`, `scans`, `stripe_webhook_events`, `team_members`, `teams`, `violations`).
-
-

@@ -165,7 +165,7 @@ Equivance runs an automated regression test suite via `npm run test:a11y` ([`scr
 ### Audited Routes & Current Status
 | Route | Standard Rules Tested | Axe-Core Violations | Conformance Status |
 | :--- | :---: | :---: | :--- |
-| **Landing & Audit Console (`/`)** | 45 | **0** | **PASSED** (WCAG 2.1 & 2.2 AA) |
+| **Landing & Audit Console (`/`)** | 46 | **0** | **PASSED** (WCAG 2.1 & 2.2 AA) |
 | **Authentication Portal (`/login`)** | 40 | **0** | **PASSED** (WCAG 2.1 & 2.2 AA) |
 | **Developer API Documentation (`/docs`)** | 44 | **0** | **PASSED** (WCAG 2.1 & 2.2 AA) |
 | **Legal Terms & Disclaimers (`/legal`)** | 39 | **0** | **PASSED** (WCAG 2.1 & 2.2 AA) |
@@ -175,7 +175,7 @@ Equivance runs an automated regression test suite via `npm run test:a11y` ([`scr
 1. **Color Contrast:** All text meets a minimum $4.5:1$ ratio on `slate-950` dark backgrounds (`text-slate-400` micro-labels achieve $\ge 5.4:1$).
 2. **Keyboard Navigation & Modal Focus:**
    * Tab index progression follows logical reading order with visible-on-focus `<a href="#main-content">Skip to main content</a>`.
-   * Modals (`SettingsModal.tsx`, `ComplianceKitModal.tsx`, `CreateMonitorModal`) implement `hooks/use-focus-trap.ts` with `role="dialog"`, `aria-modal="true"`, trapping focus within boundary and closing on `Escape` with trigger focus restoration.
+   * Modals (`SettingsModal.tsx`, `ComplianceKitModal.tsx`, `CreateMonitorModal`, and `BillingButton.tsx` pricing modal) implement `hooks/use-focus-trap.ts` with `role="dialog"`, `aria-modal="true"`, trapping focus within boundary and closing on `Escape` with trigger focus restoration.
    * Multi-tab interfaces implement WAI-ARIA `role="tablist"` with arrow-key switching (`ArrowLeft` / `ArrowRight`) and `tabIndex={active ? 0 : -1}`.
    * Horizontally scrollable code `<pre>` blocks have `tabIndex={0}` and accessible ARIA labels.
 3. **Screen Reader Semantics:**
@@ -212,11 +212,11 @@ npm run test:tiers
 npm run test:tiers -- --tier=pro
 npm run test:tiers -- --live-web
 
-# 7. SSRF & Security Defense-in-Depth Suite (41 assertions)
-node scripts/test-phase1-security.mjs
+# 7. SSRF, XSS/CSS Sanitization & Redirect Defense Suite (62 assertions)
+npx tsx scripts/test-phase1-security.mjs
 
 # 8. Stripe Webhook Idempotency Verification
-node scripts/test-webhook-idempotency.mjs
+npx tsx scripts/test-webhook-idempotency.mjs
 ```
 
 ---
@@ -224,7 +224,7 @@ node scripts/test-webhook-idempotency.mjs
 ## 06 Dedicated Verification Test Suites
 
 ### 1. Tier-by-Tier Live Feature & E2E Verification (`npm run test:tiers`)
-The platform includes a dedicated multi-tier test harness ([`scripts/tier-live-test.mjs`](../scripts/tier-live-test.mjs)) that validates feature gates, quotas, AI remediation models, PDF generation, dynamic badges, embed widgets, monitors, multi-user seats, and white-labeling across Free, Pro, and Agency tiers (28/28 checks passed).
+The platform includes a dedicated multi-tier test harness ([`scripts/tier-live-test.mjs`](../scripts/tier-live-test.mjs)) that validates feature gates, quotas, AI remediation models, PDF generation, dynamic badges, embed widgets, monitors, multi-user seats, and white-labeling across Free, Pro, and Agency tiers (28/28 checks passed, 0 pending migrations).
 
 #### CLI Options
 * `npm run test:tiers` — Executes the complete multi-tier test suite across all three tiers.
@@ -238,15 +238,17 @@ The platform includes a dedicated multi-tier test harness ([`scripts/tier-live-t
 * `test-results/tier-live-test-report.json`: Machine-readable execution logs and assertion statuses.
 * `test-results/tier-live-test-report.md`: Human-readable summary table of tier-by-tier conformance.
 
-### 2. SSRF Security & Canonical Normalization Suite (`node scripts/test-phase1-security.mjs`)
-Validates 41 automated security test assertions across:
+### 2. SSRF, XSS/CSS Sanitization & Redirect Security Suite (`npx tsx scripts/test-phase1-security.mjs`)
+Validates 62 automated security test assertions across:
 * Canonical 32-bit integer IPv4 decoding (`2130706433` -> `127.0.0.1`).
 * Dotted hex (`0x7f.0.0.1`), hex DWORD (`0x7f000001`), and octal notation (`0177.0.0.1`).
-* IPv6-mapped IPv4 representations (`[::ffff:169.254.169.254]`, `[::ffff:a9fe:a9fe]`).
-* Cloud provider metadata services (AWS/GCP/Azure/DigitalOcean/Oracle/Alibaba).
+* IPv6-mapped IPv4 representations (`[::ffff:169.254.169.254]`, `[::ffff:a9fe:a9fe]`), NAT64 (`[64:ff9b::169.254.169.254]`), 6to4 (`[2002:7f00:0001::1]`), Teredo (`[2001:0000:4136:e378:8000:63bf:3fff:fdd2]`), Unique Local IPv6 (`[fd12:3456:789a::1]`), and expanded IPv6 loopback (`[0:0:0:0:0:0:0:1]`).
+* Cloud provider metadata services (AWS/GCP/Azure/DigitalOcean/Oracle/Alibaba) and embedded HTTP credentials (`http://admin:secret@example.com/`).
 * HTTP 301/302 redirect interception blocking redirection to internal hosts.
+* HTML, CSS, and `javascript:` protocol sanitization in `generateReportHTML` (`lib/report-template.ts`) and `generateMonitorAlertHtml` (`lib/monitor-alert-email.ts`).
+* Open redirect and control-character (`/%09/evil.com`, `/\\evil.com`) sanitization in `getSafeRedirectUrl` (`lib/safe-redirect.ts`).
 
-### 3. Stripe Webhook Idempotency Suite (`node scripts/test-webhook-idempotency.mjs`)
+### 3. Stripe Webhook Idempotency Suite (`npx tsx scripts/test-webhook-idempotency.mjs`)
 Validates that repeat webhook deliveries with the same `event.id` trigger deduplication in `public.stripe_webhook_events` and return `200 OK` without duplicating side effects.
 
 ---

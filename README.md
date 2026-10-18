@@ -20,8 +20,8 @@
 - **Asynchronous Real-Time Pipeline** — Bypasses serverless timeout limits using Next.js `after()` triggers, Deno Edge Functions, and Supabase Realtime WebSocket progress broadcasting.
 - **Automated Scheduled Monitoring & Degradation Alerts** — Hourly Vercel Cron worker evaluates active monitor schedules (daily/weekly), verifies quotas, dispatches headless audits, detects compliance regressions ($\ge 5\%$ drop or below threshold), and sends responsive Resend HTML alerts with score diffs and violation breakdowns.
 - **Embeddable Public Compliance Widget** — Zero-dependency, lightweight, Shadow-DOM encapsulated compliance trigger and popover (`/widget.js`, `GET /api/widget/[scanId]`) displaying live WCAG score, POUR conformance matrix, barrier reporting, and Agency white-labeling.
-- **Zero-Violation Self-Accessibility (Dogfooding)** — Automated CI/CD headless Chrome audit (`npm run test:a11y`) executing axe-core 4.12 across all public and authenticated application routes, guaranteeing 0 violations across 45 WCAG rules, accessible skip navigation, keyboard focus trapping (`hooks/use-focus-trap.ts`), and WAI-ARIA arrow-key tablists.
-- **SSRF Defense-in-Depth & DNS-Rebinding Protection** — Strict protocol restriction (`http:`/`https:`), DNS resolution verification (`lib/ssrf.ts`), integer/octal/IPv6-mapped IPv4 normalization, and Puppeteer request interception blocking redirects to internal IPs or cloud metadata (`169.254.169.254`, `metadata.google.internal`).
+- **Zero-Violation Self-Accessibility (Dogfooding)** — Automated CI/CD headless Chrome audit (`npm run test:a11y`) executing axe-core 4.12 across all public and authenticated application routes, guaranteeing 0 violations across 46 WCAG rules, accessible skip navigation, keyboard focus trapping (`hooks/use-focus-trap.ts`), and WAI-ARIA arrow-key tablists.
+- **SSRF Defense-in-Depth & DNS-Rebinding Protection** — Strict protocol restriction (`http:`/`https:`), DNS resolution verification (`lib/ssrf.ts`), integer/octal/IPv6-mapped IPv4 & NAT64/6to4/Teredo normalization, and Puppeteer/CDP request interception blocking redirects to internal IPs or cloud metadata (`169.254.169.254`, `metadata.google.internal`).
 - **Framework-Aware AI Code Remediation** — OpenAI `gpt-4o` analyzes failing DOM nodes and generates drop-in code patches tailored to **HTML**, **React / JSX + Tailwind**, **Vue 3**, or **Angular** with WCAG 2.2 citations and SHA-256 caching.
 - **EAA 2025 & ADA Compliance Kit + Live SVG Badges** — One-click generator for ready-to-publish HTML & Markdown Accessibility Statements (EAA June 2025, ADA Title III, Section 508) paired with dynamic `image/svg+xml` compliance shields (`/api/badge/[scanId]`) and public read-only verification views (`/report/[scanId]?verify=1`).
 - **Executive PDF Reports with WCAG 2.2 POUR Matrix** — Vector PDF reports featuring a VPAT/ACR-style 4-Principle (Perceivable, Operable, Understandable, Robust) Conformance Summary Matrix.
@@ -148,7 +148,7 @@ accessibility-auditor/
 ├── scripts/                             # Automation, Audit & Verification Scripts
 │   ├── self-a11y-audit.mjs              # Headless Chrome + axe-core dogfooding audit (WCAG 2.2 AA)
 │   ├── tier-live-test.mjs               # Multi-Tier Live Feature & E2E Verification Suite (28/28 checks)
-│   ├── test-phase1-security.mjs         # 41/41 SSRF security test suite (canonical IPv4, encodings, redirects)
+│   ├── test-phase1-security.mjs         # 62/62 SSRF, XSS/CSS sanitization & redirect security suite
 │   └── test-webhook-idempotency.mjs     # Stripe webhook idempotency verification script
 ├── supabase/                            # Supabase cloud config & migrations
 │   ├── functions/scan-site/index.ts     # Deno Edge Function executing Browserless scans
@@ -178,12 +178,12 @@ Open [http://localhost:3000](http://localhost:3000) to view the application.
 
 ### 4. Quality Verification
 ```bash
-npx tsc --noEmit                    # Type check strict mode (0 errors)
-npm run lint                        # ESLint verification (0 warnings)
-npm run test:a11y                   # Headless Chrome self-accessibility audit (0 violations)
-npm run test:tiers                  # Tier-by-tier functional & E2E verification (28/28 checks)
-node scripts/test-phase1-security.mjs # SSRF & canonical IP security assertions (41/41 passed)
-npm run build                       # Next.js production build verification
+npx tsc --noEmit                      # Type check strict mode (0 errors)
+npm run lint                          # ESLint verification (0 warnings)
+npm run test:a11y                     # Headless Chrome self-accessibility audit (0 violations)
+npm run test:tiers                    # Tier-by-tier functional & E2E verification (28/28 checks)
+npx tsx scripts/test-phase1-security.mjs # SSRF, XSS/CSS & redirect security assertions (62/62 passed)
+npm run build                         # Next.js production build verification
 ```
 
 ---

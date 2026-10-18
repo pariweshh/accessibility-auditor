@@ -201,7 +201,7 @@ accessibility-auditor/
 ├── scripts/                             # Automation, Audit & Verification Scripts
 │   ├── self-a11y-audit.mjs              # Headless Chrome + axe-core dogfooding audit (WCAG 2.2 AA)
 │   ├── tier-live-test.mjs               # Tier-by-Tier Live Feature & E2E Verification Suite (28/28 checks)
-│   ├── test-phase1-security.mjs         # 41/41 SSRF security test suite (canonical IPv4, encodings, redirects)
+│   ├── test-phase1-security.mjs         # 62/62 SSRF, XSS/CSS sanitization & redirect security suite
 │   └── test-webhook-idempotency.mjs     # Stripe webhook idempotency verification script
 ├── supabase/                            # Supabase cloud config
 │   ├── functions/scan-site/index.ts     # Deno Edge Function executing Browserless scans
@@ -212,6 +212,7 @@ accessibility-auditor/
 │       ├── 20260615000000_scheduled_monitors.sql
 │       ├── 20260616000000_fix_rls_recursion.sql
 │       ├── 20260617000000_stripe_webhook_events.sql
+│       ├── 20260618000000_security_hardening_rls.sql
 │       └── combined_pending_migrations.sql
 └── vercel.json                          # Deployment memory, duration & cron definitions
 ```
@@ -294,10 +295,12 @@ accessibility-auditor/
 * This automated self-healing mechanism guarantees user dashboards and CI/CD pipelines never hang indefinitely on orphaned jobs.
 
 ### 5. Sliding-Window In-Memory Rate Limiting (`lib/rate-limit.ts`)
-* High-abuse public endpoints employ a timestamped sliding-window rate limiter:
-  * `/api/auth/magic-link`: Capped at 5 login requests per 15-minute window per IP.
-  * `/api/team/invite`: Capped at 10 invitation dispatches per 60-minute window per user.
-* Exceeded limits reject immediately with `429 Too Many Requests` and standard `Retry-After` headers, preventing spam and email quota exhaustion.
+* High-cost and sensitive endpoints employ a timestamped sliding-window rate limiter prioritizing `x-vercel-forwarded-for`:
+  * `/api/auth/magic-link`: Capped at 5 login requests per 10-minute window per IP/email.
+  * `/api/team/invite`: Capped at 10 invitation dispatches per 60-minute window per user (20 per IP).
+  * `/api/team/accept`: Capped at 10 token acceptance attempts per 15-minute window per user.
+  * `/api/scan`, `/api/fix-suggestions`, `/api/reports/pdf`, and `/api/monitors/[id]/run`: Guarded by per-user/IP burst throttles.
+* Exceeded limits reject immediately with `429 Too Many Requests` and standard `Retry-After` headers, preventing spam and compute/email quota exhaustion.
 
 ### 6. Stripe Webhook Idempotency & Replay Defense (`public.stripe_webhook_events`)
 * Every incoming Stripe webhook event is validated against `public.stripe_webhook_events` via `supabaseAdmin`.
@@ -520,17 +523,17 @@ As an accessibility testing and compliance product, Equivance dogfoods its own p
   * Intercepts `Tab` and `Shift+Tab` to wrap focus within the boundary.
   * Listens for `Escape` to trigger immediate dismissal.
   * Preserves `document.activeElement` before open and restores focus to the invoking trigger button upon dismissal.
-* Deployed across `SettingsModal`, `ComplianceKitModal`, and `CreateMonitorModal`.
+* Deployed across `SettingsModal`, `ComplianceKitModal`, `CreateMonitorModal`, and `BillingButton` pricing modal.
 
 ### 2. Landmark Architecture & Visible-on-Focus Skip Navigation
 * **Skip Navigation Link:** `app/layout.tsx` renders `<a href="#main-content" className="sr-only focus:not-sr-only ...">Skip to main content</a>`, enabling keyboard users to bypass persistent headers and navigation bars.
 * **Semantic Landmarks:** Every route explicitly renders a dedicated `<main id="main-content" tabIndex={-1}>` landmark, eliminating generic layout wrappers and conflicting landmarks.
 * **Top-Level Isolation:** Navigation `<header>` and `<footer>` elements are positioned outside `<main>`, ensuring clean HTML5 / WAI-ARIA document landmark trees.
 
-### 3. Standalone Report Iframe Isolation (`app/report/[scanId]/page.tsx`)
+### 3. Sandboxed Standalone Report Iframe Isolation (`app/report/[scanId]/page.tsx`)
 * The PDF and HTML reporting engine (`lib/report-template.ts`) synthesizes a complete standalone HTML5 document (`<!DOCTYPE html><html lang="en">...</html>`).
 * Direct hydration via `dangerouslySetInnerHTML` inside Next.js layout creates invalid nested `<html>`/`<body>` structures that fail axe-core audits.
-* Solved by isolating report rendering within `<iframe title="WCAG 2.2 Level AA Accessibility Audit Report" srcDoc={html} className="w-full min-h-screen border-none block" />`, providing total encapsulation and native print/zoom capabilities.
+* Solved by isolating report rendering within `<iframe title="WCAG 2.2 Level AA Accessibility Audit Report" sandbox="" srcDoc={html} className="w-full min-h-screen border-none block" />`, providing total HTML/CSS encapsulation and blocking script execution inside `srcDoc`.
 
 ### 4. WAI-ARIA Tablist Pattern with Arrow-Key Roving Focus
 * Every multi-tab interface (`role="tablist"`) implements keyboard arrow-key navigation (`ArrowLeft` / `ArrowRight` / `Home` / `End`).

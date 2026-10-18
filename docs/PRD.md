@@ -2,7 +2,7 @@
 
 > **Document Status:** Active / Authoritative  
 > **Product Name:** Equivance (`accessibility-auditor`)  
-> **Version:** 2.8.0  
+> **Version:** 2.9.0  
 > **Last Updated:** October 2026  
 > **Target Standard:** WCAG 2.2 Level AA, Section 508, ADA Title III, European Accessibility Act (EAA 2025)
 
@@ -75,7 +75,7 @@
 | :--- | :---: | :--- |
 | **Asynchronous Scan Engine** | `[Ready]` | Puppeteer Core connected to Browserless.io infrastructure running inside Supabase Edge Function (`scan-site`). Defeats Vercel serverless 10s limits and persists relational `public.violations` records. |
 | **WCAG 2.2 AA Rules Engine** | `[Ready]` | Injected axe-core 4.12 evaluating DOM nodes, CSSOM computed styles, color contrast, ARIA landmarks, form labels, and focusable elements. |
-| **Zero-Violation Self-Accessibility (Dogfooding)** | `[Ready]` | Automated headless Chrome audit (`npm run test:a11y` via `scripts/self-a11y-audit.mjs`) auditing all public and authenticated routes with 0 violations across 45 WCAG rules, modal focus trapping (`hooks/use-focus-trap.ts`), and WAI-ARIA tablists. |
+| **Zero-Violation Self-Accessibility (Dogfooding)** | `[Ready]` | Automated headless Chrome audit (`npm run test:a11y` via `scripts/self-a11y-audit.mjs`) auditing all public and authenticated routes with 0 violations across 46 WCAG rules, modal focus trapping (`hooks/use-focus-trap.ts`), and WAI-ARIA tablists. |
 | **Needs Manual Review Triage** | `[Ready]` | Captures axe-core `incomplete` results (checks requiring human judgment) and displays them distinctly with actionable review guidelines. |
 | **WCAG 2.2 Manual Checklist** | `[Ready]` | Built-in interactive checklist for non-automatable criteria (2.4.11 Focus Not Obscured, 2.5.7 Dragging, 2.5.8 Target Size, 3.3.8 Accessible Auth). |
 | **Framework-Aware AI Code Fixer** | `[Ready]` | OpenAI GPT-4o-mini (Free) / GPT-4o (Pro & Agency) integration generating corrected code in `HTML`, `React / JSX + Tailwind`, `Vue 3`, or `Angular` with rationale and confidence ratings (`lib/ai-fixer.ts`). |
@@ -96,11 +96,11 @@
 | **White-Label Custom Branding** | `[Ready]` | Personalization of PDF exports, web reports, compliance statements, and SVG badges for Agency tier with custom agency logo, hex color palette, document taglines, footer disclaimers, and watermark removal. |
 | **GDPR / CCPA Self-Serve Account Deletion** | `[Ready]` | Full right-to-erasure endpoint (`DELETE /api/auth/account`) and Settings Danger Zone UI canceling active Stripe subscriptions, purging Supabase Storage PDFs, and cascading user deletion. |
 | **Scope & Limitations Transparency** | `[Ready]` | Front-facing notices on scanner and results view explaining ~40%–57% automated detection boundaries and manual audit needs. |
-| **Enterprise SSRF & DNS-Rebinding Defense** | `[Ready]` | Strict scheme validation (`http:`/`https:`), DNS resolution verification (`lib/ssrf.ts`), integer/octal/IPv6-mapped IPv4 normalization, and Puppeteer request interception (`scan-site`) blocking redirects to internal IPs or cloud metadata (`169.254.169.254`, `metadata.google.internal`). |
+| **Enterprise SSRF & DNS-Rebinding Defense** | `[Ready]` | Strict scheme validation (`http:`/`https:`), DNS resolution verification (`lib/ssrf.ts`), integer/octal/IPv6-mapped IPv4 & NAT64/6to4/Teredo normalization, and Puppeteer/CDP request interception (`scan-site` & `lib/scanner.ts`) blocking redirects to internal IPs or cloud metadata (`169.254.169.254`, `metadata.google.internal`). |
 | **Open Redirect Defense & Deep Link Retention** | `[Ready]` | `lib/safe-redirect.ts` relative path defense preventing external credential phishing while preserving user destination intents. |
 | **Production HTTP Security Headers** | `[Ready]` | Automated security headers (HSTS, nosniff, SAMEORIGIN, strict-origin-when-cross-origin, permissions-policy). |
 | **Cookie & Privacy Consent Banner** | `[Ready]` | Accessible floating privacy notice disclosing essential authentication and Stripe billing cookies, with `/legal` link and `localStorage` state. |
-| **Branded Resilient Error Boundaries** | `[Ready]` | Accessible custom 404 (`app/not-found.tsx`) and 500 error boundary (`app/error.tsx`) matching the Universal Beacon brand system. |
+| **Branded Resilient Error Boundaries** | `[Ready]` | Accessible custom 404 (`app/not-found.tsx`), segment 500 (`app/error.tsx`), and root catastrophic (`app/global-error.tsx`) error boundaries matching the Universal Beacon brand system. |
 | **Universal Beacon Brand & Favicon Ecosystem** | `[Ready]` | Unified logo design across in-app UI, SVG vector components, social OpenGraph card (`/opengraph-image`), and complete favicon suite. |
 | **Multi-URL / Whole-Domain Crawler** | `[Planned]` | Recursive sitemap parser and queue worker for scanning entire domain trees. |
 | **Automated Pull Request Bot** | `[Planned]` | GitHub App that comments directly on PRs with accessibility regressions and suggested fixes. |
@@ -133,11 +133,12 @@
 * [x] Implement SHA-256 caching for AI remediation to minimize OpenAI token consumption.
 * [x] Implement database-backed API key management with key hashing and polling (`GET /api/scan`).
 * [x] Implement WCAG 2.2 Manual Review checklist and axe-core `incomplete` item rendering.
-* [x] Harden SSRF protection with DNS-rebinding checks, canonical 32-bit IPv4 normalization, and Puppeteer redirect interception (`lib/ssrf.ts`, 41/41 security tests).
+* [x] Harden SSRF protection with DNS-rebinding checks, canonical 32-bit IPv4 & IPv6 NAT64/6to4/Teredo normalization, and Puppeteer/CDP redirect interception (`lib/ssrf.ts`, 62/62 security tests).
 * [x] Implement Stripe webhook idempotency table (`public.stripe_webhook_events`) and replay attack deduplication.
-* [x] Implement sliding-window rate limiting on magic link authentication and team invitations (`lib/rate-limit.ts`).
+* [x] Implement sliding-window rate limiting across magic link authentication, team invitations, scan dispatch, AI fixes, and PDF exports (`lib/rate-limit.ts`).
 * [x] Implement automated 3-minute stuck-scan timeout recovery in Edge Function and `GET /api/scan` poller.
 * [x] Implement GDPR/CCPA self-serve account deletion (`DELETE /api/auth/account`).
+* [x] Complete 40-point deep security & code audit remediation (RLS `to service_role` scoping, `BEFORE UPDATE` privilege-escalation triggers on `profiles` and `teams`, CSRF `Origin` checks, constant-time secret verification).
 * [ ] Add automated retry mechanism with exponential backoff for transient Browserless connection drops.
 * [ ] Support HTTP Basic Authentication and custom request headers for scanning staging environments behind firewalls.
 
@@ -154,11 +155,11 @@
 
 ### Phase 3: Self-Accessibility, Keyboard Operability & Dogfooding (Completed)
 * [x] Automated axe-core regression audit test suite (`scripts/self-a11y-audit.mjs` via `npm run test:a11y`) evaluating all public and authenticated routes.
-* [x] Zero-violation verification across 45 rules on `/`, `/login`, `/docs`, `/legal`, and `/_not-found`.
-* [x] Zero-dependency modal focus trapping hook (`hooks/use-focus-trap.ts`) enforcing `Tab`/`Shift+Tab` containment, `Escape` key dismissal, and trigger focus restoration.
+* [x] Zero-violation verification across 46 rules on `/`, `/login`, `/docs`, `/legal`, and `/_not-found`.
+* [x] Zero-dependency modal focus trapping hook (`hooks/use-focus-trap.ts`) enforcing `Tab`/`Shift+Tab` containment, `Escape` key dismissal, and trigger focus restoration across `SettingsModal`, `ComplianceKitModal`, `CreateMonitorModal`, and `BillingButton`.
 * [x] WAI-ARIA tablist arrow-navigation patterns (`ArrowLeft`/`ArrowRight`, `tabIndex`, `aria-selected`, `aria-controls`) across all tab interfaces.
 * [x] Full landmark architecture with visible-on-focus skip links (`<a href="#main-content">Skip to main content</a>`) and dedicated `<main id="main-content" tabIndex={-1}>` elements.
-* [x] Standalone report iframe encapsulation (`app/report/[scanId]/page.tsx`) eliminating nested `<html>`/`<body>` document structures.
+* [x] Sandboxed standalone report iframe encapsulation (`app/report/[scanId]/page.tsx`) eliminating nested `<html>`/`<body>` document structures and script execution.
 * [x] Strict Anti-Emoji policy enforcement: 100% of raw unicode glyphs and emojis replaced with accessible SVGs and screen-reader status regions.
 * [x] Accessible text alternative data tables for Recharts visual graphs (`components/dashboard/trend_chart.tsx`).
 
