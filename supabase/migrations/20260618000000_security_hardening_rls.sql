@@ -115,6 +115,7 @@ create trigger trg_protect_team_privileged
   for each row execute function public.protect_team_privileged_columns();
 
 -- ── 5. Lock Down Monitors RLS Policies (CRIT-01 & MED-07) ─────────────────────
+drop policy if exists "Service role can manage all monitors" on public.monitors;
 drop policy if exists "Service role has full access to monitors" on public.monitors;
 create policy "Service role has full access to monitors"
   on public.monitors for all
@@ -136,6 +137,7 @@ create policy "Users can view own or team monitors"
   );
 
 -- ── 6. Lock Down Scans RLS Policies (CRIT-02, HIGH-10, & MED-07) ──────────────
+drop policy if exists "Service role can update any scan" on public.scans;
 drop policy if exists "Service role can update scans" on public.scans;
 create policy "Service role can update scans"
   on public.scans for update
@@ -145,11 +147,14 @@ create policy "Service role can update scans"
 
 -- Prevent users from resetting monthly scan quota via direct client-side DELETE
 drop policy if exists "Users can delete own scans" on public.scans;
+drop policy if exists "Service role can delete scans" on public.scans;
 create policy "Service role can delete scans"
   on public.scans for delete
   to service_role
   using (true);
 
+drop policy if exists "Users can view their own scans" on public.scans;
+drop policy if exists "Users can view own scans" on public.scans;
 drop policy if exists "Users can view own or team scans" on public.scans;
 create policy "Users can view own or team scans"
   on public.scans for select
@@ -164,6 +169,7 @@ create policy "Users can view own or team scans"
   );
 
 -- ── 7. Lock Down Violations RLS Policies (MED-07) ─────────────────────────────
+drop policy if exists "Users can view violations for their scans" on public.violations;
 drop policy if exists "Users can view violations of own scans" on public.violations;
 create policy "Users can view violations of own scans"
   on public.violations for select
